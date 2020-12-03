@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Interactive Web</title>
+  <link rel="stylesheet" href="/css/master.css">
+  <style>
+    .box-container {
+      display: flex;
+    }
+    .box {
+      width: 100px;
+      height: 100px;
+      border: 2px solid black;
+      background: rgba(255, 255, 0, 0.7);
+      transition: 1s cubic-bezier(0.1, 0.41, 0.25, 1);
+      /*검사기에서 transition의 속성도 볼 수 있움. 1s 2s 이런식으로 하면 딜레이를 2초 준다는 \ */
+    }
+    .box:hover{
+      transform-origin: left top;
+      transform: scale(2) rotate(15deg);
+      /* 기준점 바꿔주기. 숫자값도 넣을 수 있음.
+      /* transform-origin: 0% 0%; left top 이랑 같음
+      /*transform: translateX(30px);
+      /* transform: translate(30px,10px); 이동
+      /* width , height를 바꿀때랑 다름. width는 다른 박스에는 영향을 안끼침*/
+      /*transform: skewY(30deg)*/
+    }
+  </style>
+</head>
+<body>
+  <h1>CSS Transform</h1>
+  <p>
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit. Natus perferendis optio accusantium commodi officiis aspernatur doloribus eum autem minima officia vel, est, consequatur sint, sequi voluptate itaque. In quasi, ratione eius est placeat harum vero quis quia. Ipsum, illo earum, commodi minus fugiat ipsam, nemo modi aliquam veniam ullam harum voluptates rerum corporis nobis nesciunt quidem voluptatibus aut eum. Saepe ullam quam, in accusantium quisquam consequuntur, ab molestias incidunt rerum accusamus architecto rem consectetur quidem, sunt enim! Dolores neque libero nihil impedit deleniti quae in dolor quas provident minima, maxime natus quisquam tempore reprehenderit dolorem expedita, quasi illum dolorum consectetur.
+  </p>
+  <div class="box-container">
+    <div class="box">A</div>
+    <div class="box">B</div>
+    <div class="box">C</div>
+    <div class="box">D</div>
+    <div class="box">E</div>
+  </div>
+  <p>
+    Lorem ipsum dolor sit amet, consectetur adipisicing elit. Voluptatibus eum iste hic pariatur cum eveniet, maxime dolorem nulla cumque, sequi, tenetur aliquid commodi non numquam tempora. Ea libero, inventore cupiditate molestias ab ratione, distinctio laborum fugiat. Tempore itaque qui consectetur enim, beatae. Iusto laboriosam libero est error repudiandae! Nihil voluptatibus minima laudantium modi, nobis doloremque autem, repudiandae, accusantium, tempore rem laborum animi facilis perspiciatis quia. Nam at similique, eos quos totam soluta qui facere et distinctio rerum itaque, eligendi, fuga reprehenderit facilis quaerat, sint tenetur explicabo nisi! Aliquam, alias, placeat quasi praesentium quis iure veritatis sint et quam. Ipsa, expedita!
+  </p>
+
+
+</body>
+</html>
