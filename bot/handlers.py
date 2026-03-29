@@ -1,0 +1,365 @@
+import os
+from datetime import date
+from typing import Optional
+
+from telegram import Update
+from telegram.ext import ContextTypes
+
+from .models import BotMode, ContentEntry, STATUS_KR, CONTENT_TYPE_KR
+from .sheets import SheetsClient
+from . import claude_client
+from .mode_prompts import MODE_NAMES
+
+# 모드별 대화 히스토리 (최근 10턴)
+_history: dict[str, list[dict]] = {
+    "secretary": [],
+    "finance": [],
+    "consultant": [],
+}
+MAX_HISTORY = 20  # message 수 (user+assistant 합산)
+
+_current_mode: BotMode = BotMode.SECRETARY
+_sheets: Optional[SheetsClient] = None
+
+
+def init_sheets(sheets: SheetsClient):
+    global _sheets
+    _sheets = sheets
+
+
+def _auth(update: Update) -> bool:
+    allowed = os.getenv("TELEGRAM_USER_ID", "")
+    if not allowed:
+        return True  # 미설정 시 허용 (개발 중)
+    return str(update.effective_user.id) == allowed
+
+
+def _add_history(mode: str, role: str, content: str):
+    _history[mode].append({"role": role, "content": content})
+    if len(_history[mode]) > MAX_HISTORY:
+        _history[mode] = _history[mode][-MAX_HISTORY:]
+
+
+async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    text = (
+        "안녕하세요! 저는 당신의 개인 AI 비서예요.\n\n"
+        "**현재 모드:** " + MODE_NAMES[_current_mode.value] + "\n\n"
+        "**모드 전환:**\n"
+        "/비서 · /금융 · /컨설턴트\n\n"
+        "**비서 모드 명령어:**\n"
+        "/list — 최근 아카이브 목록\n"
+        "/stats — 통계\n"
+        "/done [제목] — 완료 처리\n"
+        "/drop [제목] — 중단 처리\n"
+        "/get [제목] — 상세 조회\n"
+        "/export — 시트 링크\n"
+        "/help — 전체 도움말\n\n"
+        "또는 그냥 메시지 보내세요. 다 알아들어요!"
+    )
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+
+async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    text = (
+        "**📌 사용 방법**\n\n"
+        "**모드 전환**\n"
+        "/비서 — 콘텐츠 아카이브 + 일상 비서\n"
+        "/금융 — 재무 분석, 투자 상담\n"
+        "/컨설턴트 — 전략, 의사결정 지원\n"
+        "/모드 — 현재 모드 확인\n\n"
+        "**비서 모드 — 자연어 예시**\n"
+        "• `소로 레벨링 87화 읽었어`\n"
+        "• `무빙 다 봤어, 9점`\n"
+        "• `파친코 추가해줘`\n"
+        "• `판타지 웹툰 추천해줘`\n"
+        "• `이번달에 뭐 봤더라?`\n\n"
+        "**비서 모드 — 명령어**\n"
+        "/list [필터] — 목록 (예: /list 드라마, /list 완료)\n"
+        "/stats — 통계 요약\n"
+        "/get [제목] — 상세 조회\n"
+        "/done [제목] — 완료 처리\n"
+        "/drop [제목] — 중단 처리\n"
+        "/export — Google Sheets 링크\n\n"
+        "**금융/컨설턴트 모드**\n"
+        "모드 전환 후 자유롭게 질문하세요."
+    )
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+
+async def mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    await update.message.reply_text(
+        f"현재 모드: {MODE_NAMES[_current_mode.value]}",
+        parse_mode="Markdown"
+    )
+
+
+async def switch_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global _current_mode
+    if not _auth(update):
+        return
+    cmd = update.message.text.split()[0].lstrip("/").lower()
+    if cmd in ("비서", "secretary"):
+        _current_mode = BotMode.SECRETARY
+    elif cmd in ("금융", "finance"):
+        _current_mode = BotMode.FINANCE
+    elif cmd in ("컨설턴트", "consultant"):
+        _current_mode = BotMode.CONSULTANT
+
+    name = MODE_NAMES[_current_mode.value]
+    await update.message.reply_text(f"{name} 모드로 전환했어요.", parse_mode="Markdown")
+
+
+async def list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    args = context.args or []
+    filter_arg = " ".join(args).strip().lower() if args else ""
+
+    # 필터 파싱
+    type_map = {v.lower(): k for k, v in CONTENT_TYPE_KR.items()}
+    type_map.update({k: k for k in CONTENT_TYPE_KR})
+    status_map = {v: k for k, v in STATUS_KR.items()}
+    status_map.update({k: k for k in STATUS_KR})
+
+    filter_type = type_map.get(filter_arg)
+    filter_status = status_map.get(filter_arg)
+
+    entries = _sheets.get_recent(n=10, filter_type=filter_type, filter_status=filter_status)
+    text = _sheets.format_list(entries)
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+
+async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    text = _sheets.format_stats()
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+
+async def get_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text("조회할 제목을 입력해주세요. 예: `/get 소로 레벨링`", parse_mode="Markdown")
+        return
+    title = " ".join(context.args)
+    entry = _sheets.get_entry_by_title(title)
+    if not entry:
+        await update.message.reply_text(f"'{title}'을(를) 찾지 못했어요.")
+        return
+    await update.message.reply_text(_format_entry_detail(entry), parse_mode="Markdown")
+
+
+async def done_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text("완료 처리할 제목을 입력해주세요. 예: `/done 무빙`", parse_mode="Markdown")
+        return
+    title = " ".join(context.args)
+    entry = _sheets.get_entry_by_title(title)
+    if not entry:
+        await update.message.reply_text(f"'{title}'을(를) 찾지 못했어요.")
+        return
+    entry.status = "completed"
+    entry.date_completed = str(date.today())
+    _sheets.update_entry(entry)
+    await update.message.reply_text(f"**{entry.title}** 완료 처리했어요! 평점도 남겨두실 건가요?", parse_mode="Markdown")
+
+
+async def drop_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text("중단 처리할 제목을 입력해주세요. 예: `/drop 제목`", parse_mode="Markdown")
+        return
+    title = " ".join(context.args)
+    entry = _sheets.get_entry_by_title(title)
+    if not entry:
+        await update.message.reply_text(f"'{title}'을(를) 찾지 못했어요.")
+        return
+    entry.status = "dropped"
+    _sheets.update_entry(entry)
+    await update.message.reply_text(f"**{entry.title}** 중단 처리했어요.", parse_mode="Markdown")
+
+
+async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    sheet_id = os.getenv("SPREADSHEET_ID", "")
+    if sheet_id:
+        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
+        await update.message.reply_text(f"[Google Sheets 열기]({url})", parse_mode="Markdown")
+    else:
+        await update.message.reply_text("SPREADSHEET_ID 환경변수가 설정되지 않았어요.")
+
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    text = update.message.text.strip()
+    mode = _current_mode.value
+
+    # 비서 모드: 아카이브 관련 파싱 먼저 시도
+    if mode == "secretary":
+        await _handle_secretary(update, text)
+    else:
+        # 금융/컨설턴트 모드: Claude 대화
+        await update.message.chat.send_action("typing")
+        _add_history(mode, "user", text)
+        reply = claude_client.chat(mode, text, history=_history[mode][:-1])
+        _add_history(mode, "assistant", reply)
+        await update.message.reply_text(reply)
+
+
+async def _handle_secretary(update: Update, text: str):
+    known_titles = _sheets.get_titles()
+    intent = claude_client.parse_archive_message(text, known_titles)
+
+    if intent.action == "unknown" or intent.confidence < 0.5:
+        # 일반 비서 대화로 처리
+        await update.message.chat.send_action("typing")
+        _add_history("secretary", "user", text)
+        reply = claude_client.chat("secretary", text, history=_history["secretary"][:-1])
+        _add_history("secretary", "assistant", reply)
+        await update.message.reply_text(reply)
+        return
+
+    if intent.action in ("record_progress", "add_new", "mark_status", "rate", "note"):
+        await _handle_archive_action(update, intent)
+    elif intent.action == "recommend":
+        await update.message.chat.send_action("typing")
+        entries = _sheets.get_all_entries()
+        reply = claude_client.get_recommendations(text, entries)
+        await update.message.reply_text(reply)
+    elif intent.action == "query":
+        await update.message.chat.send_action("typing")
+        entries = _sheets.get_all_entries()
+        reply = claude_client.answer_query(text, entries)
+        await update.message.reply_text(reply)
+    else:
+        # 낮은 confidence → 되묻기
+        if intent.title and intent.confidence < 0.7:
+            await update.message.reply_text(
+                f"혹시 **{intent.title}** 말씀하시는 건가요?",
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text("잘 이해하지 못했어요. 다시 말씀해주시겠어요?")
+
+
+async def _handle_archive_action(update, intent):
+    today = str(date.today())
+    entry = None
+
+    if intent.title:
+        entry = _sheets.get_entry_by_title(intent.title)
+
+    if intent.action == "add_new":
+        if entry:
+            await update.message.reply_text(
+                f"**{entry.title}**은(는) 이미 아카이브에 있어요. ({STATUS_KR.get(entry.status, '')})",
+                parse_mode="Markdown"
+            )
+            return
+        new_entry = ContentEntry(
+            title=intent.title or "제목 없음",
+            type=intent.content_type or "other",
+            status=intent.status or "not_started",
+            progress=intent.progress or "",
+            notes=intent.note or "",
+            date_added=today,
+        )
+        added = _sheets.add_entry(new_entry)
+        type_kr = CONTENT_TYPE_KR.get(added.type, added.type)
+        status_kr = STATUS_KR.get(added.status, added.status)
+        await update.message.reply_text(
+            f"**{added.title}** ({type_kr}) 추가했어요! 상태: {status_kr}",
+            parse_mode="Markdown"
+        )
+        return
+
+    if not entry:
+        # 새로 등록하면서 진행상황 업데이트
+        new_entry = ContentEntry(
+            title=intent.title or "제목 없음",
+            type=intent.content_type or "other",
+            status=intent.status or "in_progress",
+            progress=intent.progress or "",
+            notes=intent.note or "",
+            date_added=today,
+        )
+        if intent.rating is not None:
+            new_entry.rating = intent.rating
+        added = _sheets.add_entry(new_entry)
+        await update.message.reply_text(
+            f"**{added.title}** 새로 등록했어요! {added.progress or ''}",
+            parse_mode="Markdown"
+        )
+        return
+
+    # 기존 항목 업데이트
+    if intent.progress:
+        old_progress = entry.progress
+        entry.progress = intent.progress
+        log_entry = f"[{today}: {intent.progress}]"
+        entry.raw_log = f"{entry.raw_log} {log_entry}".strip()
+
+    if intent.status:
+        entry.status = intent.status
+        if intent.status == "completed" and not entry.date_completed:
+            entry.date_completed = today
+
+    if intent.rating is not None:
+        entry.rating = intent.rating
+
+    if intent.note:
+        entry.notes = f"{entry.notes}\n{intent.note}".strip() if entry.notes else intent.note
+
+    _sheets.update_entry(entry)
+    await update.message.reply_text(_build_update_reply(entry, intent), parse_mode="Markdown")
+
+
+def _build_update_reply(entry: ContentEntry, intent) -> str:
+    parts = []
+    if intent.status == "completed":
+        parts.append(f"**{entry.title}** 완료 처리했어요!")
+        if not intent.rating:
+            parts.append("평점도 남겨두실 건가요?")
+    elif intent.progress:
+        parts.append(f"**{entry.title}** → {entry.progress} 업데이트했어요.")
+    elif intent.rating is not None:
+        parts.append(f"**{entry.title}** 평점 ⭐{entry.rating} 저장했어요.")
+    elif intent.note:
+        parts.append(f"**{entry.title}** 메모 추가했어요.")
+    else:
+        parts.append(f"**{entry.title}** 업데이트했어요.")
+    return " ".join(parts)
+
+
+def _format_entry_detail(entry: ContentEntry) -> str:
+    type_kr = CONTENT_TYPE_KR.get(entry.type, entry.type)
+    status_kr = STATUS_KR.get(entry.status, entry.status)
+    lines = [
+        f"**{entry.title}**",
+        f"종류: {type_kr} · 상태: {status_kr}",
+    ]
+    if entry.progress:
+        lines.append(f"진행: {entry.progress}")
+    if entry.rating is not None:
+        lines.append(f"평점: ⭐{entry.rating}")
+    if entry.tags:
+        lines.append(f"태그: {entry.tags}")
+    if entry.notes:
+        lines.append(f"메모: {entry.notes}")
+    if entry.date_added:
+        lines.append(f"등록일: {entry.date_added}")
+    if entry.source:
+        lines.append(f"출처: {entry.source}")
+    return "\n".join(lines)

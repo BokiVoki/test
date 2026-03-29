@@ -1,0 +1,164 @@
+import json
+import os
+from typing import Optional
+
+import anthropic
+
+from .models import ContentEntry, ParsedIntent, CONTENT_TYPES, STATUS_VALUES
+from .mode_prompts import PROMPTS
+
+_client: Optional[anthropic.Anthropic] = None
+
+
+def _get_client() -> anthropic.Anthropic:
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    return _client
+
+
+def parse_archive_message(text: str, known_titles: list[str]) -> ParsedIntent:
+    """
+    자연어 메시지를 파싱하여 아카이브 관련 의도를 추출합니다.
+    빠른 응답을 위해 Haiku 모델을 사용합니다.
+    """
+    titles_str = json.dumps(known_titles, ensure_ascii=False)
+    system = f"""당신은 콘텐츠 아카이브 비서입니다. 사용자 메시지를 파싱하여 JSON만 반환하세요.
+
+아카이브에 등록된 제목 목록:
+{titles_str}
+
+반환할 JSON 스키마:
+{{
+  "action": "string",        // record_progress | add_new | mark_status | rate | query | recommend | note | unknown
+  "title": "string|null",    // 제목 (위 목록에서 유사한 것 매칭)
+  "content_type": "string|null", // {CONTENT_TYPES}
+  "progress": "string|null", // "87화", "5화", "3장", "Ep.12", "Page 203" 형식
+  "status": "string|null",   // {STATUS_VALUES}
+  "rating": "number|null",   // 1-10
+  "note": "string|null",
+  "query_text": "string|null",
+  "recommend_context": "string|null",
+  "confidence": "number"     // 0.0-1.0
+}}
+
+규칙:
+- "봤어", "읽었어", "들었어" 등 → record_progress (status는 in_progress 유지)
+- "다 봤어", "완료", "끝냈어", "다 읽었어" → mark_status (status: completed)
+- "추가해줘", "등록해줘", "시작할 거야" → add_new
+- "중단", "그만 봤어", "드랍" → mark_status (status: dropped)
+- "점 줘", "평점", "점수" → rate
+- "추천해줘", "뭐 볼까" → recommend
+- "보여줘", "목록", "뭐 봤더라" → query
+- 제목은 목록과 유사한 것이 있으면 반드시 매칭
+- "다 봤어" + 평점이 함께 오면 action은 mark_status, rating에 값 포함
+
+JSON만 반환하고 다른 텍스트는 절대 포함하지 마세요."""
+
+    client = _get_client()
+    try:
+        resp = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=512,
+            system=system,
+            messages=[{"role": "user", "content": text}],
+        )
+        raw = resp.content[0].text.strip()
+        # JSON 블록 추출 (마크다운 코드블록 처리)
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        data = json.loads(raw)
+        return ParsedIntent(
+            action=data.get("action", "unknown"),
+            title=data.get("title"),
+            content_type=data.get("content_type"),
+            progress=data.get("progress"),
+            status=data.get("status"),
+            rating=data.get("rating"),
+            note=data.get("note"),
+            query_text=data.get("query_text"),
+            recommend_context=data.get("recommend_context"),
+            confidence=float(data.get("confidence", 1.0)),
+            raw_message=text,
+        )
+    except Exception:
+        return ParsedIntent(action="unknown", raw_message=text, confidence=0.0)
+
+
+def chat(mode: str, user_message: str, context: str = "", history: list[dict] | None = None) -> str:
+    """
+    모드별 시스템 프롬프트로 Claude와 대화합니다.
+    비서 모드의 추천/검색 시 아카이브 데이터를 context로 전달합니다.
+    """
+    system = PROMPTS.get(mode, PROMPTS["secretary"])
+    if context:
+        system = f"{system}\n\n---\n현재 사용자 아카이브 데이터:\n{context}"
+
+    messages = history.copy() if history else []
+    messages.append({"role": "user", "content": user_message})
+
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        system=system,
+        messages=messages,
+    )
+    return resp.content[0].text.strip()
+
+
+def get_recommendations(query: str, entries: list[ContentEntry]) -> str:
+    """
+    아카이브 전체를 컨텍스트로 넘겨 추천을 받습니다.
+    """
+    if not entries:
+        archive_text = "아직 아카이브가 비어있어요."
+    else:
+        lines = []
+        for e in entries:
+            parts = [f"- {e.title} ({e.type})"]
+            if e.rating:
+                parts.append(f"평점 {e.rating}")
+            if e.status:
+                parts.append(e.status)
+            if e.tags:
+                parts.append(f"태그: {e.tags}")
+            if e.notes:
+                parts.append(f"메모: {e.notes[:50]}")
+            lines.append(" | ".join(parts))
+        archive_text = "\n".join(lines)
+
+    prompt = f"""사용자의 콘텐츠 아카이브:
+{archive_text}
+
+사용자 요청: {query}
+
+아카이브를 참고해서:
+1. 아카이브 내에서 아직 완료 안 한 것 중 관련 있는 것 추천 (있다면)
+2. 아카이브 취향 분석 기반 새로운 추천 2-3개
+
+간결하게 한국어로 답변해주세요."""
+
+    return chat("secretary", prompt)
+
+
+def answer_query(query: str, entries: list[ContentEntry]) -> str:
+    """
+    자연어 쿼리에 맞게 아카이브를 필터링/요약합니다.
+    """
+    if not entries:
+        return "아직 아카이브가 비어있어요."
+
+    lines = [f"- {e.title} | {e.type} | {e.status} | 진행: {e.progress} | 평점: {e.rating or '-'} | 날짜: {e.date_updated}" for e in entries]
+    archive_text = "\n".join(lines)
+
+    prompt = f"""아카이브:
+{archive_text}
+
+질문: {query}
+
+질문에 맞게 관련 항목만 추려서 간결하게 한국어로 답변해주세요."""
+
+    return chat("secretary", prompt)
