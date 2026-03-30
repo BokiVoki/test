@@ -66,7 +66,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "안녕하세요! 저는 당신의 개인 AI 비서예요.\n\n"
         "**현재 모드:** " + MODE_NAMES[_current_mode.value] + "\n\n"
         "**모드 전환:**\n"
-        "/비서 · /금융 · /컨설턴트\n\n"
+        "/secretary · /finance · /consultant\n\n"
         "**비서 모드 명령어:**\n"
         "/list — 최근 아카이브 목록\n"
         "/stats — 통계\n"
@@ -86,10 +86,10 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "**📌 사용 방법**\n\n"
         "**모드 전환**\n"
-        "/비서 — 콘텐츠 아카이브 + 일상 비서\n"
-        "/금융 — 재무 분석, 투자 상담\n"
-        "/컨설턴트 — 전략, 의사결정 지원\n"
-        "/모드 — 현재 모드 확인\n\n"
+        "/secretary — 콘텐츠 아카이브 + 일상 비서\n"
+        "/finance — 재무 분석, 투자 상담\n"
+        "/consultant — 전략, 의사결정 지원\n"
+        "/mode — 현재 모드 확인\n\n"
         "**비서 모드 — 자연어 예시**\n"
         "• `소로 레벨링 87화 읽었어`\n"
         "• `무빙 다 봤어, 9점`\n"
@@ -123,11 +123,11 @@ async def switch_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not _auth(update):
         return
     cmd = update.message.text.split()[0].lstrip("/").lower()
-    if cmd in ("비서", "secretary"):
+    if cmd == "secretary":
         _current_mode = BotMode.SECRETARY
-    elif cmd in ("금융", "finance"):
+    elif cmd == "finance":
         _current_mode = BotMode.FINANCE
-    elif cmd in ("컨설턴트", "consultant"):
+    elif cmd == "consultant":
         _current_mode = BotMode.CONSULTANT
 
     name = MODE_NAMES[_current_mode.value]

@@ -36,11 +36,11 @@ def main():
 
     app = Application.builder().token(token).build()
 
-    # 모드 전환
-    app.add_handler(CommandHandler(["비서", "secretary"], handlers.switch_mode_handler))
-    app.add_handler(CommandHandler(["금융", "finance"], handlers.switch_mode_handler))
-    app.add_handler(CommandHandler(["컨설턴트", "consultant"], handlers.switch_mode_handler))
-    app.add_handler(CommandHandler("모드", handlers.mode_handler))
+    # 모드 전환 (텔레그램 명령어는 영어/숫자만 가능)
+    app.add_handler(CommandHandler("secretary", handlers.switch_mode_handler))
+    app.add_handler(CommandHandler("finance", handlers.switch_mode_handler))
+    app.add_handler(CommandHandler("consultant", handlers.switch_mode_handler))
+    app.add_handler(CommandHandler("mode", handlers.mode_handler))
 
     # 비서 명령어
     app.add_handler(CommandHandler("start", handlers.start_handler))
