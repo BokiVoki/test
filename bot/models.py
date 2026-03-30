@@ -11,7 +11,8 @@ class BotMode(Enum):
 
 CONTENT_TYPES = [
     "book", "webtoon", "drama", "movie", "anime",
-    "manga", "article", "podcast", "game", "other"
+    "manga", "article", "podcast", "game",
+    "graphic_book", "documentary", "exhibition", "other"
 ]
 
 CONTENT_TYPE_KR = {
@@ -24,6 +25,9 @@ CONTENT_TYPE_KR = {
     "article": "아티클",
     "podcast": "팟캐스트",
     "game": "게임",
+    "graphic_book": "그래픽북",
+    "documentary": "다큐",
+    "exhibition": "전시",
     "other": "기타",
 }
 

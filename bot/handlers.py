@@ -30,7 +30,7 @@ def init_sheets(sheets: SheetsClient):
 def _auth(update: Update) -> bool:
     allowed = os.getenv("TELEGRAM_USER_ID", "")
     if not allowed:
-        return True  # 미설정 시 허용 (개발 중)
+        return True  # 미설정 시 허용 (개발/초기 설정 중)
     return str(update.effective_user.id) == allowed
 
 
@@ -41,8 +41,27 @@ def _add_history(mode: str, role: str, content: str):
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not _auth(update):
+    user_id = str(update.effective_user.id)
+    allowed = os.getenv("TELEGRAM_USER_ID", "")
+
+    # TELEGRAM_USER_ID 미설정 시 → 본인 ID 안내 (초기 설정 도우미)
+    if not allowed:
+        await update.message.reply_text(
+            f"👋 안녕하세요!\n\n"
+            f"⚙️ **초기 설정이 필요해요.**\n\n"
+            f"당신의 Telegram User ID는:\n"
+            f"`{user_id}`\n\n"
+            f"이 숫자를 `.env` 파일의 `TELEGRAM_USER_ID=` 뒤에 붙여넣으세요:\n"
+            f"`TELEGRAM_USER_ID={user_id}`\n\n"
+            f"설정 후 봇을 재시작하면 돼요!",
+            parse_mode="Markdown"
+        )
         return
+
+    if not _auth(update):
+        await update.message.reply_text("인증되지 않은 사용자예요.")
+        return
+
     text = (
         "안녕하세요! 저는 당신의 개인 AI 비서예요.\n\n"
         "**현재 모드:** " + MODE_NAMES[_current_mode.value] + "\n\n"
