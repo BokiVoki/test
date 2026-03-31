@@ -281,47 +281,7 @@ async def remind_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await update.message.chat.send_action("typing")
-
-    kst = timezone(timedelta(hours=9))
-    now_str = datetime.now(kst).strftime("%Y년 %m월 %d일 %H시 %M분")
-    try:
-        parsed = claude_client.parse_reminder_time(raw, now_str)
-        trigger_at = parsed["trigger_at"]
-        repeat = parsed.get("repeat", "none")
-        if "/" in raw:
-            reminder_text = raw.split("/", 1)[1].strip()
-        else:
-            reminder_text = parsed.get("reminder_text", raw)
-    except Exception as e:
-        await update.message.reply_text(
-            f"시간을 이해하지 못했어요. (`{e}`)\n예: `/remind 내일 오전 9시 / 약 먹기`",
-            parse_mode="Markdown"
-        )
-        return
-
-    try:
-        reminder = Reminder(text=reminder_text, trigger_at=trigger_at, repeat=repeat)
-        _reminders.add_reminder(reminder)
-    except Exception as e:
-        await update.message.reply_text(f"❌ 저장 실패: {e}")
-        return
-
-    try:
-        dt = datetime.fromisoformat(trigger_at)
-        time_str = dt.strftime("%Y-%m-%d %H:%M")
-    except Exception:
-        time_str = trigger_at
-
-    repeat_label = {"none": "", "daily": " (매일 반복)", "weekly": " (매주 반복)", "monthly": " (매달 반복)"}.get(repeat, "")
-    key, markup = _undo_keyboard("❌ 취소")
-    _undo_state[key] = {"type": "cancel_remind", "reminder_id": reminder.id}
-    await update.message.reply_text(
-        f"🔔 리마인더 등록!\n\n"
-        f"**내용:** {reminder_text}\n"
-        f"**시간:** {time_str}{repeat_label}",
-        parse_mode="Markdown", reply_markup=markup
-    )
+    await _handle_remind_natural(update, raw)
 
 
 async def reminders_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -417,6 +377,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _reminders.deactivate(state["reminder_id"])
         await query.edit_message_text("🔕 리마인더 취소했어요!")
 
+    elif t == "cancel_remind_list":
+        for rid in state.get("ids", []):
+            _reminders.deactivate(rid)
+        n = len(state.get("ids", []))
+        await query.edit_message_text(f"🔕 리마인더 {n}개 취소했어요!")
+
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
@@ -442,6 +408,52 @@ _REMINDER_CANCEL_ALL_KEYWORDS = ("전부 취소", "다 취소", "모두 취소",
 _REMINDER_ADD_KEYWORDS = ("설정", "추가", "등록", "해줘", "줘")
 
 
+async def _handle_remind_natural(update: Update, text: str):
+    """자연어 리마인더 등록 (여러 날짜 지원)"""
+    if _reminders is None:
+        await update.message.reply_text("❌ 리마인더 초기화 실패.")
+        return
+
+    await update.message.chat.send_action("typing")
+    kst = timezone(timedelta(hours=9))
+    now_str = datetime.now(kst).strftime("%Y년 %m월 %d일 %H시 %M분")
+    try:
+        items = claude_client.parse_reminder_times(text, now_str)
+    except Exception as e:
+        await update.message.reply_text(f"시간을 이해하지 못했어요. (`{e}`)")
+        return
+
+    registered = []
+    for item in items:
+        try:
+            reminder = Reminder(
+                text=item.get("reminder_text", text),
+                trigger_at=item["trigger_at"],
+                repeat=item.get("repeat", "none"),
+            )
+            _reminders.add_reminder(reminder)
+            registered.append(reminder)
+        except Exception as e:
+            await update.message.reply_text(f"❌ 저장 실패: {e}")
+            return
+
+    repeat_label = {"none": "", "daily": " 매일", "weekly": " 매주", "monthly": " 매달"}
+    lines = [f"🔔 리마인더 {len(registered)}개 등록!"]
+    for r in registered:
+        try:
+            dt = datetime.fromisoformat(r.trigger_at)
+            ts = dt.strftime("%m/%d %H:%M")
+        except Exception:
+            ts = r.trigger_at
+        rep = repeat_label.get(r.repeat, "")
+        lines.append(f"• {r.text} — {ts}{rep}")
+
+    key, markup = _undo_keyboard("↩️ 전체 취소" if len(registered) > 1 else "↩️ 취소")
+    # 전체 취소 undo: 등록된 모든 reminder id 저장
+    _undo_state[key] = {"type": "cancel_remind_list", "ids": [r.id for r in registered]}
+    await update.message.reply_text("\n".join(lines), reply_markup=markup)
+
+
 def _is_reminder_intent(t: str, keywords: tuple) -> bool:
     """리마인더 관련 단어 + 키워드가 함께 있는지 확인"""
     has_reminder_word = any(w in t for w in _REMINDER_WORDS)
@@ -462,15 +474,9 @@ async def _handle_secretary(update: Update, text: str):
         await reminders_handler(update, None)
         return
 
-    # 리마인더 추가 요청 → /remind 안내
+    # 리마인더 추가 요청 → 직접 파싱 후 등록
     if _is_reminder_intent(t, _REMINDER_ADD_KEYWORDS):
-        await update.message.reply_text(
-            "리마인더는 `/remind` 명령어로 등록해요!\n\n"
-            "예시:\n"
-            "• `/remind 내일 오전 9시 / 약 먹기`\n"
-            "• `/remind 매일 저녁 10시 / 스트레칭`",
-            parse_mode="Markdown"
-        )
+        await _handle_remind_natural(update, text)
         return
 
     known_titles = _sheets.get_titles()
