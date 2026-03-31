@@ -642,14 +642,17 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 메모 저장 감지 (모든 모드)
     if any(kw in t for kw in _MEMO_SAVE_KEYWORDS):
-        # 저장할 내용 = 최근 대화 히스토리 요약 or 현재 메시지 앞 내용
         hist = _history.get(mode, [])
-        if hist:
-            # 마지막 사용자 발화 + 봇 응답을 합쳐서 저장
-            recent = [m for m in hist[-6:]]
-            content = "\n".join(f"{'나' if m['role']=='user' else '봇'}: {m['content']}" for m in recent)
-        else:
-            content = text
+        if not hist:
+            await update.message.reply_text(
+                "저장할 대화 내용이 없어요.\n대화를 먼저 나눈 후 '기록해줘'라고 해주세요."
+            )
+            return
+        await update.message.chat.send_action("typing")
+        content = claude_client.summarize_conversation(hist[-10:], mode)
+        if not content:
+            await update.message.reply_text("요약할 내용이 없어요.")
+            return
         await _save_memo(update, mode, content)
         return
 

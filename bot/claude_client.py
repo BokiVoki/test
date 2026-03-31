@@ -262,6 +262,31 @@ def parse_todo(user_input: str, now_kst_str: str) -> dict:
     raise ValueError(f"파싱 실패: {raw}")
 
 
+def summarize_conversation(history: list[dict], mode: str) -> str:
+    """대화 히스토리를 핵심 내용으로 요약"""
+    if not history:
+        return ""
+    conv = "\n".join(
+        f"{'사용자' if m['role'] == 'user' else '봇'}: {m['content']}"
+        for m in history
+    )
+    mode_kr = {"finance": "금융", "consultant": "컨설턴트", "secretary": "비서"}.get(mode, mode)
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=600,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"다음은 {mode_kr} 관련 대화예요. 핵심 내용을 구조화해서 메모 형식으로 요약해주세요.\n"
+                "날짜/수치/결론 위주로, 나중에 다시 봤을 때 바로 이해할 수 있게.\n\n"
+                f"{conv}"
+            ),
+        }],
+    )
+    return resp.content[0].text.strip()
+
+
 def answer_query(query: str, entries: list[ContentEntry]) -> str:
     """
     자연어 쿼리에 맞게 아카이브를 필터링/요약합니다.
