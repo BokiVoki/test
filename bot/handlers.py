@@ -533,29 +533,24 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
 
 
-_MODE_KEYWORDS: dict[str, BotMode] = {
-    # 비서
-    "비서": BotMode.SECRETARY, "비서 모드": BotMode.SECRETARY, "secretary": BotMode.SECRETARY,
-    "아카이브 모드": BotMode.SECRETARY,
-    # 금융
-    "금융": BotMode.FINANCE, "금융 모드": BotMode.FINANCE, "finance": BotMode.FINANCE,
-    "금융전문가": BotMode.FINANCE, "금융 전문가": BotMode.FINANCE,
-    # 컨설턴트
-    "컨설턴트": BotMode.CONSULTANT, "컨설턴트 모드": BotMode.CONSULTANT, "consultant": BotMode.CONSULTANT,
-    "전략": BotMode.CONSULTANT, "전략 모드": BotMode.CONSULTANT,
+_MODE_WORDS: dict[BotMode, tuple] = {
+    BotMode.SECRETARY:  ("비서", "secretary"),
+    BotMode.FINANCE:    ("금융 모드", "금융전문가", "금융 전문가", "finance"),
+    BotMode.CONSULTANT: ("컨설턴트", "consultant", "전략가"),
 }
+_SWITCH_WORDS = ("전환", "바꿔", "변경", "모드", "켜줘", "해줘", "시작")
 
 
 def _detect_mode_switch(text: str) -> Optional[BotMode]:
-    """자연어에서 모드 전환 의도 감지"""
     t = text.strip().lower()
-    # 정확히 모드 키워드 자체거나 "~모드", "~로 바꿔", "~로 전환" 패턴
-    for kw, mode in _MODE_KEYWORDS.items():
-        if t == kw:
-            return mode
-        if t in (f"{kw}로 바꿔", f"{kw}로 전환", f"{kw}로 바꿔줘", f"{kw}로 전환해줘",
-                 f"{kw}로 변경", f"{kw} 해줘", f"{kw} 켜줘"):
-            return mode
+    for mode, words in _MODE_WORDS.items():
+        if any(w in t for w in words):
+            # "모드" 키워드 포함 → 항상 전환
+            if "모드" in t:
+                return mode
+            # 짧은 메시지(≤12자) → 전환 (예: "금융전문가 전환해", "컨설턴트")
+            if len(t) <= 12:
+                return mode
     return None
 
 
