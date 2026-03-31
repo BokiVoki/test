@@ -533,10 +533,46 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
 
 
+_MODE_KEYWORDS: dict[str, BotMode] = {
+    # 비서
+    "비서": BotMode.SECRETARY, "비서 모드": BotMode.SECRETARY, "secretary": BotMode.SECRETARY,
+    "아카이브 모드": BotMode.SECRETARY,
+    # 금융
+    "금융": BotMode.FINANCE, "금융 모드": BotMode.FINANCE, "finance": BotMode.FINANCE,
+    "금융전문가": BotMode.FINANCE, "금융 전문가": BotMode.FINANCE,
+    # 컨설턴트
+    "컨설턴트": BotMode.CONSULTANT, "컨설턴트 모드": BotMode.CONSULTANT, "consultant": BotMode.CONSULTANT,
+    "전략": BotMode.CONSULTANT, "전략 모드": BotMode.CONSULTANT,
+}
+
+
+def _detect_mode_switch(text: str) -> Optional[BotMode]:
+    """자연어에서 모드 전환 의도 감지"""
+    t = text.strip().lower()
+    # 정확히 모드 키워드 자체거나 "~모드", "~로 바꿔", "~로 전환" 패턴
+    for kw, mode in _MODE_KEYWORDS.items():
+        if t == kw:
+            return mode
+        if t in (f"{kw}로 바꿔", f"{kw}로 전환", f"{kw}로 바꿔줘", f"{kw}로 전환해줘",
+                 f"{kw}로 변경", f"{kw} 해줘", f"{kw} 켜줘"):
+            return mode
+    return None
+
+
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global _current_mode
     if not _auth(update):
         return
     text = update.message.text.strip()
+
+    # 자연어 모드 전환 감지 (모든 모드에서 동작)
+    new_mode = _detect_mode_switch(text)
+    if new_mode:
+        _current_mode = new_mode
+        name = MODE_NAMES[_current_mode.value]
+        await update.message.reply_text(f"{name} 모드로 전환했어요.")
+        return
+
     mode = _current_mode.value
 
     # 비서 모드: 아카이브 관련 파싱 먼저 시도
