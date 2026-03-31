@@ -376,7 +376,14 @@ async def todos_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/todos — 미완료 투두 목록"""
     if not _auth(update):
         return
-    pending = _todos.get_pending()
+    if _todos is None:
+        await update.message.reply_text("❌ 투두 초기화 실패.")
+        return
+    try:
+        pending = _todos.get_pending()
+    except Exception as e:
+        await update.message.reply_text(f"❌ 오류: {e}")
+        return
     if not pending:
         await update.message.reply_text("✅ 할 일이 없어요!")
         return
@@ -434,39 +441,43 @@ async def _handle_todo_natural(update: Update, text: str):
         return
 
     action = parsed.get("action", "add")
-    todo_text = parsed.get("text", text).strip()
+    todo_text = (parsed.get("text") or text).strip()
     due_date = parsed.get("due_date") or ""
 
-    if action == "list":
-        await todos_handler(update, None)
+    try:
+        if action == "list":
+            await todos_handler(update, None)
 
-    elif action == "add":
-        await update.message.chat.send_action("typing")
-        item = TodoItem(text=todo_text, due_date=due_date)
-        _todos.add(item)
-        due_str = _fmt_due(due_date)
-        key, markup = _undo_keyboard("↩️ 취소")
-        _undo_state[key] = {"type": "delete_todo", "todo_id": item.id}
-        await update.message.reply_text(
-            f"📋 **{todo_text}** 추가했어요!{due_str}",
-            parse_mode="Markdown", reply_markup=markup
-        )
+        elif action == "add":
+            await update.message.chat.send_action("typing")
+            item = TodoItem(text=todo_text, due_date=due_date)
+            _todos.add(item)
+            due_str = _fmt_due(due_date)
+            key, markup = _undo_keyboard("↩️ 취소")
+            _undo_state[key] = {"type": "delete_todo", "todo_id": item.id}
+            await update.message.reply_text(
+                f"📋 **{todo_text}** 추가했어요!{due_str}",
+                parse_mode="Markdown", reply_markup=markup
+            )
 
-    elif action == "complete":
-        item = _todos.find_by_text(todo_text)
-        if not item:
-            await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요. `/todos`로 목록 확인해주세요.", parse_mode="Markdown")
-            return
-        _todos.complete(item.id)
-        await update.message.reply_text(f"✅ **{item.text}** 완료!", parse_mode="Markdown")
+        elif action == "complete":
+            item = _todos.find_by_text(todo_text)
+            if not item:
+                await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요. `/todos`로 목록 확인해주세요.", parse_mode="Markdown")
+                return
+            _todos.complete(item.id)
+            await update.message.reply_text(f"✅ **{item.text}** 완료!", parse_mode="Markdown")
 
-    elif action == "delete":
-        item = _todos.find_by_text(todo_text)
-        if not item:
-            await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요.")
-            return
-        _todos.delete(item.id)
-        await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
+        elif action == "delete":
+            item = _todos.find_by_text(todo_text)
+            if not item:
+                await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요.")
+                return
+            _todos.delete(item.id)
+            await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ 오류: {e}")
 
 
 async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
