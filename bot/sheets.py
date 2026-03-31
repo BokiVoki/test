@@ -90,6 +90,26 @@ class SheetsClient:
         self._invalidate_cache()
         return entry
 
+    def batch_add_entries(self, entries: list[ContentEntry]) -> int:
+        """여러 항목을 한 번의 API 호출로 저장 (import용)"""
+        today = str(date.today())
+        rows = []
+        for entry in entries:
+            if not entry.id:
+                entry.id = uuid.uuid4().hex[:8]
+            if not entry.date_added:
+                entry.date_added = today
+            entry.date_updated = today
+            rows.append(entry.to_row())
+
+        if not rows:
+            return 0
+
+        sheet = self._get_sheet()
+        sheet.append_rows(rows, value_input_option="USER_ENTERED")
+        self._invalidate_cache()
+        return len(rows)
+
     def update_entry(self, entry: ContentEntry) -> None:
         entry.date_updated = str(date.today())
         sheet = self._get_sheet()

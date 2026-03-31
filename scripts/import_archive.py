@@ -274,6 +274,7 @@ def run_import(file_path: str, dry_run: bool = False, skip_duplicates: bool = Tr
         existing_titles = []
 
     added = skipped = errors = 0
+    to_insert: list = []
 
     print(f"\n{'[DRY RUN] ' if dry_run else ''}Import 시작...\n")
     for i, (_, row) in enumerate(df.iterrows(), 1):
@@ -295,12 +296,17 @@ def run_import(file_path: str, dry_run: bool = False, skip_duplicates: bool = Tr
             )
 
             if not dry_run:
-                sheets.add_entry(entry)
+                to_insert.append(entry)
                 existing_titles.append(entry.title.lower())
             added += 1
         except Exception as e:
             print(f"  ERROR [{i:3d}] 행 {i}: {e}")
             errors += 1
+
+    # 한 번의 API 호출로 전체 저장 (rate limit 방지)
+    if not dry_run and to_insert:
+        print(f"\n⏳ Google Sheets에 {len(to_insert)}개 저장 중...")
+        sheets.batch_add_entries(to_insert)
 
     print(f"\n{'─'*50}")
     print(f"추가: {added}개 | 스킵: {skipped}개 | 오류: {errors}개")
