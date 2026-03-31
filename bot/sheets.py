@@ -110,6 +110,16 @@ class SheetsClient:
         self._invalidate_cache()
         return len(rows)
 
+    def delete_entry(self, entry_id: str) -> bool:
+        sheet = self._get_sheet()
+        rows = sheet.get_all_values()
+        for i, row in enumerate(rows[1:], start=2):
+            if row and row[0] == entry_id:
+                sheet.delete_rows(i)
+                self._invalidate_cache()
+                return True
+        return False
+
     def update_entry(self, entry: ContentEntry) -> None:
         entry.date_updated = str(date.today())
         sheet = self._get_sheet()

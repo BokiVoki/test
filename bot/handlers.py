@@ -1,8 +1,10 @@
+import copy
 import os
+import uuid as uuid_module
 from datetime import date, datetime, timezone, timedelta
 from typing import Optional
 
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from .models import BotMode, ContentEntry, Reminder, STATUS_KR, CONTENT_TYPE_KR
@@ -22,6 +24,7 @@ MAX_HISTORY = 20  # message 수 (user+assistant 합산)
 _current_mode: BotMode = BotMode.SECRETARY
 _sheets: Optional[SheetsClient] = None
 _reminders: Optional[RemindersClient] = None
+_undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
 
 
 def init_sheets(sheets: SheetsClient):
@@ -32,6 +35,12 @@ def init_sheets(sheets: SheetsClient):
 def init_reminders(reminders: RemindersClient):
     global _reminders
     _reminders = reminders
+
+
+def _undo_keyboard(label: str = "↩️ 되돌리기") -> tuple[str, InlineKeyboardMarkup]:
+    key = uuid_module.uuid4().hex[:12]
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton(label, callback_data=f"undo:{key}")]])
+    return key, markup
 
 
 def _auth(update: Update) -> bool:
@@ -305,11 +314,13 @@ async def remind_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         time_str = trigger_at
 
     repeat_label = {"none": "", "daily": " (매일 반복)", "weekly": " (매주 반복)", "monthly": " (매달 반복)"}.get(repeat, "")
+    key, markup = _undo_keyboard("❌ 취소")
+    _undo_state[key] = {"type": "cancel_remind", "reminder_id": reminder.id}
     await update.message.reply_text(
         f"🔔 리마인더 등록!\n\n"
         f"**내용:** {reminder_text}\n"
         f"**시간:** {time_str}{repeat_label}",
-        parse_mode="Markdown"
+        parse_mode="Markdown", reply_markup=markup
     )
 
 
@@ -360,6 +371,38 @@ async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"[Google Sheets 열기]({url})", parse_mode="Markdown")
     else:
         await update.message.reply_text("SPREADSHEET_ID 환경변수가 설정되지 않았어요.")
+
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if not _auth(update):
+        return
+
+    data = query.data or ""
+    if not data.startswith("undo:"):
+        return
+
+    key = data[5:]
+    state = _undo_state.pop(key, None)
+    if not state:
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text("이미 되돌렸거나 시간이 지났어요.")
+        return
+
+    t = state["type"]
+    if t == "delete":
+        ok = _sheets.delete_entry(state["entry_id"])
+        await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
+
+    elif t == "restore":
+        _sheets.update_entry(state["entry"])
+        await query.edit_message_text("↩️ 되돌렸어요!")
+
+    elif t == "cancel_remind":
+        _reminders.deactivate(state["reminder_id"])
+        await query.edit_message_text("🔕 리마인더 취소했어요!")
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -463,14 +506,15 @@ async def _handle_archive_action(update, intent):
         added = _sheets.add_entry(new_entry)
         type_kr = CONTENT_TYPE_KR.get(added.type, added.type)
         status_kr = STATUS_KR.get(added.status, added.status)
+        key, markup = _undo_keyboard()
+        _undo_state[key] = {"type": "delete", "entry_id": added.id}
         await update.message.reply_text(
             f"**{added.title}** ({type_kr}) 추가했어요! 상태: {status_kr}",
-            parse_mode="Markdown"
+            parse_mode="Markdown", reply_markup=markup
         )
         return
 
     if not entry:
-        # 새로 등록하면서 진행상황 업데이트
         new_entry = ContentEntry(
             title=intent.title or "제목 없음",
             type=intent.content_type or "other",
@@ -482,15 +526,18 @@ async def _handle_archive_action(update, intent):
         if intent.rating is not None:
             new_entry.rating = intent.rating
         added = _sheets.add_entry(new_entry)
+        key, markup = _undo_keyboard()
+        _undo_state[key] = {"type": "delete", "entry_id": added.id}
         await update.message.reply_text(
             f"**{added.title}** 새로 등록했어요! {added.progress or ''}",
-            parse_mode="Markdown"
+            parse_mode="Markdown", reply_markup=markup
         )
         return
 
-    # 기존 항목 업데이트
+    # 기존 항목 업데이트 — 이전 상태 저장
+    old_entry = copy.deepcopy(entry)
+
     if intent.progress:
-        old_progress = entry.progress
         entry.progress = intent.progress
         log_entry = f"[{today}: {intent.progress}]"
         entry.raw_log = f"{entry.raw_log} {log_entry}".strip()
@@ -507,7 +554,11 @@ async def _handle_archive_action(update, intent):
         entry.notes = f"{entry.notes}\n{intent.note}".strip() if entry.notes else intent.note
 
     _sheets.update_entry(entry)
-    await update.message.reply_text(_build_update_reply(entry, intent), parse_mode="Markdown")
+    key, markup = _undo_keyboard()
+    _undo_state[key] = {"type": "restore", "entry": old_entry}
+    await update.message.reply_text(
+        _build_update_reply(entry, intent), parse_mode="Markdown", reply_markup=markup
+    )
 
 
 def _build_update_reply(entry: ContentEntry, intent) -> str:
