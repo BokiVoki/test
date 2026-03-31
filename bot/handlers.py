@@ -7,10 +7,11 @@ from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from .models import BotMode, ContentEntry, Reminder, TodoItem, STATUS_KR, CONTENT_TYPE_KR
+from .models import BotMode, ContentEntry, Reminder, TodoItem, MemoEntry, STATUS_KR, CONTENT_TYPE_KR
 from .sheets import SheetsClient
 from .reminders_sheet import RemindersClient
 from .todos_sheet import TodosClient
+from .memos_sheet import MemosClient
 from . import claude_client
 from .mode_prompts import MODE_NAMES
 
@@ -26,6 +27,7 @@ _current_mode: BotMode = BotMode.SECRETARY
 _sheets: Optional[SheetsClient] = None
 _reminders: Optional[RemindersClient] = None
 _todos: Optional[TodosClient] = None
+_memos: Optional[MemosClient] = None
 _undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
 
 
@@ -42,6 +44,11 @@ def init_reminders(reminders: RemindersClient):
 def init_todos(todos: TodosClient):
     global _todos
     _todos = todos
+
+
+def init_memos(memos: MemosClient):
+    global _memos
+    _memos = memos
 
 
 def _undo_keyboard(label: str = "↩️ 되돌리기") -> tuple[str, InlineKeyboardMarkup]:
@@ -426,6 +433,64 @@ async def todo_del_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
 
 
+_MEMO_SAVE_KEYWORDS = ("기록해줘", "저장해줘", "메모해줘", "기억해줘", "기록해", "저장해", "메모해", "기억해", "적어줘", "노트해줘")
+_MEMO_LIST_KEYWORDS = ("기록 목록", "메모 목록", "저장 목록", "기록 보여", "메모 보여", "노트 보여", "기록 뭐", "메모 뭐")
+_MEMO_MODE_KR = {"secretary": "비서", "finance": "금융전문가", "consultant": "컨설턴트"}
+
+
+async def _save_memo(update: Update, mode: str, content: str):
+    """대화 내용을 Memos 시트에 저장"""
+    entry = _memos.add(mode, content)
+    dt = datetime.fromisoformat(entry.created_at).strftime("%m/%d %H:%M")
+    key, markup = _undo_keyboard("↩️ 삭제")
+    _undo_state[key] = {"type": "delete_memo", "memo_id": entry.id}
+    await update.message.reply_text(
+        f"📝 저장했어요! ({_MEMO_MODE_KR.get(mode, mode)} / {dt})",
+        reply_markup=markup
+    )
+
+
+async def memos_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/memos [mode] — 메모 목록"""
+    if not _auth(update):
+        return
+    mode = _current_mode.value
+    if context and context.args:
+        arg = context.args[0].lower()
+        if arg in ("finance", "금융"):
+            mode = "finance"
+        elif arg in ("consultant", "컨설턴트"):
+            mode = "consultant"
+        elif arg in ("secretary", "비서"):
+            mode = "secretary"
+    try:
+        entries = _memos.get_by_mode(mode)
+    except Exception as e:
+        await update.message.reply_text(f"❌ 오류: {e}")
+        return
+    if not entries:
+        await update.message.reply_text(f"저장된 {_MEMO_MODE_KR.get(mode, mode)} 메모가 없어요.")
+        return
+    lines = [f"**📝 {_MEMO_MODE_KR.get(mode, mode)} 메모**\n"]
+    for i, e in enumerate(entries, 1):
+        dt = e.created_at[:10] if e.created_at else ""
+        preview = e.content[:60] + ("..." if len(e.content) > 60 else "")
+        lines.append(f"{i}. [{dt}] {preview}  `{e.id}`")
+    lines.append("\n삭제: `/memo_del [ID]`")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
+async def memo_del_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/memo_del [id]"""
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text("`/memo_del [ID]`", parse_mode="Markdown")
+        return
+    ok = _memos.delete(context.args[0])
+    await update.message.reply_text("🗑 삭제했어요." if ok else "찾지 못했어요.")
+
+
 async def _handle_todo_natural(update: Update, text: str):
     """자연어 투두 처리"""
     if _todos is None:
@@ -532,6 +597,10 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ok = _todos.delete(state["todo_id"])
         await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
 
+    elif t == "delete_memo":
+        ok = _memos.delete(state["memo_id"])
+        await query.edit_message_text("🗑 메모 삭제했어요." if ok else "❌ 이미 삭제됐어요.")
+
 
 _MODE_WORDS: dict[BotMode, tuple] = {
     BotMode.SECRETARY:  ("비서", "secretary"),
@@ -569,8 +638,27 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     mode = _current_mode.value
+    t = text.lower()
 
-    # 비서 모드: 아카이브 관련 파싱 먼저 시도
+    # 메모 저장 감지 (모든 모드)
+    if any(kw in t for kw in _MEMO_SAVE_KEYWORDS):
+        # 저장할 내용 = 최근 대화 히스토리 요약 or 현재 메시지 앞 내용
+        hist = _history.get(mode, [])
+        if hist:
+            # 마지막 사용자 발화 + 봇 응답을 합쳐서 저장
+            recent = [m for m in hist[-6:]]
+            content = "\n".join(f"{'나' if m['role']=='user' else '봇'}: {m['content']}" for m in recent)
+        else:
+            content = text
+        await _save_memo(update, mode, content)
+        return
+
+    # 메모 목록 감지 (모든 모드)
+    if any(kw in t for kw in _MEMO_LIST_KEYWORDS):
+        await memos_handler(update, None)
+        return
+
+    # 비서 모드
     if mode == "secretary":
         await _handle_secretary(update, text)
     else:

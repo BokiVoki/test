@@ -156,6 +156,25 @@ class Reminder:
         )
 
 
+MEMO_COLUMNS = ["id", "mode", "content", "created_at"]
+
+
+@dataclass
+class MemoEntry:
+    id: str = ""
+    mode: str = ""        # secretary / finance / consultant
+    content: str = ""
+    created_at: str = ""
+
+    def to_row(self) -> list:
+        return [self.id, self.mode, self.content, self.created_at]
+
+    @classmethod
+    def from_row(cls, row: list) -> "MemoEntry":
+        padded = (row + [""] * 4)[:4]
+        return cls(id=padded[0], mode=padded[1], content=padded[2], created_at=padded[3])
+
+
 TODO_COLUMNS = ["id", "text", "done", "due_date", "created_at"]
 
 

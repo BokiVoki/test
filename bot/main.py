@@ -13,6 +13,7 @@ from telegram.ext import (
 from .sheets import SheetsClient
 from .reminders_sheet import RemindersClient
 from .todos_sheet import TodosClient
+from .memos_sheet import MemosClient
 from .scheduler import check_reminders_job
 from . import handlers
 
@@ -45,6 +46,10 @@ def main():
     todos = TodosClient(spreadsheet_id=spreadsheet_id)
     handlers.init_todos(todos)
     logger.info("Todos 연결 완료")
+
+    memos = MemosClient(spreadsheet_id=spreadsheet_id)
+    handlers.init_memos(memos)
+    logger.info("Memos 연결 완료")
 
     user_id = os.getenv("TELEGRAM_USER_ID", "")
 
@@ -80,6 +85,10 @@ def main():
     app.add_handler(CommandHandler("todos", handlers.todos_handler))
     app.add_handler(CommandHandler("todo_done", handlers.todo_done_handler))
     app.add_handler(CommandHandler("todo_del", handlers.todo_del_handler))
+
+    # 메모
+    app.add_handler(CommandHandler("memos", handlers.memos_handler))
+    app.add_handler(CommandHandler("memo_del", handlers.memo_del_handler))
 
     # 1분마다 리마인더 체크
     app.job_queue.run_repeating(check_reminders_job, interval=60, first=10)
