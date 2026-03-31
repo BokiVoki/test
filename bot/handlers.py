@@ -208,6 +208,40 @@ async def drop_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"**{entry.title}** 중단 처리했어요.", parse_mode="Markdown")
 
 
+async def import_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    import sys, io
+    from pathlib import Path
+
+    csv_path = Path(__file__).resolve().parent.parent / "data" / "archive.csv"
+    if not csv_path.exists():
+        await update.message.reply_text("data/archive.csv 파일이 없어요.")
+        return
+
+    await update.message.reply_text("⏳ 아카이브 import 시작... 잠깐만요!")
+
+    # stdout 캡처
+    old_stdout = sys.stdout
+    sys.stdout = buf = io.StringIO()
+    try:
+        sys.path.insert(0, str(csv_path.parent.parent))
+        from scripts.import_archive import run_import
+        run_import(str(csv_path), dry_run=False)
+    except Exception as e:
+        sys.stdout = old_stdout
+        await update.message.reply_text(f"❌ 오류: {e}")
+        return
+    finally:
+        sys.stdout = old_stdout
+
+    output = buf.getvalue()
+    lines = [l for l in output.strip().split("\n") if l.strip()]
+    summary = "\n".join(lines[-5:]) if len(lines) > 5 else output
+    _sheets._invalidate_cache()
+    await update.message.reply_text(f"✅ Import 완료!\n```\n{summary}\n```", parse_mode="Markdown")
+
+
 async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return

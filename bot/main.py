@@ -51,6 +51,7 @@ def main():
     app.add_handler(CommandHandler("done", handlers.done_handler))
     app.add_handler(CommandHandler("drop", handlers.drop_handler))
     app.add_handler(CommandHandler("export", handlers.export_handler))
+    app.add_handler(CommandHandler("import_archive", handlers.import_handler))
 
     # 자연어 메시지 (모든 텍스트)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.message_handler))
