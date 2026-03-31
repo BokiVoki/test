@@ -380,7 +380,29 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(reply)
 
 
+_REMINDER_LIST_KEYWORDS = ("리마인더 목록", "리마인더 뭐", "알람 목록", "알림 목록", "remind 목록", "리마인더 있어", "리마인더 보여")
+_REMINDER_ADD_KEYWORDS = ("리마인더 설정", "알람 설정", "알림 설정", "리마인더 추가", "알려줘", "알림 줘", "리마인더 해줘")
+
+
 async def _handle_secretary(update: Update, text: str):
+    t = text.lower()
+
+    # 리마인더 목록 요청
+    if any(kw in t for kw in _REMINDER_LIST_KEYWORDS):
+        await reminders_handler(update, None)
+        return
+
+    # 리마인더 추가 요청 (자연어) → /remind 안내
+    if any(kw in t for kw in _REMINDER_ADD_KEYWORDS):
+        await update.message.reply_text(
+            "리마인더는 `/remind` 명령어로 등록해요!\n\n"
+            "예시:\n"
+            "• `/remind 내일 오전 9시 / 약 먹기`\n"
+            "• `/remind 매일 저녁 10시 / 스트레칭`",
+            parse_mode="Markdown"
+        )
+        return
+
     known_titles = _sheets.get_titles()
     intent = claude_client.parse_archive_message(text, known_titles)
 
