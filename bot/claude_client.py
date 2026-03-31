@@ -222,6 +222,46 @@ def parse_reminder_time(user_input: str, now_kst_str: str) -> dict:
     raise ValueError(f"시간 파싱 실패: {raw}")
 
 
+def parse_todo(user_input: str, now_kst_str: str) -> dict:
+    """
+    자연어 투두 파싱.
+    반환: {"action": "add|complete|delete|list", "text": "...", "due_date": "YYYY-MM-DD or null"}
+    """
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=200,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"현재 한국 시간: {now_kst_str}\n"
+                f"투두 요청: \"{user_input}\"\n\n"
+                "다음 JSON만 반환하세요:\n"
+                "{\n"
+                "  \"action\": \"add\",\n"
+                "  \"text\": \"할 일 내용\",\n"
+                "  \"due_date\": \"YYYY-MM-DD or null\"\n"
+                "}\n\n"
+                "action 규칙:\n"
+                "- add: 추가/등록/할 일 생성\n"
+                "- complete: 완료/했어/끝냈어/체크\n"
+                "- delete: 삭제/지워/제거\n"
+                "- list: 목록/보여/리스트\n"
+                "due_date 규칙:\n"
+                "- '내일까지', '이번주' 등 마감일 언급 시 날짜로 변환\n"
+                "- 마감일 없으면 null\n"
+                "- text는 핵심 할 일만 (투두/할 일 키워드 제외)"
+            ),
+        }],
+    )
+    import re
+    raw = resp.content[0].text.strip()
+    m = re.search(r'\{.*?\}', raw, re.DOTALL)
+    if m:
+        return json.loads(m.group())
+    raise ValueError(f"파싱 실패: {raw}")
+
+
 def answer_query(query: str, entries: list[ContentEntry]) -> str:
     """
     자연어 쿼리에 맞게 아카이브를 필터링/요약합니다.

@@ -156,6 +156,30 @@ class Reminder:
         )
 
 
+TODO_COLUMNS = ["id", "text", "done", "due_date", "created_at"]
+
+
+@dataclass
+class TodoItem:
+    id: str = ""
+    text: str = ""
+    done: bool = False
+    due_date: str = ""    # "2024-01-15" or ""
+    created_at: str = ""
+
+    def to_row(self) -> list:
+        return [self.id, self.text, "1" if self.done else "0", self.due_date, self.created_at]
+
+    @classmethod
+    def from_row(cls, row: list) -> "TodoItem":
+        padded = (row + [""] * 5)[:5]
+        return cls(
+            id=padded[0], text=padded[1],
+            done=(padded[2] == "1"),
+            due_date=padded[3], created_at=padded[4],
+        )
+
+
 @dataclass
 class ParsedIntent:
     action: str = "unknown"
