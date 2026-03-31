@@ -253,8 +253,14 @@ async def remind_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/remind 내일 오전 9시 / 약 먹기"""
     if not _auth(update):
         return
-    text = update.message.text[len("/remind"):].strip()
-    if not text:
+
+    if _reminders is None:
+        await update.message.reply_text("❌ 리마인더 초기화 실패. Railway 로그를 확인해주세요.")
+        return
+
+    # context.args로 받으면 /remind@botname 형태도 처리됨
+    raw = " ".join(context.args) if context.args else ""
+    if not raw:
         await update.message.reply_text(
             "사용법: `/remind 내일 오전 9시 / 약 먹기`\n\n"
             "슬래시(/)로 시간과 내용을 구분해요.\n"
@@ -271,30 +277,38 @@ async def remind_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kst = timezone(timedelta(hours=9))
     now_str = datetime.now(kst).strftime("%Y년 %m월 %d일 %H시 %M분")
     try:
-        parsed = claude_client.parse_reminder_time(text, now_str)
+        parsed = claude_client.parse_reminder_time(raw, now_str)
         trigger_at = parsed["trigger_at"]
         repeat = parsed.get("repeat", "none")
-        # "/" 뒤 텍스트가 있으면 그것을 우선 사용
-        if "/" in text:
-            reminder_text = text.split("/", 1)[1].strip()
+        if "/" in raw:
+            reminder_text = raw.split("/", 1)[1].strip()
         else:
-            reminder_text = parsed.get("reminder_text", text)
-    except Exception:
+            reminder_text = parsed.get("reminder_text", raw)
+    except Exception as e:
         await update.message.reply_text(
-            "시간을 이해하지 못했어요.\n예: `/remind 내일 오전 9시 / 약 먹기`",
+            f"시간을 이해하지 못했어요. (`{e}`)\n예: `/remind 내일 오전 9시 / 약 먹기`",
             parse_mode="Markdown"
         )
         return
 
-    reminder = Reminder(text=reminder_text, trigger_at=trigger_at, repeat=repeat)
-    _reminders.add_reminder(reminder)
+    try:
+        reminder = Reminder(text=reminder_text, trigger_at=trigger_at, repeat=repeat)
+        _reminders.add_reminder(reminder)
+    except Exception as e:
+        await update.message.reply_text(f"❌ 저장 실패: {e}")
+        return
 
-    dt = datetime.fromisoformat(trigger_at)
+    try:
+        dt = datetime.fromisoformat(trigger_at)
+        time_str = dt.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        time_str = trigger_at
+
     repeat_label = {"none": "", "daily": " (매일 반복)", "weekly": " (매주 반복)", "monthly": " (매달 반복)"}.get(repeat, "")
     await update.message.reply_text(
         f"🔔 리마인더 등록!\n\n"
         f"**내용:** {reminder_text}\n"
-        f"**시간:** {dt.strftime('%Y-%m-%d %H:%M')}{repeat_label}",
+        f"**시간:** {time_str}{repeat_label}",
         parse_mode="Markdown"
     )
 
