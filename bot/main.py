@@ -10,6 +10,8 @@ from telegram.ext import (
 )
 
 from .sheets import SheetsClient
+from .reminders_sheet import RemindersClient
+from .scheduler import check_reminders_job
 from . import handlers
 
 load_dotenv()
@@ -34,7 +36,15 @@ def main():
     handlers.init_sheets(sheets)
     logger.info("Google Sheets 연결 완료")
 
+    reminders = RemindersClient(spreadsheet_id=spreadsheet_id)
+    handlers.init_reminders(reminders)
+    logger.info("Reminders 연결 완료")
+
+    user_id = os.getenv("TELEGRAM_USER_ID", "")
+
     app = Application.builder().token(token).build()
+    app.bot_data["reminders_client"] = reminders
+    app.bot_data["user_id"] = user_id
 
     # 모드 전환 (텔레그램 명령어는 영어/숫자만 가능)
     app.add_handler(CommandHandler("secretary", handlers.switch_mode_handler))
@@ -52,6 +62,14 @@ def main():
     app.add_handler(CommandHandler("drop", handlers.drop_handler))
     app.add_handler(CommandHandler("export", handlers.export_handler))
     app.add_handler(CommandHandler("import_archive", handlers.import_handler))
+
+    # 리마인더
+    app.add_handler(CommandHandler("remind", handlers.remind_handler))
+    app.add_handler(CommandHandler("reminders", handlers.reminders_handler))
+    app.add_handler(CommandHandler("cancel_reminder", handlers.cancel_reminder_handler))
+
+    # 1분마다 리마인더 체크
+    app.job_queue.run_repeating(check_reminders_job, interval=60, first=10)
 
     # 자연어 메시지 (모든 텍스트)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.message_handler))

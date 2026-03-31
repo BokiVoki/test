@@ -144,6 +144,43 @@ def get_recommendations(query: str, entries: list[ContentEntry]) -> str:
     return chat("secretary", prompt)
 
 
+def parse_reminder_time(user_input: str, now_kst_str: str) -> dict:
+    """
+    자연어 리마인더 입력을 파싱합니다.
+    예: "내일 오전 9시 / 약 먹기" → {"trigger_at": "...", "repeat": "none", "reminder_text": "약 먹기"}
+    """
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=200,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"현재 한국 시간: {now_kst_str}\n"
+                f"리마인더 요청: \"{user_input}\"\n\n"
+                "다음 JSON만 반환하세요 (다른 텍스트 없이):\n"
+                "{\n"
+                "  \"trigger_at\": \"YYYY-MM-DDTHH:MM:SS\",\n"
+                "  \"repeat\": \"none\",\n"
+                "  \"reminder_text\": \"알림 내용\"\n"
+                "}\n\n"
+                "규칙:\n"
+                "- repeat 값: none | daily | weekly | monthly\n"
+                "- 시간 없으면 09:00:00 기본값\n"
+                "- '매일', '매주', '매달' 키워드로 repeat 결정\n"
+                "- reminder_text는 간결하게 (예: '약 먹기', '주간 계획 세우기')\n"
+                "- '/' 앞은 시간, '/' 뒤는 reminder_text로 사용"
+            ),
+        }],
+    )
+    import re
+    raw = resp.content[0].text.strip()
+    m = re.search(r'\{.*?\}', raw, re.DOTALL)
+    if m:
+        return json.loads(m.group())
+    raise ValueError(f"시간 파싱 실패: {raw}")
+
+
 def answer_query(query: str, entries: list[ContentEntry]) -> str:
     """
     자연어 쿼리에 맞게 아카이브를 필터링/요약합니다.

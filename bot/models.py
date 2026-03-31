@@ -121,6 +121,41 @@ class ContentEntry:
         return " ".join(parts)
 
 
+REMINDER_COLUMNS = ["id", "text", "trigger_at", "repeat", "active", "created_at"]
+
+
+@dataclass
+class Reminder:
+    id: str = ""
+    text: str = ""
+    trigger_at: str = ""   # "2024-01-15T09:00:00" KST
+    repeat: str = "none"   # none / daily / weekly / monthly
+    active: bool = True
+    created_at: str = ""
+
+    def to_row(self) -> list:
+        return [
+            self.id,
+            self.text,
+            self.trigger_at,
+            self.repeat,
+            "1" if self.active else "0",
+            self.created_at,
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "Reminder":
+        padded = (row + [""] * 6)[:6]
+        return cls(
+            id=padded[0],
+            text=padded[1],
+            trigger_at=padded[2],
+            repeat=padded[3] or "none",
+            active=(padded[4] != "0"),
+            created_at=padded[5],
+        )
+
+
 @dataclass
 class ParsedIntent:
     action: str = "unknown"

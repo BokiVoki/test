@@ -1,12 +1,13 @@
 import os
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from typing import Optional
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from .models import BotMode, ContentEntry, STATUS_KR, CONTENT_TYPE_KR
+from .models import BotMode, ContentEntry, Reminder, STATUS_KR, CONTENT_TYPE_KR
 from .sheets import SheetsClient
+from .reminders_sheet import RemindersClient
 from . import claude_client
 from .mode_prompts import MODE_NAMES
 
@@ -20,11 +21,17 @@ MAX_HISTORY = 20  # message 수 (user+assistant 합산)
 
 _current_mode: BotMode = BotMode.SECRETARY
 _sheets: Optional[SheetsClient] = None
+_reminders: Optional[RemindersClient] = None
 
 
 def init_sheets(sheets: SheetsClient):
     global _sheets
     _sheets = sheets
+
+
+def init_reminders(reminders: RemindersClient):
+    global _reminders
+    _reminders = reminders
 
 
 def _auth(update: Update) -> bool:
@@ -240,6 +247,94 @@ async def import_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     summary = "\n".join(lines[-5:]) if len(lines) > 5 else output
     _sheets._invalidate_cache()
     await update.message.reply_text(f"✅ Import 완료!\n```\n{summary}\n```", parse_mode="Markdown")
+
+
+async def remind_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/remind 내일 오전 9시 / 약 먹기"""
+    if not _auth(update):
+        return
+    text = update.message.text[len("/remind"):].strip()
+    if not text:
+        await update.message.reply_text(
+            "사용법: `/remind 내일 오전 9시 / 약 먹기`\n\n"
+            "슬래시(/)로 시간과 내용을 구분해요.\n"
+            "반복 예시:\n"
+            "• `/remind 매일 저녁 10시 / 스트레칭`\n"
+            "• `/remind 매주 월요일 아침 8시 / 주간 계획`\n"
+            "• `/remind 매달 1일 오전 9시 / 월세 확인`",
+            parse_mode="Markdown"
+        )
+        return
+
+    await update.message.chat.send_action("typing")
+
+    kst = timezone(timedelta(hours=9))
+    now_str = datetime.now(kst).strftime("%Y년 %m월 %d일 %H시 %M분")
+    try:
+        parsed = claude_client.parse_reminder_time(text, now_str)
+        trigger_at = parsed["trigger_at"]
+        repeat = parsed.get("repeat", "none")
+        # "/" 뒤 텍스트가 있으면 그것을 우선 사용
+        if "/" in text:
+            reminder_text = text.split("/", 1)[1].strip()
+        else:
+            reminder_text = parsed.get("reminder_text", text)
+    except Exception:
+        await update.message.reply_text(
+            "시간을 이해하지 못했어요.\n예: `/remind 내일 오전 9시 / 약 먹기`",
+            parse_mode="Markdown"
+        )
+        return
+
+    reminder = Reminder(text=reminder_text, trigger_at=trigger_at, repeat=repeat)
+    _reminders.add_reminder(reminder)
+
+    dt = datetime.fromisoformat(trigger_at)
+    repeat_label = {"none": "", "daily": " (매일 반복)", "weekly": " (매주 반복)", "monthly": " (매달 반복)"}.get(repeat, "")
+    await update.message.reply_text(
+        f"🔔 리마인더 등록!\n\n"
+        f"**내용:** {reminder_text}\n"
+        f"**시간:** {dt.strftime('%Y-%m-%d %H:%M')}{repeat_label}",
+        parse_mode="Markdown"
+    )
+
+
+async def reminders_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/reminders — 등록된 리마인더 목록"""
+    if not _auth(update):
+        return
+    active = _reminders.get_all_active()
+    if not active:
+        await update.message.reply_text("등록된 리마인더가 없어요.")
+        return
+
+    repeat_label = {"none": "", "daily": " 매일", "weekly": " 매주", "monthly": " 매달"}
+    lines = ["**🔔 리마인더 목록**\n"]
+    for i, r in enumerate(active, 1):
+        try:
+            dt = datetime.fromisoformat(r.trigger_at)
+            time_str = dt.strftime("%m/%d %H:%M")
+        except Exception:
+            time_str = r.trigger_at
+        rep = repeat_label.get(r.repeat, "")
+        lines.append(f"{i}. {r.text}\n   `{time_str}`{rep}  ID: `{r.id}`")
+    lines.append("\n취소: `/cancel_reminder [ID]`")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
+async def cancel_reminder_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/cancel_reminder [id]"""
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "`/cancel_reminder [ID]`\n`/reminders`에서 ID 확인하세요.",
+            parse_mode="Markdown"
+        )
+        return
+    rid = context.args[0]
+    _reminders.deactivate(rid)
+    await update.message.reply_text(f"리마인더 `{rid}` 취소했어요.", parse_mode="Markdown")
 
 
 async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
