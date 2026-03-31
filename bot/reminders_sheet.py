@@ -73,3 +73,10 @@ class RemindersClient:
             if row and row[0] == reminder_id:
                 sheet.update_cell(i, 5, "0")
                 return
+
+    def clear_all(self):
+        """헤더 제외 전체 행 삭제"""
+        sheet = self._get_sheet()
+        rows = sheet.get_all_values()
+        if len(rows) > 1:
+            sheet.delete_rows(2, len(rows))

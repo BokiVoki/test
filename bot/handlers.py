@@ -335,6 +335,14 @@ async def cancel_all_reminders_handler(update: Update, context):
     await update.message.reply_text(f"🔕 리마인더 {len(active)}개 전부 취소했어요.")
 
 
+async def clear_reminders_sheet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/clear_reminders — 시트 전체 초기화 (완전 삭제)"""
+    if not _auth(update):
+        return
+    _reminders.clear_all()
+    await update.message.reply_text("🗑 Reminders 시트 전체 초기화했어요.")
+
+
 async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return
@@ -403,9 +411,8 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 _REMINDER_WORDS = ("리마인더", "알람", "알림", "remind")
-_REMINDER_LIST_KEYWORDS = ("목록", "뭐 있", "있어", "보여줘", "보여", "알려줘")
+_REMINDER_LIST_KEYWORDS = ("목록", "뭐 있", "있어", "보여", "알려줘", "리스트", "list")
 _REMINDER_CANCEL_ALL_KEYWORDS = ("전부 취소", "다 취소", "모두 취소", "전부취소", "다취소", "모두취소", "전체 취소", "다 지워", "전부 지워", "모두 지워")
-_REMINDER_ADD_KEYWORDS = ("설정", "추가", "등록", "해줘", "줘")
 
 
 async def _handle_remind_natural(update: Update, text: str):
@@ -455,7 +462,6 @@ async def _handle_remind_natural(update: Update, text: str):
 
 
 def _is_reminder_intent(t: str, keywords: tuple) -> bool:
-    """리마인더 관련 단어 + 키워드가 함께 있는지 확인"""
     has_reminder_word = any(w in t for w in _REMINDER_WORDS)
     has_keyword = any(k in t for k in keywords)
     return has_reminder_word and has_keyword
@@ -464,19 +470,14 @@ def _is_reminder_intent(t: str, keywords: tuple) -> bool:
 async def _handle_secretary(update: Update, text: str):
     t = text.lower()
 
-    # 리마인더 전체 취소
-    if _is_reminder_intent(t, _REMINDER_CANCEL_ALL_KEYWORDS):
-        await cancel_all_reminders_handler(update, None)
-        return
-
-    # 리마인더 목록 요청
-    if _is_reminder_intent(t, _REMINDER_LIST_KEYWORDS):
-        await reminders_handler(update, None)
-        return
-
-    # 리마인더 추가 요청 → 직접 파싱 후 등록
-    if _is_reminder_intent(t, _REMINDER_ADD_KEYWORDS):
-        await _handle_remind_natural(update, text)
+    # 리마인더 관련 메시지: 취소 → 목록 → 그 외는 등록으로 처리
+    if any(w in t for w in _REMINDER_WORDS):
+        if _is_reminder_intent(t, _REMINDER_CANCEL_ALL_KEYWORDS):
+            await cancel_all_reminders_handler(update, None)
+        elif _is_reminder_intent(t, _REMINDER_LIST_KEYWORDS):
+            await reminders_handler(update, None)
+        else:
+            await _handle_remind_natural(update, text)
         return
 
     known_titles = _sheets.get_titles()
