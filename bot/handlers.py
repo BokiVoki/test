@@ -362,6 +362,19 @@ async def cancel_reminder_handler(update: Update, context: ContextTypes.DEFAULT_
     await update.message.reply_text(f"리마인더 `{rid}` 취소했어요.", parse_mode="Markdown")
 
 
+async def cancel_all_reminders_handler(update: Update, context):
+    """/cancel_all_reminders — 모든 리마인더 취소"""
+    if not _auth(update):
+        return
+    active = _reminders.get_all_active()
+    if not active:
+        await update.message.reply_text("취소할 리마인더가 없어요.")
+        return
+    for r in active:
+        _reminders.deactivate(r.id)
+    await update.message.reply_text(f"🔕 리마인더 {len(active)}개 전부 취소했어요.")
+
+
 async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return
@@ -423,20 +436,34 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(reply)
 
 
-_REMINDER_LIST_KEYWORDS = ("리마인더 목록", "리마인더 뭐", "알람 목록", "알림 목록", "remind 목록", "리마인더 있어", "리마인더 보여")
-_REMINDER_ADD_KEYWORDS = ("리마인더 설정", "알람 설정", "알림 설정", "리마인더 추가", "알려줘", "알림 줘", "리마인더 해줘")
+_REMINDER_WORDS = ("리마인더", "알람", "알림", "remind")
+_REMINDER_LIST_KEYWORDS = ("목록", "뭐 있", "있어", "보여줘", "보여", "알려줘")
+_REMINDER_CANCEL_ALL_KEYWORDS = ("전부 취소", "다 취소", "모두 취소", "전부취소", "다취소", "모두취소", "전체 취소", "다 지워", "전부 지워", "모두 지워")
+_REMINDER_ADD_KEYWORDS = ("설정", "추가", "등록", "해줘", "줘")
+
+
+def _is_reminder_intent(t: str, keywords: tuple) -> bool:
+    """리마인더 관련 단어 + 키워드가 함께 있는지 확인"""
+    has_reminder_word = any(w in t for w in _REMINDER_WORDS)
+    has_keyword = any(k in t for k in keywords)
+    return has_reminder_word and has_keyword
 
 
 async def _handle_secretary(update: Update, text: str):
     t = text.lower()
 
+    # 리마인더 전체 취소
+    if _is_reminder_intent(t, _REMINDER_CANCEL_ALL_KEYWORDS):
+        await cancel_all_reminders_handler(update, None)
+        return
+
     # 리마인더 목록 요청
-    if any(kw in t for kw in _REMINDER_LIST_KEYWORDS):
+    if _is_reminder_intent(t, _REMINDER_LIST_KEYWORDS):
         await reminders_handler(update, None)
         return
 
-    # 리마인더 추가 요청 (자연어) → /remind 안내
-    if any(kw in t for kw in _REMINDER_ADD_KEYWORDS):
+    # 리마인더 추가 요청 → /remind 안내
+    if _is_reminder_intent(t, _REMINDER_ADD_KEYWORDS):
         await update.message.reply_text(
             "리마인더는 `/remind` 명령어로 등록해요!\n\n"
             "예시:\n"

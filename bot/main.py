@@ -68,6 +68,7 @@ def main():
     app.add_handler(CommandHandler("remind", handlers.remind_handler))
     app.add_handler(CommandHandler("reminders", handlers.reminders_handler))
     app.add_handler(CommandHandler("cancel_reminder", handlers.cancel_reminder_handler))
+    app.add_handler(CommandHandler("cancel_all_reminders", handlers.cancel_all_reminders_handler))
 
     # 1분마다 리마인더 체크
     app.job_queue.run_repeating(check_reminders_job, interval=60, first=10)
