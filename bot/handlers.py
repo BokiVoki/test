@@ -642,14 +642,28 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 메모 저장 감지 (모든 모드)
     if any(kw in t for kw in _MEMO_SAVE_KEYWORDS):
-        hist = _history.get(mode, [])
-        if not hist:
-            await update.message.reply_text(
-                "저장할 대화 내용이 없어요.\n대화를 먼저 나눈 후 '기록해줘'라고 해주세요."
-            )
-            return
+        # 저장 키워드를 제거한 나머지 텍스트
+        remaining = text
+        for kw in _MEMO_SAVE_KEYWORDS:
+            remaining = remaining.replace(kw, "").replace(kw.replace("줘", ""), "")
+        remaining = remaining.strip(" \n.,")
+
         await update.message.chat.send_action("typing")
-        content = claude_client.summarize_conversation(hist[-10:], mode)
+
+        if len(remaining) > 20:
+            # 메시지 안에 내용이 있으면 그걸 그대로 저장
+            content = remaining
+        else:
+            # 대화 히스토리 요약
+            hist = _history.get(mode, [])
+            if not hist:
+                await update.message.reply_text(
+                    "저장할 내용이 없어요.\n내용을 직접 입력하거나 대화 후 기록해줘 해주세요.\n\n예: `청년적금 35만원, 투자 20만원 기록해줘`",
+                    parse_mode="Markdown"
+                )
+                return
+            content = claude_client.summarize_conversation(hist[-10:], mode)
+
         if not content:
             await update.message.reply_text("요약할 내용이 없어요.")
             return
