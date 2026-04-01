@@ -682,7 +682,17 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 금융/컨설턴트 모드: Claude 대화
         await update.message.chat.send_action("typing")
         _add_history(mode, "user", text)
-        reply = claude_client.chat(mode, text, history=_history[mode][:-1])
+        # 해당 모드의 저장된 메모를 context로 넘겨 Claude가 인식하게 함
+        memo_context = ""
+        if _memos is not None:
+            try:
+                recent_memos = _memos.get_by_mode(mode, limit=5)
+                if recent_memos:
+                    memo_lines = [f"[{m.created_at}] {m.content}" for m in recent_memos]
+                    memo_context = "저장된 메모:\n" + "\n---\n".join(memo_lines)
+            except Exception:
+                pass
+        reply = claude_client.chat(mode, text, context=memo_context, history=_history[mode][:-1])
         _add_history(mode, "assistant", reply)
         await update.message.reply_text(reply)
 
