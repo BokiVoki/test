@@ -1332,6 +1332,42 @@ async def _handle_inventory_natural(update: Update, text: str):
     elif action == "query_today":
         await intake_handler(update, None)
 
+    elif action == "add_item":
+        new_item_info = parsed.get("new_item") or {}
+        name = new_item_info.get("name") or (items_list[0].get("name") if items_list else "")
+        if not name:
+            await update.message.reply_text("이름을 인식하지 못했어요. 예: '오메가3 60정 추가해줘'")
+            return
+        qty = int(new_item_info.get("qty") or (items_list[0].get("qty") if items_list else 30))
+        category = new_item_info.get("category") or "daily"
+        daily = bool(new_item_info.get("daily", False))
+        note = new_item_info.get("note") or ""
+        low = 7 if category != "prescription" else 5
+        item = _inventory.add_item(name, qty, category=category, low_threshold=low, daily=daily, note=note)
+        daily_str = " (매일 복용)" if daily else ""
+        await update.message.reply_text(
+            f"✅ **{item.name}** 등록했어요!\n{qty}정 · {category}{daily_str}\n\n"
+            "매일 알람에 추가하려면 '투두 아침 {이름} 09:00 매일' 이라고 말해줘요.",
+            parse_mode="Markdown",
+        )
+
+    elif action == "restock":
+        if not items_list:
+            await update.message.reply_text("보충할 항목을 인식하지 못했어요.")
+            return
+        lines = []
+        for item_info in items_list:
+            name = item_info.get("name", "")
+            qty = int(item_info.get("qty", 30) or 30)
+            inv_item = _inventory.get_by_name(name)
+            if not inv_item:
+                lines.append(f"❓ '{name}'을(를) 목록에서 찾지 못했어요. '추가해줘'로 신규 등록하세요.")
+                continue
+            new_qty = inv_item.qty + qty
+            _inventory.update_qty(inv_item.id, new_qty)
+            lines.append(f"✅ **{inv_item.name}** {inv_item.qty}→{new_qty}정")
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
 
 async def inventory_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/inventory — 전체 재고 현황"""

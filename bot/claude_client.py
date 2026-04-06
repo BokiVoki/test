@@ -280,9 +280,10 @@ def parse_intake_message(text: str, item_names: list[str]) -> dict:
     """
     영양제/약 복용 관련 자연어 파싱.
     반환: {
-      "action": "log|query_stock|query_today",
+      "action": "log|query_stock|query_today|add_item|restock",
       "items": [{"name": "비타민C", "qty": 1, "note": ""}],
-      "target_name": null
+      "target_name": null,
+      "new_item": {"name": "...", "qty": 30, "category": "daily|situational|prescription|pms", "daily": false, "note": ""}
     }
     """
     import re
@@ -290,7 +291,7 @@ def parse_intake_message(text: str, item_names: list[str]) -> dict:
     names_str = ", ".join(item_names) if item_names else "없음"
     resp = client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=400,
+        max_tokens=500,
         messages=[{
             "role": "user",
             "content": (
@@ -300,17 +301,27 @@ def parse_intake_message(text: str, item_names: list[str]) -> dict:
                 "{\n"
                 "  \"action\": \"log\",\n"
                 "  \"items\": [{\"name\": \"비타민C\", \"qty\": 1, \"note\": \"\"}],\n"
-                "  \"target_name\": null\n"
+                "  \"target_name\": null,\n"
+                "  \"new_item\": null\n"
                 "}\n\n"
                 "action 규칙:\n"
                 "- log: 먹었어/복용/챙겼어/먹음/마셨어\n"
                 "- query_stock: 남은/재고/얼마나/몇 정/현황\n"
                 "- query_today: 오늘 뭐 먹었어/오늘 복용 내역/오늘 뭐 챙겼어\n"
+                "- add_item: 영양제 추가/등록/새로 생겼어/새로 샀어 + 목록에 없는 이름\n"
+                "- restock: 보충/재입고/다시 샀어/구매했어 + 목록에 이미 있는 이름\n"
                 "items 규칙:\n"
                 "- name은 목록에서 가장 유사한 이름으로 매칭\n"
-                "- 여러 항목 동시 처리 가능 (예: '비타민C랑 셀레늄 먹었어' → items 2개)\n"
-                "- qty 기본값: 1\n"
-                "- query_stock/query_today: items는 빈 배열, target_name에 대상 영양제명 (전체면 null)"
+                "- 여러 항목 동시 처리 가능\n"
+                "- qty 기본값: 1 (restock은 실제 수량)\n"
+                "- query_stock/query_today: items는 빈 배열, target_name에 대상 영양제명 (전체면 null)\n"
+                "new_item 규칙 (action=add_item일 때):\n"
+                "- name: 정확한 영양제/약 이름\n"
+                "- qty: 개수 (언급 없으면 30)\n"
+                "- category: daily(매일복용)/situational(상황별)/prescription(처방약)/pms\n"
+                "- daily: 매일 먹는다면 true\n"
+                "- note: 용량, 복용법 등 메모\n"
+                "action=restock일 때: items에 기존 이름 + qty에 추가 수량"
             ),
         }],
     )
@@ -318,7 +329,7 @@ def parse_intake_message(text: str, item_names: list[str]) -> dict:
     m = re.search(r'\{.*\}', raw, re.DOTALL)
     if m:
         return json.loads(m.group())
-    return {"action": "query_stock", "items": [], "target_name": None}
+    return {"action": "query_stock", "items": [], "target_name": None, "new_item": None}
 
 
 def parse_cycle_message(text: str, now_str: str) -> dict:

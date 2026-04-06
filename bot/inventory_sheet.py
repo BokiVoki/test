@@ -87,6 +87,35 @@ class InventoryClient:
                 return True
         return False
 
+    def add_item(
+        self,
+        name: str,
+        qty: int,
+        category: str = "daily",
+        low_threshold: int = 7,
+        daily: bool = False,
+        note: str = "",
+    ) -> InventoryItem:
+        """새 영양제/약을 시트에 추가. 이미 같은 이름이 있으면 qty만 업데이트."""
+        existing = self.get_by_name(name)
+        if existing:
+            self.update_qty(existing.id, existing.qty + qty)
+            existing.qty += qty
+            return existing
+        now_str = _now_kst().strftime("%Y-%m-%dT%H:%M:%S")
+        item = InventoryItem(
+            id=uuid.uuid4().hex[:8],
+            name=name,
+            category=category,
+            qty=qty,
+            low_threshold=low_threshold,
+            daily=daily,
+            note=note,
+            updated_at=now_str,
+        )
+        self._get_sheet().append_row(item.to_row())
+        return item
+
     def setup_initial(self) -> int:
         """시트가 비어있을 때만 초기 데이터 삽입. 삽입된 행 수 반환."""
         existing = self.get_all()
