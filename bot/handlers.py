@@ -725,6 +725,20 @@ def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
 
 
+def _fmt_interval(minutes: int) -> str:
+    """분 단위를 사람이 읽기 좋은 문자열로 변환"""
+    if minutes < 60:
+        return f"{minutes}분"
+    elif minutes < 1440:
+        h = minutes // 60
+        m = minutes % 60
+        return f"{h}시간" + (f" {m}분" if m else "")
+    else:
+        d = minutes // 1440
+        h = (minutes % 1440) // 60
+        return f"{d}일" + (f" {h}시간" if h else "")
+
+
 async def _handle_remind_callback(query, data: str):
     """remind:done:{id} | remind:snooze:{id} | remind:snooze10m/1h/1d/custom:{id}"""
     global _pending_snooze
@@ -738,12 +752,24 @@ async def _handle_remind_callback(query, data: str):
     action, todo_id = parts[1], parts[2]
 
     if action == "done":
-        _todos.complete(todo_id)
-        # 영양제/약 이름 매칭 → 복용 기록 + 재고 자동차감
         todo_item = _todos.get_by_id(todo_id)
+        if todo_item and todo_item.repeat.startswith("after:"):
+            # after:N 타입 — 완료 처리 후 지금 시점 기준으로 N분 후 재스케줄
+            try:
+                minutes = int(todo_item.repeat.split(":")[1])
+            except (IndexError, ValueError):
+                minutes = 60
+            next_t = (_now_kst() + timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%S")
+            _todos.reschedule(todo_id, next_t)
+            # done 플래그는 False로 유지 (반복 항목이므로)
+            label = _fmt_interval(minutes)
+            await query.edit_message_text(f"✅ 완료! {label} 후에 다시 알려드릴게요.")
+        else:
+            _todos.complete(todo_id)
+            await query.edit_message_text("✅ 완료했어요!")
+        # 영양제/약 이름 매칭 → 복용 기록 + 재고 자동차감
         if todo_item:
             _auto_log_intake_from_todo(todo_item.text)
-        await query.edit_message_text("✅ 완료했어요!")
 
     elif action == "snooze":
         original_text = query.message.text or "🔔 알림"
@@ -1475,15 +1501,25 @@ async def setup_supplements_handler(update: Update, context: ContextTypes.DEFAUL
     todos_created = 0
     if _todos and n > 0:
         daily_items = _inventory.get_daily()
-        supplement_names = "·".join(i.name for i in daily_items if i.category not in ("prescription",))
-        prescription_items = [i for i in daily_items if i.category == "prescription"]
         from datetime import date as _date
-        trigger = f"{_date.today().isoformat()}T09:00:00"
-        if supplement_names:
-            _todos.add(TodoItem(text=f"아침 영양제 ({supplement_names})", trigger_at=trigger, repeat="daily"))
+        today = _date.today().isoformat()
+
+        # 점심 영양제 (셀레늄, 크랜베리 — 식후)
+        LUNCH_SUPPLEMENTS = {"셀레늄", "크랜베리"}
+        lunch_items = [i for i in daily_items if i.name in LUNCH_SUPPLEMENTS and i.category not in ("prescription",)]
+        morning_items = [i for i in daily_items if i.name not in LUNCH_SUPPLEMENTS and i.category not in ("prescription",)]
+        prescription_items = [i for i in daily_items if i.category == "prescription"]
+
+        if morning_items:
+            names = "·".join(i.name for i in morning_items)
+            _todos.add(TodoItem(text=f"아침 영양제 ({names})", trigger_at=f"{today}T09:00:00", repeat="daily"))
+            todos_created += 1
+        if lunch_items:
+            names = "·".join(i.name for i in lunch_items)
+            _todos.add(TodoItem(text=f"점심 영양제 ({names})", trigger_at=f"{today}T12:30:00", repeat="daily"))
             todos_created += 1
         for pres in prescription_items:
-            _todos.add(TodoItem(text=pres.name, trigger_at=trigger, repeat="daily"))
+            _todos.add(TodoItem(text=pres.name, trigger_at=f"{today}T09:00:00", repeat="daily"))
             todos_created += 1
 
     if n == 0:

@@ -12,7 +12,7 @@ def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
 
 
-def _next_trigger(trigger: datetime, repeat: str) -> datetime:
+def _next_trigger(trigger: datetime, repeat: str, now: datetime = None) -> datetime:
     if repeat == "daily":
         return trigger + timedelta(days=1)
     elif repeat == "weekly":
@@ -22,6 +22,14 @@ def _next_trigger(trigger: datetime, repeat: str) -> datetime:
         year = trigger.year + (1 if trigger.month == 12 else 0)
         last_day = calendar.monthrange(year, month)[1]
         return trigger.replace(year=year, month=month, day=min(trigger.day, last_day))
+    elif repeat.startswith("after:"):
+        # "after:N" → 완료/발화 시점(now)에서 N분 후
+        try:
+            minutes = int(repeat.split(":")[1])
+        except (IndexError, ValueError):
+            minutes = 60
+        base = now if now is not None else trigger
+        return base + timedelta(minutes=minutes)
     return trigger
 
 
@@ -53,7 +61,7 @@ async def check_reminders_job(context: CallbackContext):
                 if todo.repeat == "none":
                     todos_client.clear_trigger(todo.id)
                 else:
-                    next_t = _next_trigger(trigger, todo.repeat)
+                    next_t = _next_trigger(trigger, todo.repeat, now=now)
                     todos_client.reschedule(todo.id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
     except Exception as e:
         logger.error(f"Todo alarm check error: {e}")

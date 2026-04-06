@@ -263,8 +263,12 @@ def parse_todo(user_input: str, now_kst_str: str) -> dict:
                 "due_date 규칙:\n"
                 "- '~까지' 마감 언급 시 날짜 설정, trigger_at는 null\n"
                 "- trigger_at 있으면 due_date는 null\n"
-                "repeat 규칙: 매일→daily, 매주→weekly, 매달→monthly, 없으면→none\n"
-                "text: 핵심 할 일만 (투두/리마인더/시간/날짜 키워드 제외)"
+                "repeat 규칙:\n"
+                "- 매일→daily, 매주→weekly, 매달→monthly\n"
+                "- N분마다/N시간마다/N일마다 → after:분수 (완료 시점 기준 재알람)\n"
+                "  예: 2시간마다→after:120, 30분마다→after:30, 3일마다→after:4320\n"
+                "- 없으면→none\n"
+                "text: 핵심 할 일만 (투두/리마인더/시간/날짜/마다 키워드 제외)"
             ),
         }],
     )
