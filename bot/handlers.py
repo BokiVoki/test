@@ -773,6 +773,20 @@ def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
 
 
+def _load_memo_context(mode: str, limit: int = 8) -> str:
+    """Memos 시트에서 mode별 최근 메모를 불러와 컨텍스트 문자열로 반환"""
+    if _memos is None:
+        return ""
+    try:
+        recent = _memos.get_by_mode(mode, limit=limit)
+        if not recent:
+            return ""
+        lines = [f"[{m.created_at[:10]}] {m.content}" for m in recent]
+        return "\n---\n".join(lines)
+    except Exception:
+        return ""
+
+
 def _fmt_interval(minutes: int) -> str:
     """분 단위를 사람이 읽기 좋은 문자열로 변환"""
     if minutes < 60:
@@ -1115,26 +1129,19 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await memos_handler(update, None)
         return
 
+    # 메모 컨텍스트 로드 (모든 모드 공통)
+    memo_context = _load_memo_context(mode)
+
     # 비서 모드
     if mode == "secretary":
-        await _handle_secretary(update, context, text)
+        await _handle_secretary(update, context, text, memo_context=memo_context)
     elif mode == "instagram":
         await _handle_instagram(update, text)
     else:
         # 금융/컨설턴트 모드: Claude 대화
         await update.message.chat.send_action("typing")
         _add_history(mode, "user", text)
-        # 해당 모드의 저장된 메모를 context로 넘겨 Claude가 인식하게 함
-        memo_context = ""
-        if _memos is not None:
-            try:
-                recent_memos = _memos.get_by_mode(mode, limit=5)
-                if recent_memos:
-                    memo_lines = [f"[{m.created_at}] {m.content}" for m in recent_memos]
-                    memo_context = "저장된 메모:\n" + "\n---\n".join(memo_lines)
-            except Exception:
-                pass
-        reply = claude_client.chat(mode, text, context=memo_context, history=_history[mode][:-1])
+        reply = claude_client.chat(mode, text, memo_context=memo_context, history=_history[mode][:-1])
         _add_history(mode, "assistant", reply)
         await update.message.reply_text(reply)
 
@@ -1219,7 +1226,7 @@ _POMO_KEYWORDS = ("포모도로", "집중 타이머", "집중 시작", "분 집�
 _BREAKDOWN_KEYWORDS = ("어떻게 시작", "뭐부터 해", "막막해", "쪼개줘", "단계별로", "분해해줘", "시작이 막막")
 
 
-async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, memo_context: str = ""):
     t = text.lower()
 
     # 투두/알람은 최우선 — "투두"가 있으면 다른 키워드보다 먼저 처리
@@ -1254,7 +1261,7 @@ async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         # 일반 비서 대화로 처리
         await update.message.chat.send_action("typing")
         _add_history("secretary", "user", text)
-        reply = claude_client.chat("secretary", text, history=_history["secretary"][:-1])
+        reply = claude_client.chat("secretary", text, memo_context=memo_context, history=_history["secretary"][:-1])
         _add_history("secretary", "assistant", reply)
         await update.message.reply_text(reply)
         return

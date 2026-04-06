@@ -87,12 +87,15 @@ JSON만 반환하고 다른 텍스트는 절대 포함하지 마세요."""
         return ParsedIntent(action="unknown", raw_message=text, confidence=0.0)
 
 
-def chat(mode: str, user_message: str, context: str = "", history: list[dict] | None = None) -> str:
+def chat(mode: str, user_message: str, context: str = "", history: list[dict] | None = None, memo_context: str = "") -> str:
     """
     모드별 시스템 프롬프트로 Claude와 대화합니다.
-    비서 모드의 추천/검색 시 아카이브 데이터를 context로 전달합니다.
+    memo_context: Memos 시트에서 불러온 저장 메모
+    context: 아카이브 데이터 등 기타 컨텍스트
     """
     system = PROMPTS.get(mode, PROMPTS["secretary"])
+    if memo_context:
+        system = f"{system}\n\n---\n📌 저장된 메모 (과거 대화/결정 요약, 항상 참고):\n{memo_context}"
     if context:
         system = f"{system}\n\n---\n현재 사용자 아카이브 데이터:\n{context}"
 
