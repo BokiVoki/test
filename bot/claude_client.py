@@ -246,7 +246,7 @@ def parse_todo(user_input: str, now_kst_str: str) -> dict:
                 "- add: 추가/등록/할 일 생성\n"
                 "- complete: 완료/했어/끝냈어/체크\n"
                 "- delete: 삭제/지워/제거\n"
-                "- list: 목록/보여/리스트\n"
+                "- list: 목록/보여/리스트/미완료/남은/못 한/안 한/뭐 해야/확인/조회\n"
                 "due_date 규칙:\n"
                 "- '내일까지', '이번주' 등 마감일 언급 시 날짜로 변환\n"
                 "- 마감일 없으면 null\n"

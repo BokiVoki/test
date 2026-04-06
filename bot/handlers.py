@@ -792,7 +792,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(reply)
 
 
-_TODO_WORDS = ("투두", "할 일", "할일", "todo", "할거", "할 거")
+_TODO_WORDS = (
+    "투두", "할 일", "할일", "todo", "할거", "할 거",
+    # 미완료/조회 자연어
+    "미완료", "못 한", "못한", "안 한", "안한",
+    "남은 거", "남은거", "뭐 남", "뭐남", "남아있",
+    "뭐 해야", "뭐해야", "해야 할", "해야할",
+    "아직", "안 끝", "안끝",
+)
 _REMINDER_WORDS = ("리마인더", "알람", "알림", "remind")
 _REMINDER_LIST_KEYWORDS = ("목록", "뭐 있", "있어", "보여", "알려줘", "리스트", "list")
 _REMINDER_CANCEL_ALL_KEYWORDS = ("전부 취소", "다 취소", "모두 취소", "전부취소", "다취소", "모두취소", "전체 취소", "다 지워", "전부 지워", "모두 지워")
