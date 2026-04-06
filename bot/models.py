@@ -207,7 +207,8 @@ class TodoItem:
 
 
 # ── 영양제/약 재고 ──────────────────────────────────────────────
-INVENTORY_COLUMNS = ["id", "name", "category", "qty", "low_threshold", "daily", "note", "updated_at"]
+# phases: 쉼표구분 단계명 "생리기,황체기" / "all" / "" (단계 무관)
+INVENTORY_COLUMNS = ["id", "name", "category", "qty", "low_threshold", "daily", "note", "updated_at", "phases"]
 
 
 @dataclass
@@ -220,17 +221,25 @@ class InventoryItem:
     daily: bool = False       # 매일 복용 여부 (데일리 투두 생성 기준)
     note: str = ""
     updated_at: str = ""
+    phases: str = ""          # "생리기,황체기" / "all" / "" — 단계별 추천 대상
 
     def to_row(self) -> list:
         return [
             self.id, self.name, self.category, str(self.qty),
             str(self.low_threshold), "1" if self.daily else "0",
-            self.note, self.updated_at,
+            self.note, self.updated_at, self.phases,
         ]
+
+    def matches_phase(self, phase: str) -> bool:
+        if not self.phases:
+            return False
+        if self.phases.strip() == "all":
+            return True
+        return phase in [p.strip() for p in self.phases.split(",")]
 
     @classmethod
     def from_row(cls, row: list) -> "InventoryItem":
-        padded = (row + [""] * 8)[:8]
+        padded = (row + [""] * 9)[:9]
         try:
             qty = int(padded[3])
         except (ValueError, TypeError):
@@ -244,6 +253,7 @@ class InventoryItem:
             qty=qty, low_threshold=low,
             daily=(padded[5] == "1"),
             note=padded[6], updated_at=padded[7],
+            phases=padded[8],
         )
 
 

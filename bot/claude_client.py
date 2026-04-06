@@ -321,6 +321,9 @@ def parse_intake_message(text: str, item_names: list[str]) -> dict:
                 "- category: daily(매일복용)/situational(상황별)/prescription(처방약)/pms\n"
                 "- daily: 매일 먹는다면 true\n"
                 "- note: 용량, 복용법 등 메모\n"
+                "- phases: 해당 영양제가 권장되는 생리주기 단계. 쉼표구분 '생리기,황체기' 형식\n"
+                "  생리기(day1-5), 여포기(day6-13), 배란기(day14-16), 황체기(day17-30), all(항상), 모르면 ''\n"
+                "  힌트: 마그네슘/칼슘→생리기,황체기 / 철분→생리기 / 프로바이오틱스→여포기 / 항산화→배란기 / PMS약→황체기\n"
                 "action=restock일 때: items에 기존 이름 + qty에 추가 수량"
             ),
         }],

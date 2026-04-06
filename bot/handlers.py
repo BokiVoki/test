@@ -1372,11 +1372,13 @@ async def _handle_inventory_natural(update: Update, text: str):
         category = new_item_info.get("category") or "daily"
         daily = bool(new_item_info.get("daily", False))
         note = new_item_info.get("note") or ""
+        phases = new_item_info.get("phases") or ""
         low = 7 if category != "prescription" else 5
-        item = _inventory.add_item(name, qty, category=category, low_threshold=low, daily=daily, note=note)
+        item = _inventory.add_item(name, qty, category=category, low_threshold=low, daily=daily, note=note, phases=phases)
         daily_str = " (매일 복용)" if daily else ""
+        phase_str = f"\n주기 추천: {phases}" if phases else ""
         await update.message.reply_text(
-            f"✅ **{item.name}** 등록했어요!\n{qty}정 · {category}{daily_str}\n\n"
+            f"✅ **{item.name}** 등록했어요!\n{qty}정 · {category}{daily_str}{phase_str}\n\n"
             "매일 알람에 추가하려면 '투두 아침 {이름} 09:00 매일' 이라고 말해줘요.",
             parse_mode="Markdown",
         )
@@ -1517,11 +1519,13 @@ async def _handle_cycle_natural(update: Update, text: str):
     date_str = parsed.get("date") or _now_kst().strftime("%Y-%m-%d")
     note = parsed.get("note", "") or ""
 
+    inv_items = _inventory.get_all() if _inventory else None
+
     if action == "start_period":
         _cycle.start_period(date_str, note)
         status = _cycle.get_current_status()
         await update.message.reply_text(
-            f"🩸 생리 시작 기록했어요! ({date_str})\n\n" + CycleClient.format_status(status),
+            f"🩸 생리 시작 기록했어요! ({date_str})\n\n" + CycleClient.format_status(status, inv_items),
             parse_mode="Markdown"
         )
     elif action == "end_period":
@@ -1532,7 +1536,7 @@ async def _handle_cycle_natural(update: Update, text: str):
             await update.message.reply_text("생리 시작 기록이 없거나 이미 종료 처리됐어요.")
     else:
         status = _cycle.get_current_status()
-        await update.message.reply_text(CycleClient.format_status(status), parse_mode="Markdown")
+        await update.message.reply_text(CycleClient.format_status(status, inv_items), parse_mode="Markdown")
 
 
 async def cycle_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1544,10 +1548,11 @@ async def cycle_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         status = _cycle.get_current_status()
+        inv_items = _inventory.get_all() if _inventory else None
     except Exception as e:
         await update.message.reply_text(f"❌ 오류: {e}")
         return
-    await update.message.reply_text(CycleClient.format_status(status), parse_mode="Markdown")
+    await update.message.reply_text(CycleClient.format_status(status, inv_items), parse_mode="Markdown")
 
 
 # ═══════════════════════════════════════════════════════════

@@ -203,7 +203,7 @@ class CycleClient:
         }
 
     @staticmethod
-    def format_status(status: dict) -> str:
+    def format_status(status: dict, inventory_items: list = None) -> str:
         if "error" in status:
             return f"❌ {status['error']}"
         phase = status["phase"]
@@ -215,12 +215,22 @@ class CycleClient:
         days_str = f"{days_until}일 후" if days_until >= 0 else f"{abs(days_until)}일 지남"
         pms_str = "\n⚠️ PMS 구간 — 에프람/뉴프람/인데놀 챙기세요" if status["pms_alert"] else ""
 
+        # 영양제 추천: Inventory 데이터 우선, 없으면 하드코딩 텍스트 fallback
+        if inventory_items:
+            phase_items = [i for i in inventory_items if i.matches_phase(phase)]
+            if phase_items:
+                supp_str = ", ".join(i.name for i in phase_items)
+            else:
+                supp_str = info.get("supplements", "")
+        else:
+            supp_str = info.get("supplements", "")
+
         lines = [
             f"{emoji} **{phase}** ({cycle_day}일차)",
             f"📅 다음 생리: {next_date} ({days_str})",
             "",
             f"✨ **이 시기 특징**\n{info.get('desc', '')}",
-            f"\n💊 **챙길 영양제**\n{info.get('supplements', '')}",
+            f"\n💊 **챙길 영양제**\n{supp_str}",
             f"\n🏃 **운동 방향**\n{info.get('exercise', '')}",
             f"\n💼 **업무/집중 방향**\n{info.get('work', '')}",
             f"\n🧠 **ADHD 팁**\n{info.get('adhd', '')}",
