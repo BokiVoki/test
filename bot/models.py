@@ -7,6 +7,7 @@ class BotMode(Enum):
     SECRETARY = "secretary"
     FINANCE = "finance"
     CONSULTANT = "consultant"
+    INSTAGRAM = "instagram"
 
 
 CONTENT_TYPES = [
