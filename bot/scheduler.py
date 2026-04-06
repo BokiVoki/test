@@ -2,6 +2,7 @@ import calendar
 import logging
 from datetime import datetime, timedelta, timezone
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,17 @@ async def check_reminders_job(context: CallbackContext):
             except ValueError:
                 continue
             if trigger <= now:
-                await context.bot.send_message(chat_id=int(user_id), text=f"🔔 {r.text}")
+                keyboard = InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton("✅ 완료", callback_data=f"remind:done:{r.id}"),
+                        InlineKeyboardButton("🔁 재알람", callback_data=f"remind:snooze:{r.id}"),
+                    ]
+                ])
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text=f"🔔 {r.text}",
+                    reply_markup=keyboard,
+                )
                 if r.repeat == "none":
                     reminders_client.deactivate(r.id)
                 else:

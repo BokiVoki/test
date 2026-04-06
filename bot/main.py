@@ -94,7 +94,7 @@ def main():
     app.job_queue.run_repeating(check_reminders_job, interval=60, first=10)
 
     # 인라인 버튼 콜백 (되돌리기/취소)
-    app.add_handler(CallbackQueryHandler(handlers.callback_handler, pattern=r"^undo:"))
+    app.add_handler(CallbackQueryHandler(handlers.callback_handler, pattern=r"^(undo:|remind:)"))
 
     # 자연어 메시지 (모든 텍스트)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.message_handler))

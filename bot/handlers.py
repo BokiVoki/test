@@ -29,6 +29,7 @@ _reminders: Optional[RemindersClient] = None
 _todos: Optional[TodosClient] = None
 _memos: Optional[MemosClient] = None
 _undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
+_pending_snooze: dict[int, str] = {}  # chat_id → reminder_id (직접입력 대기 중)
 
 
 def init_sheets(sheets: SheetsClient):
@@ -49,6 +50,26 @@ def init_todos(todos: TodosClient):
 def init_memos(memos: MemosClient):
     global _memos
     _memos = memos
+
+
+def _reminder_action_keyboard(reminder_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ 완료", callback_data=f"remind:done:{reminder_id}"),
+        InlineKeyboardButton("🔁 재알람", callback_data=f"remind:snooze:{reminder_id}"),
+    ]])
+
+
+def _snooze_options_keyboard(reminder_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("10분 뒤", callback_data=f"remind:snooze10m:{reminder_id}"),
+            InlineKeyboardButton("1시간 뒤", callback_data=f"remind:snooze1h:{reminder_id}"),
+        ],
+        [
+            InlineKeyboardButton("하루 뒤", callback_data=f"remind:snooze1d:{reminder_id}"),
+            InlineKeyboardButton("직접 입력", callback_data=f"remind:snooze_custom:{reminder_id}"),
+        ],
+    ])
 
 
 def _undo_keyboard(label: str = "↩️ 되돌리기") -> tuple[str, InlineKeyboardMarkup]:
@@ -564,6 +585,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     data = query.data or ""
+
+    # ── 리마인더 완료 / 재알람 버튼 ──
+    if data.startswith("remind:"):
+        await _handle_remind_callback(query, data)
+        return
+
     if not data.startswith("undo:"):
         return
 
@@ -602,6 +629,49 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🗑 메모 삭제했어요." if ok else "❌ 이미 삭제됐어요.")
 
 
+def _now_kst() -> datetime:
+    return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
+
+
+async def _handle_remind_callback(query, data: str):
+    """remind:done:{id} | remind:snooze:{id} | remind:snooze10m/1h/1d/custom:{id}"""
+    global _pending_snooze
+    if _reminders is None:
+        await query.edit_message_text("❌ 리마인더 초기화 실패.")
+        return
+
+    parts = data.split(":", 2)  # ["remind", action, id]
+    if len(parts) < 3:
+        return
+    action, reminder_id = parts[1], parts[2]
+
+    if action == "done":
+        # 이미 deactivate된 상태지만 혹시 몰라 재확인 후 완료 처리
+        _reminders.deactivate(reminder_id)
+        await query.edit_message_text(f"✅ 완료했어요!")
+
+    elif action == "snooze":
+        # 재알람 옵션 키보드로 전환
+        original_text = query.message.text or "🔔 리마인더"
+        await query.edit_message_text(
+            f"{original_text}\n\n⏰ 언제 다시 알려드릴까요?",
+            reply_markup=_snooze_options_keyboard(reminder_id),
+        )
+
+    elif action in ("snooze10m", "snooze1h", "snooze1d"):
+        delta = {"snooze10m": timedelta(minutes=10), "snooze1h": timedelta(hours=1), "snooze1d": timedelta(days=1)}[action]
+        label = {"snooze10m": "10분", "snooze1h": "1시간", "snooze1d": "하루"}[action]
+        new_trigger = (_now_kst() + delta).strftime("%Y-%m-%dT%H:%M:%S")
+        _reminders.reschedule(reminder_id, new_trigger)
+        await query.edit_message_text(f"⏰ {label} 뒤에 다시 알려드릴게요!")
+
+    elif action == "snooze_custom":
+        # 직접 입력 대기 상태로 전환
+        chat_id = query.message.chat_id
+        _pending_snooze[chat_id] = reminder_id
+        await query.edit_message_text("⏰ 재알람 시간을 입력해주세요.\n예: 30분 뒤, 내일 오전 9시, 3일 후")
+
+
 _MODE_WORDS: dict[BotMode, tuple] = {
     BotMode.SECRETARY:  ("비서", "secretary"),
     BotMode.FINANCE:    ("금융 모드", "금융전문가", "금융 전문가", "finance"),
@@ -628,6 +698,31 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return
     text = update.message.text.strip()
+    chat_id = update.message.chat_id
+
+    # ── 재알람 직접 입력 대기 중 ──
+    if chat_id in _pending_snooze:
+        reminder_id = _pending_snooze.pop(chat_id)
+        if _reminders is not None:
+            try:
+                from datetime import timezone, timedelta
+                now_str = _now_kst().strftime("%Y-%m-%d %H:%M")
+                parsed_list = claude_client.parse_reminder_times(text, now_str)
+                if parsed_list:
+                    new_trigger = parsed_list[0]["trigger_at"]
+                    _reminders.reschedule(reminder_id, new_trigger)
+                    # 사람이 읽기 좋은 시간 표시
+                    try:
+                        dt = datetime.fromisoformat(new_trigger)
+                        label = dt.strftime("%m/%d %H:%M")
+                    except Exception:
+                        label = new_trigger
+                    await update.message.reply_text(f"⏰ {label}에 다시 알려드릴게요!")
+                else:
+                    await update.message.reply_text("⚠️ 시간을 이해하지 못했어요. 다시 시도해주세요. (예: 30분 뒤, 내일 오전 9시)")
+            except Exception as e:
+                await update.message.reply_text(f"❌ 오류: {e}")
+        return
 
     # 자연어 모드 전환 감지 (모든 모드에서 동작)
     new_mode = _detect_mode_switch(text)
