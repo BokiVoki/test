@@ -592,10 +592,13 @@ async def _handle_todo_natural(update: Update, text: str):
         return
 
     action = parsed.get("action", "add")
-    todo_text = (parsed.get("text") or text).strip()
-    due_date = parsed.get("due_date") or ""
-    trigger_at = parsed.get("trigger_at") or ""
-    repeat = parsed.get("repeat") or "none"
+    items_data = parsed.get("items", [])
+    # 하위 호환
+    if not items_data:
+        items_data = [{"text": parsed.get("text", text), "due_date": parsed.get("due_date"), "trigger_at": parsed.get("trigger_at"), "repeat": parsed.get("repeat", "none")}]
+
+    def _first_text():
+        return (items_data[0].get("text") or text).strip() if items_data else text.strip()
 
     try:
         if action == "list":
@@ -603,29 +606,73 @@ async def _handle_todo_natural(update: Update, text: str):
 
         elif action == "add":
             await update.message.chat.send_action("typing")
-            item = TodoItem(text=todo_text, due_date=due_date, trigger_at=trigger_at, repeat=repeat)
-            _todos.add(item)
-            key, markup = _undo_keyboard("↩️ 취소")
-            _undo_state[key] = {"type": "delete_todo", "todo_id": item.id}
-            if trigger_at:
-                try:
-                    dt = datetime.fromisoformat(trigger_at)
-                    time_label = dt.strftime("%m/%d %H:%M")
-                except Exception:
-                    time_label = trigger_at
-                rep_label = {"daily": " (매일)", "weekly": " (매주)", "monthly": " (매달)"}.get(repeat, "")
-                await update.message.reply_text(
-                    f"⏰ **{todo_text}** — {time_label}에 알림{rep_label}",
-                    parse_mode="Markdown", reply_markup=markup
-                )
+            added = []
+            for item_data in items_data:
+                todo_text = (item_data.get("text") or "").strip()
+                if not todo_text:
+                    continue
+                due_date = item_data.get("due_date") or ""
+                trigger_at = item_data.get("trigger_at") or ""
+                repeat = item_data.get("repeat") or "none"
+                item = TodoItem(text=todo_text, due_date=due_date, trigger_at=trigger_at, repeat=repeat)
+                _todos.add(item)
+                added.append(item)
+
+            if not added:
+                await update.message.reply_text("추가할 항목을 인식하지 못했어요.")
+                return
+
+            if len(added) == 1:
+                item = added[0]
+                key, markup = _undo_keyboard("↩️ 취소")
+                _undo_state[key] = {"type": "delete_todo", "todo_id": item.id}
+                rep_label = {"daily": " (매일)", "weekly": " (매주)", "monthly": " (매달)"}.get(item.repeat, "")
+                if item.repeat.startswith("after:"):
+                    try:
+                        mins = int(item.repeat.split(":")[1])
+                    except (IndexError, ValueError):
+                        mins = 60
+                    rep_label = f" ({_fmt_interval(mins)}마다)"
+                if item.trigger_at:
+                    try:
+                        dt = datetime.fromisoformat(item.trigger_at)
+                        time_label = dt.strftime("%m/%d %H:%M")
+                    except Exception:
+                        time_label = item.trigger_at
+                    await update.message.reply_text(
+                        f"⏰ **{item.text}** — {time_label}에 알림{rep_label}",
+                        parse_mode="Markdown", reply_markup=markup
+                    )
+                else:
+                    due_str = _fmt_due(item.due_date)
+                    await update.message.reply_text(
+                        f"📋 **{item.text}** 추가했어요!{due_str}",
+                        parse_mode="Markdown", reply_markup=markup
+                    )
             else:
-                due_str = _fmt_due(due_date)
-                await update.message.reply_text(
-                    f"📋 **{todo_text}** 추가했어요!{due_str}",
-                    parse_mode="Markdown", reply_markup=markup
-                )
+                # 여러 개: 목록으로 출력
+                lines = [f"📋 **{len(added)}개** 투두 추가했어요!\n"]
+                for item in added:
+                    rep_label = {"daily": " 매일", "weekly": " 매주", "monthly": " 매달"}.get(item.repeat, "")
+                    if item.repeat.startswith("after:"):
+                        try:
+                            mins = int(item.repeat.split(":")[1])
+                        except (IndexError, ValueError):
+                            mins = 60
+                        rep_label = f" {_fmt_interval(mins)}마다"
+                    if item.trigger_at:
+                        try:
+                            dt = datetime.fromisoformat(item.trigger_at)
+                            time_label = f" — {dt.strftime('%m/%d %H:%M')}"
+                        except Exception:
+                            time_label = f" — {item.trigger_at}"
+                    else:
+                        time_label = _fmt_due(item.due_date)
+                    lines.append(f"• {item.text}{time_label}{rep_label}")
+                await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
         elif action == "complete":
+            todo_text = _first_text()
             item = _todos.find_by_text(todo_text)
             if not item:
                 await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요. `/todos`로 목록 확인해주세요.", parse_mode="Markdown")
@@ -634,6 +681,7 @@ async def _handle_todo_natural(update: Update, text: str):
             await update.message.reply_text(f"✅ **{item.text}** 완료!", parse_mode="Markdown")
 
         elif action == "delete":
+            todo_text = _first_text()
             item = _todos.find_by_text(todo_text)
             if not item:
                 await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요.")
