@@ -58,6 +58,13 @@ def main():
     app.add_handler(CommandHandler("consultant", handlers.switch_mode_handler))
     app.add_handler(CommandHandler("mode", handlers.mode_handler))
 
+    # 인스타그램 마케팅팀
+    app.add_handler(CommandHandler("instagram", handlers.instagram_handler))
+    app.add_handler(CommandHandler("designer", handlers.switch_instagram_agent_handler))
+    app.add_handler(CommandHandler("writer", handlers.switch_instagram_agent_handler))
+    app.add_handler(CommandHandler("igmanager", handlers.switch_instagram_agent_handler))
+    app.add_handler(CommandHandler("figma", handlers.figma_handler))
+
     # 비서 명령어
     app.add_handler(CommandHandler("start", handlers.start_handler))
     app.add_handler(CommandHandler("help", handlers.help_handler))
