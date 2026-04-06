@@ -175,7 +175,7 @@ class MemoEntry:
         return cls(id=padded[0], mode=padded[1], content=padded[2], created_at=padded[3])
 
 
-TODO_COLUMNS = ["id", "text", "done", "due_date", "created_at"]
+TODO_COLUMNS = ["id", "text", "done", "due_date", "created_at", "trigger_at", "repeat"]
 
 
 @dataclass
@@ -183,19 +183,25 @@ class TodoItem:
     id: str = ""
     text: str = ""
     done: bool = False
-    due_date: str = ""    # "2024-01-15" or ""
+    due_date: str = ""    # "2024-01-15" or "" — 마감일 표시용
     created_at: str = ""
+    trigger_at: str = ""  # "2024-01-15T09:00:00" KST — 알람 시각 (없으면 "")
+    repeat: str = "none"  # none / daily / weekly / monthly
 
     def to_row(self) -> list:
-        return [self.id, self.text, "1" if self.done else "0", self.due_date, self.created_at]
+        return [
+            self.id, self.text, "1" if self.done else "0",
+            self.due_date, self.created_at, self.trigger_at, self.repeat,
+        ]
 
     @classmethod
     def from_row(cls, row: list) -> "TodoItem":
-        padded = (row + [""] * 5)[:5]
+        padded = (row + [""] * 7)[:7]
         return cls(
             id=padded[0], text=padded[1],
             done=(padded[2] == "1"),
             due_date=padded[3], created_at=padded[4],
+            trigger_at=padded[5], repeat=padded[6] or "none",
         )
 
 

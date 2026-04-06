@@ -72,6 +72,40 @@ class TodosClient:
                 return True
         return False
 
+    def get_with_alarm(self) -> list[TodoItem]:
+        """trigger_at이 설정된 미완료 투두 (알람 대기 중)"""
+        return [t for t in self.get_all() if not t.done and t.trigger_at]
+
+    def get_by_id(self, todo_id: str) -> Optional[TodoItem]:
+        for t in self.get_all():
+            if t.id == todo_id:
+                return t
+        return None
+
+    def clear_trigger(self, todo_id: str):
+        """trigger_at 초기화 — 알람만 해제, 투두 항목은 유지"""
+        sheet = self._get_sheet()
+        for i, row in enumerate(sheet.get_all_values()[1:], start=2):
+            if row and row[0] == todo_id:
+                sheet.update_cell(i, 6, "")
+                return
+
+    def reschedule(self, todo_id: str, new_trigger_at: str):
+        """재알람: trigger_at 업데이트, done=0 으로 재활성화"""
+        sheet = self._get_sheet()
+        for i, row in enumerate(sheet.get_all_values()[1:], start=2):
+            if row and row[0] == todo_id:
+                sheet.update_cell(i, 6, new_trigger_at)
+                sheet.update_cell(i, 3, "0")  # 완료 해제
+                return
+
+    def cancel_all_alarms(self):
+        """모든 미완료 투두의 trigger_at 초기화"""
+        sheet = self._get_sheet()
+        for i, row in enumerate(sheet.get_all_values()[1:], start=2):
+            if row and row[0] and row[2] != "1" and len(row) > 5 and row[5]:
+                sheet.update_cell(i, 6, "")
+
     def find_by_text(self, text: str) -> Optional[TodoItem]:
         needle = text.lower().strip()
         pending = self.get_pending()

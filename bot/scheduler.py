@@ -26,36 +26,34 @@ def _next_trigger(trigger: datetime, repeat: str) -> datetime:
 
 
 async def check_reminders_job(context: CallbackContext):
-    reminders_client = context.bot_data.get("reminders_client")
+    todos_client = context.bot_data.get("todos_client")
     user_id = context.bot_data.get("user_id")
-    if not reminders_client or not user_id:
+    if not todos_client or not user_id:
         return
 
     try:
         now = _now_kst()
-        for r in reminders_client.get_all_active():
-            if not r.trigger_at:
-                continue
+        for todo in todos_client.get_with_alarm():
             try:
-                trigger = datetime.fromisoformat(r.trigger_at)
+                trigger = datetime.fromisoformat(todo.trigger_at)
             except ValueError:
                 continue
             if trigger <= now:
                 keyboard = InlineKeyboardMarkup([
                     [
-                        InlineKeyboardButton("✅ 완료", callback_data=f"remind:done:{r.id}"),
-                        InlineKeyboardButton("🔁 재알람", callback_data=f"remind:snooze:{r.id}"),
+                        InlineKeyboardButton("✅ 완료", callback_data=f"remind:done:{todo.id}"),
+                        InlineKeyboardButton("🔁 재알람", callback_data=f"remind:snooze:{todo.id}"),
                     ]
                 ])
                 await context.bot.send_message(
                     chat_id=int(user_id),
-                    text=f"🔔 {r.text}",
+                    text=f"🔔 {todo.text}",
                     reply_markup=keyboard,
                 )
-                if r.repeat == "none":
-                    reminders_client.deactivate(r.id)
+                if todo.repeat == "none":
+                    todos_client.clear_trigger(todo.id)
                 else:
-                    next_t = _next_trigger(trigger, r.repeat)
-                    reminders_client.update_trigger(r.id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
+                    next_t = _next_trigger(trigger, todo.repeat)
+                    todos_client.reschedule(todo.id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
     except Exception as e:
-        logger.error(f"Reminder check error: {e}")
+        logger.error(f"Todo alarm check error: {e}")

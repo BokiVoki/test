@@ -416,8 +416,15 @@ async def todos_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ 할 일이 없어요!")
         return
     lines = ["**📋 할 일 목록**\n"]
-    for i, t in enumerate(pending, 1):
-        lines.append(f"{i}. {t.text}{_fmt_due(t.due_date)}  `{t.id}`")
+    for i, item in enumerate(pending, 1):
+        alarm_str = ""
+        if item.trigger_at:
+            try:
+                dt = datetime.fromisoformat(item.trigger_at)
+                alarm_str = f" ⏰{dt.strftime('%m/%d %H:%M')}"
+            except Exception:
+                alarm_str = " ⏰"
+        lines.append(f"{i}. {item.text}{_fmt_due(item.due_date)}{alarm_str}  `{item.id}`")
     lines.append("\n완료: `완료 [내용]` 또는 `/todo_done [ID]`")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
@@ -513,13 +520,13 @@ async def memo_del_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _handle_todo_natural(update: Update, text: str):
-    """자연어 투두 처리"""
+    """자연어 투두+알람 통합 처리"""
     if _todos is None:
         await update.message.reply_text("❌ 투두 초기화 실패.")
         return
 
     kst = timezone(timedelta(hours=9))
-    now_str = datetime.now(kst).strftime("%Y년 %m월 %d일")
+    now_str = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
     try:
         parsed = claude_client.parse_todo(text, now_str)
     except Exception as e:
@@ -529,6 +536,8 @@ async def _handle_todo_natural(update: Update, text: str):
     action = parsed.get("action", "add")
     todo_text = (parsed.get("text") or text).strip()
     due_date = parsed.get("due_date") or ""
+    trigger_at = parsed.get("trigger_at") or ""
+    repeat = parsed.get("repeat") or "none"
 
     try:
         if action == "list":
@@ -536,15 +545,27 @@ async def _handle_todo_natural(update: Update, text: str):
 
         elif action == "add":
             await update.message.chat.send_action("typing")
-            item = TodoItem(text=todo_text, due_date=due_date)
+            item = TodoItem(text=todo_text, due_date=due_date, trigger_at=trigger_at, repeat=repeat)
             _todos.add(item)
-            due_str = _fmt_due(due_date)
             key, markup = _undo_keyboard("↩️ 취소")
             _undo_state[key] = {"type": "delete_todo", "todo_id": item.id}
-            await update.message.reply_text(
-                f"📋 **{todo_text}** 추가했어요!{due_str}",
-                parse_mode="Markdown", reply_markup=markup
-            )
+            if trigger_at:
+                try:
+                    dt = datetime.fromisoformat(trigger_at)
+                    time_label = dt.strftime("%m/%d %H:%M")
+                except Exception:
+                    time_label = trigger_at
+                rep_label = {"daily": " (매일)", "weekly": " (매주)", "monthly": " (매달)"}.get(repeat, "")
+                await update.message.reply_text(
+                    f"⏰ **{todo_text}** — {time_label}에 알림{rep_label}",
+                    parse_mode="Markdown", reply_markup=markup
+                )
+            else:
+                due_str = _fmt_due(due_date)
+                await update.message.reply_text(
+                    f"📋 **{todo_text}** 추가했어요!{due_str}",
+                    parse_mode="Markdown", reply_markup=markup
+                )
 
         elif action == "complete":
             item = _todos.find_by_text(todo_text)
@@ -561,6 +582,10 @@ async def _handle_todo_natural(update: Update, text: str):
                 return
             _todos.delete(item.id)
             await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
+
+        elif action == "cancel_alarms":
+            _todos.cancel_all_alarms()
+            await update.message.reply_text("🔕 모든 알람을 해제했어요. (투두 항목은 유지됩니다)")
 
     except Exception as e:
         await update.message.reply_text(f"❌ 오류: {e}")
@@ -636,39 +661,36 @@ def _now_kst() -> datetime:
 async def _handle_remind_callback(query, data: str):
     """remind:done:{id} | remind:snooze:{id} | remind:snooze10m/1h/1d/custom:{id}"""
     global _pending_snooze
-    if _reminders is None:
-        await query.edit_message_text("❌ 리마인더 초기화 실패.")
+    if _todos is None:
+        await query.edit_message_text("❌ 투두 초기화 실패.")
         return
 
     parts = data.split(":", 2)  # ["remind", action, id]
     if len(parts) < 3:
         return
-    action, reminder_id = parts[1], parts[2]
+    action, todo_id = parts[1], parts[2]
 
     if action == "done":
-        # 이미 deactivate된 상태지만 혹시 몰라 재확인 후 완료 처리
-        _reminders.deactivate(reminder_id)
-        await query.edit_message_text(f"✅ 완료했어요!")
+        _todos.complete(todo_id)
+        await query.edit_message_text("✅ 완료했어요!")
 
     elif action == "snooze":
-        # 재알람 옵션 키보드로 전환
-        original_text = query.message.text or "🔔 리마인더"
+        original_text = query.message.text or "🔔 알림"
         await query.edit_message_text(
             f"{original_text}\n\n⏰ 언제 다시 알려드릴까요?",
-            reply_markup=_snooze_options_keyboard(reminder_id),
+            reply_markup=_snooze_options_keyboard(todo_id),
         )
 
     elif action in ("snooze10m", "snooze1h", "snooze1d"):
         delta = {"snooze10m": timedelta(minutes=10), "snooze1h": timedelta(hours=1), "snooze1d": timedelta(days=1)}[action]
         label = {"snooze10m": "10분", "snooze1h": "1시간", "snooze1d": "하루"}[action]
         new_trigger = (_now_kst() + delta).strftime("%Y-%m-%dT%H:%M:%S")
-        _reminders.reschedule(reminder_id, new_trigger)
+        _todos.reschedule(todo_id, new_trigger)
         await query.edit_message_text(f"⏰ {label} 뒤에 다시 알려드릴게요!")
 
     elif action == "snooze_custom":
-        # 직접 입력 대기 상태로 전환
         chat_id = query.message.chat_id
-        _pending_snooze[chat_id] = reminder_id
+        _pending_snooze[chat_id] = todo_id
         await query.edit_message_text("⏰ 재알람 시간을 입력해주세요.\n예: 30분 뒤, 내일 오전 9시, 3일 후")
 
 
@@ -860,19 +882,9 @@ def _is_reminder_intent(t: str, keywords: tuple) -> bool:
 async def _handle_secretary(update: Update, text: str):
     t = text.lower()
 
-    # 투두 관련 메시지
-    if any(w in t for w in _TODO_WORDS):
+    # 투두/알람 통합 처리 ("투두" 또는 "리마인더" 키워드 모두 포함)
+    if any(w in t for w in _TODO_WORDS) or any(w in t for w in _REMINDER_WORDS):
         await _handle_todo_natural(update, text)
-        return
-
-    # 리마인더 관련 메시지: 취소 → 목록 → 그 외는 등록으로 처리
-    if any(w in t for w in _REMINDER_WORDS):
-        if _is_reminder_intent(t, _REMINDER_CANCEL_ALL_KEYWORDS):
-            await cancel_all_reminders_handler(update, None)
-        elif _is_reminder_intent(t, _REMINDER_LIST_KEYWORDS):
-            await reminders_handler(update, None)
-        else:
-            await _handle_remind_natural(update, text)
         return
 
     known_titles = _sheets.get_titles()

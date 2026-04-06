@@ -54,7 +54,8 @@ def main():
     user_id = os.getenv("TELEGRAM_USER_ID", "")
 
     app = Application.builder().token(token).build()
-    app.bot_data["reminders_client"] = reminders
+    app.bot_data["reminders_client"] = reminders  # 기존 명령어 호환용
+    app.bot_data["todos_client"] = todos
     app.bot_data["user_id"] = user_id
 
     # 모드 전환 (텔레그램 명령어는 영어/숫자만 가능)

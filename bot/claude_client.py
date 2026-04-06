@@ -224,33 +224,47 @@ def parse_reminder_time(user_input: str, now_kst_str: str) -> dict:
 
 def parse_todo(user_input: str, now_kst_str: str) -> dict:
     """
-    자연어 투두 파싱.
-    반환: {"action": "add|complete|delete|list", "text": "...", "due_date": "YYYY-MM-DD or null"}
+    자연어 투두+알람 파싱.
+    반환: {
+      "action": "add|complete|delete|list|cancel_alarms",
+      "text": "...",
+      "due_date": "YYYY-MM-DD or null",
+      "trigger_at": "YYYY-MM-DDTHH:MM:SS or null",
+      "repeat": "none|daily|weekly|monthly"
+    }
     """
     client = _get_client()
     resp = client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=200,
+        max_tokens=300,
         messages=[{
             "role": "user",
             "content": (
                 f"현재 한국 시간: {now_kst_str}\n"
-                f"투두 요청: \"{user_input}\"\n\n"
+                f"투두/알람 요청: \"{user_input}\"\n\n"
                 "다음 JSON만 반환하세요:\n"
                 "{\n"
                 "  \"action\": \"add\",\n"
                 "  \"text\": \"할 일 내용\",\n"
-                "  \"due_date\": \"YYYY-MM-DD or null\"\n"
+                "  \"due_date\": \"YYYY-MM-DD or null\",\n"
+                "  \"trigger_at\": \"YYYY-MM-DDTHH:MM:SS or null\",\n"
+                "  \"repeat\": \"none\"\n"
                 "}\n\n"
                 "action 규칙:\n"
-                "- add: 추가/등록/할 일 생성\n"
+                "- add: 추가/등록/할 일 생성/리마인더 설정\n"
                 "- complete: 완료/했어/끝냈어/체크\n"
                 "- delete: 삭제/지워/제거\n"
                 "- list: 목록/보여/리스트/미완료/남은/못 한/안 한/뭐 해야/확인/조회\n"
+                "- cancel_alarms: 알람 전부 취소/리마인더 전부 취소/알람 다 꺼\n"
+                "trigger_at 규칙:\n"
+                "- 구체적인 시각 언급 시 → 해당 시각으로 설정 (예: '내일 오전 9시' → 내일T09:00:00)\n"
+                "- 날짜만 언급 시 → 해당 날 09:00:00으로 설정\n"
+                "- 시간/날짜 전혀 없으면 → null (알람 없는 투두)\n"
                 "due_date 규칙:\n"
-                "- '내일까지', '이번주' 등 마감일 언급 시 날짜로 변환\n"
-                "- 마감일 없으면 null\n"
-                "- text는 핵심 할 일만 (투두/할 일 키워드 제외)"
+                "- '~까지' 마감 언급 시 날짜 설정, trigger_at는 null\n"
+                "- trigger_at 있으면 due_date는 null\n"
+                "repeat 규칙: 매일→daily, 매주→weekly, 매달→monthly, 없으면→none\n"
+                "text: 핵심 할 일만 (투두/리마인더/시간/날짜 키워드 제외)"
             ),
         }],
     )
