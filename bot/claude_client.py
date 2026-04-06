@@ -280,3 +280,23 @@ def answer_query(query: str, entries: list[ContentEntry]) -> str:
 질문에 맞게 관련 항목만 추려서 간결하게 한국어로 답변해주세요."""
 
     return chat("secretary", prompt)
+
+
+def instagram_chat(agent: str, user_message: str, history: list[dict] | None = None, figma_context: str = "") -> str:
+    """인스타그램 팀 에이전트 대화"""
+    from .instagram_prompts import INSTAGRAM_PROMPTS
+    system = INSTAGRAM_PROMPTS.get(agent, INSTAGRAM_PROMPTS["manager"])
+    if figma_context:
+        system = f"{system}\n\n---\n현재 피그마 컴포넌트 현황:\n{figma_context}"
+
+    messages = (history or [])[:]
+    messages.append({"role": "user", "content": user_message})
+
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        system=system,
+        messages=messages,
+    )
+    return resp.content[0].text.strip()
