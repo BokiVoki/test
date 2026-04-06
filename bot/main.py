@@ -105,6 +105,7 @@ def main():
     app.add_handler(CommandHandler("cancel_reminder", handlers.cancel_reminder_handler))
     app.add_handler(CommandHandler("cancel_all_reminders", handlers.cancel_all_reminders_handler))
     app.add_handler(CommandHandler("clear_reminders", handlers.clear_reminders_sheet_handler))
+    app.add_handler(CommandHandler("migrate_reminders", handlers.migrate_reminders_handler))
 
     # 투두리스트
     app.add_handler(CommandHandler("todos", handlers.todos_handler))

@@ -322,56 +322,52 @@ async def import_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def remind_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/remind 내일 오전 9시 / 약 먹기"""
+    """/remind — Todos 시트에 알람 등록 (구 Reminders와 동일하게 동작)"""
     if not _auth(update):
         return
-
-    if _reminders is None:
-        await update.message.reply_text("❌ 리마인더 초기화 실패. Railway 로그를 확인해주세요.")
-        return
-
-    # context.args로 받으면 /remind@botname 형태도 처리됨
     raw = " ".join(context.args) if context.args else ""
     if not raw:
         await update.message.reply_text(
             "사용법: `/remind 내일 오전 9시 / 약 먹기`\n\n"
-            "슬래시(/)로 시간과 내용을 구분해요.\n"
+            "또는 자연어로: `투두 내일 9시 약 먹기`\n"
             "반복 예시:\n"
             "• `/remind 매일 저녁 10시 / 스트레칭`\n"
-            "• `/remind 매주 월요일 아침 8시 / 주간 계획`\n"
-            "• `/remind 매달 1일 오전 9시 / 월세 확인`",
+            "• `/remind 매주 월요일 아침 8시 / 주간 계획`",
             parse_mode="Markdown"
         )
         return
-
-    await _handle_remind_natural(update, raw)
+    await _handle_todo_natural(update, raw)
 
 
 async def reminders_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/reminders — 등록된 리마인더 목록"""
+    """/reminders — 알람이 있는 투두 목록 (Todos 시트 기반)"""
     if not _auth(update):
         return
-    active = _reminders.get_all_active()
+    if _todos is None:
+        await update.message.reply_text("❌ 투두 초기화 실패.")
+        return
+    all_todos = _todos.get_all()
+    active = [t for t in all_todos if not t.done and t.trigger_at]
     if not active:
-        await update.message.reply_text("등록된 리마인더가 없어요.")
+        await update.message.reply_text("등록된 알람이 없어요.")
         return
 
     repeat_label = {"none": "", "daily": " 매일", "weekly": " 매주", "monthly": " 매달"}
-    lines = ["**🔔 리마인더 목록**\n"]
-    for i, r in enumerate(active, 1):
+    lines = ["**🔔 알람 목록**\n"]
+    for i, t in enumerate(active, 1):
         try:
-            dt = datetime.fromisoformat(r.trigger_at)
+            dt = datetime.fromisoformat(t.trigger_at)
             time_str = dt.strftime("%m/%d %H:%M")
         except Exception:
-            time_str = r.trigger_at
-        rep = repeat_label.get(r.repeat, "")
-        lines.append(f"{i}. {r.text}\n   `{time_str}`{rep}  ID: `{r.id}`")
+            time_str = t.trigger_at
+        rep = repeat_label.get(t.repeat, "")
+        lines.append(f"{i}. {t.text}\n   `{time_str}`{rep}  ID: `{t.id}`")
     lines.append("\n취소: `/cancel_reminder [ID]`")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
 async def cancel_reminder_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/cancel_reminder [id]"""
+    """/cancel_reminder [id] — 알람 해제 (투두 항목은 유지)"""
     if not _auth(update):
         return
     if not context.args:
@@ -381,29 +377,63 @@ async def cancel_reminder_handler(update: Update, context: ContextTypes.DEFAULT_
         )
         return
     rid = context.args[0]
-    _reminders.deactivate(rid)
-    await update.message.reply_text(f"리마인더 `{rid}` 취소했어요.", parse_mode="Markdown")
+    if _todos:
+        _todos.clear_trigger(rid)
+        await update.message.reply_text(f"🔕 알람 `{rid}` 해제했어요. (투두는 유지)", parse_mode="Markdown")
+    elif _reminders:
+        _reminders.deactivate(rid)
+        await update.message.reply_text(f"리마인더 `{rid}` 취소했어요.", parse_mode="Markdown")
 
 
 async def cancel_all_reminders_handler(update: Update, context):
-    """/cancel_all_reminders — 모든 리마인더 취소"""
+    """/cancel_all_reminders — 모든 알람 해제"""
     if not _auth(update):
         return
-    active = _reminders.get_all_active()
-    if not active:
-        await update.message.reply_text("취소할 리마인더가 없어요.")
-        return
-    for r in active:
-        _reminders.deactivate(r.id)
-    await update.message.reply_text(f"🔕 리마인더 {len(active)}개 전부 취소했어요.")
+    if _todos:
+        _todos.cancel_all_alarms()
+        await update.message.reply_text("🔕 모든 알람 해제했어요. (투두 항목은 유지)")
+    elif _reminders:
+        active = _reminders.get_all_active()
+        for r in active:
+            _reminders.deactivate(r.id)
+        await update.message.reply_text(f"🔕 리마인더 {len(active)}개 전부 취소했어요.")
 
 
 async def clear_reminders_sheet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/clear_reminders — 시트 전체 초기화 (완전 삭제)"""
+    """/clear_reminders — Reminders 시트 초기화"""
     if not _auth(update):
         return
-    _reminders.clear_all()
-    await update.message.reply_text("🗑 Reminders 시트 전체 초기화했어요.")
+    if _reminders:
+        _reminders.clear_all()
+    await update.message.reply_text("🗑 Reminders 시트 초기화했어요.")
+
+
+async def migrate_reminders_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/migrate_reminders — Reminders 시트 → Todos 시트로 이전"""
+    if not _auth(update):
+        return
+    if _reminders is None or _todos is None:
+        await update.message.reply_text("❌ 초기화 실패.")
+        return
+    active = _reminders.get_all_active()
+    if not active:
+        await update.message.reply_text("Reminders 시트에 이전할 항목이 없어요.")
+        return
+    migrated = 0
+    for r in active:
+        item = TodoItem(
+            text=r.text,
+            trigger_at=r.trigger_at,
+            repeat=r.repeat,
+            created_at=r.created_at,
+        )
+        _todos.add(item)
+        _reminders.deactivate(r.id)
+        migrated += 1
+    await update.message.reply_text(
+        f"✅ {migrated}개 이전 완료! (Reminders → Todos)\n`/reminders`로 확인해보세요.",
+        parse_mode="Markdown"
+    )
 
 
 # ── 투두리스트 ────────────────────────────────────────────────────────────────
