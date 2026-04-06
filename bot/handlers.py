@@ -12,17 +12,23 @@ from .sheets import SheetsClient
 from .reminders_sheet import RemindersClient
 from .todos_sheet import TodosClient
 from . import claude_client
+from . import figma_client
 from .mode_prompts import MODE_NAMES
+from .instagram_prompts import INSTAGRAM_AGENT_NAMES
 
 # 모드별 대화 히스토리 (최근 10턴)
 _history: dict[str, list[dict]] = {
     "secretary": [],
     "finance": [],
     "consultant": [],
+    "instagram_designer": [],
+    "instagram_writer": [],
+    "instagram_manager": [],
 }
 MAX_HISTORY = 20  # message 수 (user+assistant 합산)
 
 _current_mode: BotMode = BotMode.SECRETARY
+_current_instagram_agent: str = "manager"  # designer | writer | manager
 _sheets: Optional[SheetsClient] = None
 _reminders: Optional[RemindersClient] = None
 _todos: Optional[TodosClient] = None
@@ -522,6 +528,102 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
 
 
+# ── 인스타그램 팀 핸들러 ─────────────────────────────────────
+
+async def instagram_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """인스타그램 마케팅팀 모드 진입"""
+    global _current_mode
+    if not _auth(update):
+        return
+    _current_mode = BotMode.INSTAGRAM
+    agent_name = INSTAGRAM_AGENT_NAMES[_current_instagram_agent]
+    figma_status = "✅ 연동됨" if figma_client.is_configured() else "⚙️ 미설정 (선택사항)"
+    text = (
+        "📱 **인스타그램 마케팅팀** (@graphic.fan)\n\n"
+        f"현재 에이전트: **{agent_name}**\n"
+        f"피그마: {figma_status}\n\n"
+        "**에이전트 전환:**\n"
+        "/designer — 🎨 디자이너 (피그마 연동, 디자인 스펙)\n"
+        "/writer — ✍️ 작가 (캡션·한줄평 작성)\n"
+        "/igmanager — 📊 매니저 (통계 분석·이벤트 기획)\n\n"
+        "전환 후 바로 말 걸면 돼요!"
+    )
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+
+async def switch_instagram_agent_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/designer /writer /igmanager — 에이전트 전환"""
+    global _current_mode, _current_instagram_agent
+    if not _auth(update):
+        return
+    cmd = update.message.text.split()[0].lstrip("/").lower()
+    if cmd == "designer":
+        _current_instagram_agent = "designer"
+    elif cmd == "writer":
+        _current_instagram_agent = "writer"
+    elif cmd == "igmanager":
+        _current_instagram_agent = "manager"
+    _current_mode = BotMode.INSTAGRAM
+    name = INSTAGRAM_AGENT_NAMES[_current_instagram_agent]
+    await update.message.reply_text(f"{name} 에이전트로 전환했어요. 바로 말 걸어주세요!", parse_mode="Markdown")
+
+
+async def figma_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/figma — 피그마 컴포넌트/스타일 조회"""
+    if not _auth(update):
+        return
+    if not figma_client.is_configured():
+        await update.message.reply_text(
+            "피그마 연동이 설정되지 않았어요.\n\n"
+            "`.env`에 추가해주세요:\n"
+            "`FIGMA_TOKEN=your_token`\n"
+            "`FIGMA_FILE_KEY=your_file_key`",
+            parse_mode="Markdown"
+        )
+        return
+    await update.message.chat.send_action("typing")
+    try:
+        components = figma_client.get_components()
+        styles = figma_client.get_styles()
+        lines = [
+            f"**피그마 디자인 시스템** ({len(components)}개 컴포넌트, {len(styles)}개 스타일)\n",
+            "**컴포넌트**",
+            figma_client.format_components_summary(components),
+            "\n**스타일**",
+            figma_client.format_styles_summary(styles),
+        ]
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    except Exception as e:
+        await update.message.reply_text(f"피그마 조회 실패: {e}")
+
+
+async def _handle_instagram(update: Update, text: str):
+    """인스타그램 에이전트에게 메시지 라우팅"""
+    agent = _current_instagram_agent
+    history_key = f"instagram_{agent}"
+    await update.message.chat.send_action("typing")
+
+    # 디자이너 모드: 피그마 컴포넌트 컨텍스트 포함
+    figma_context = ""
+    if agent == "designer" and figma_client.is_configured():
+        try:
+            components = figma_client.get_components()
+            styles = figma_client.get_styles()
+            parts = []
+            if components:
+                parts.append(f"컴포넌트:\n{figma_client.format_components_summary(components)}")
+            if styles:
+                parts.append(f"스타일:\n{figma_client.format_styles_summary(styles)}")
+            figma_context = "\n\n".join(parts)
+        except Exception:
+            pass
+
+    _add_history(history_key, "user", text)
+    reply = claude_client.instagram_chat(agent, text, history=_history[history_key][:-1], figma_context=figma_context)
+    _add_history(history_key, "assistant", reply)
+    await update.message.reply_text(reply)
+
+
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return
@@ -531,6 +633,8 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 비서 모드: 아카이브 관련 파싱 먼저 시도
     if mode == "secretary":
         await _handle_secretary(update, text)
+    elif mode == "instagram":
+        await _handle_instagram(update, text)
     else:
         # 금융/컨설턴트 모드: Claude 대화
         await update.message.chat.send_action("typing")
