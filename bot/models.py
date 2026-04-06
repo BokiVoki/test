@@ -205,6 +205,116 @@ class TodoItem:
         )
 
 
+# ── 영양제/약 재고 ──────────────────────────────────────────────
+INVENTORY_COLUMNS = ["id", "name", "category", "qty", "low_threshold", "daily", "note", "updated_at"]
+
+
+@dataclass
+class InventoryItem:
+    id: str = ""
+    name: str = ""            # "비타민C", "아토목세틴 18mg"
+    category: str = "daily"  # daily / situational / prescription / pms
+    qty: int = 0
+    low_threshold: int = 7
+    daily: bool = False       # 매일 복용 여부 (데일리 투두 생성 기준)
+    note: str = ""
+    updated_at: str = ""
+
+    def to_row(self) -> list:
+        return [
+            self.id, self.name, self.category, str(self.qty),
+            str(self.low_threshold), "1" if self.daily else "0",
+            self.note, self.updated_at,
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "InventoryItem":
+        padded = (row + [""] * 8)[:8]
+        try:
+            qty = int(padded[3])
+        except (ValueError, TypeError):
+            qty = 0
+        try:
+            low = int(padded[4])
+        except (ValueError, TypeError):
+            low = 7
+        return cls(
+            id=padded[0], name=padded[1], category=padded[2] or "daily",
+            qty=qty, low_threshold=low,
+            daily=(padded[5] == "1"),
+            note=padded[6], updated_at=padded[7],
+        )
+
+
+# ── 복용 기록 ────────────────────────────────────────────────────
+INTAKE_LOG_COLUMNS = ["id", "item_name", "qty_taken", "qty_after", "taken_at", "note"]
+
+
+@dataclass
+class IntakeLogItem:
+    id: str = ""
+    item_name: str = ""
+    qty_taken: int = 1
+    qty_after: int = 0
+    taken_at: str = ""   # "2026-04-06T09:00:00" KST
+    note: str = ""       # "포모도로", "집중체크인", "수면", "음수" 등
+
+    def to_row(self) -> list:
+        return [
+            self.id, self.item_name, str(self.qty_taken),
+            str(self.qty_after), self.taken_at, self.note,
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "IntakeLogItem":
+        padded = (row + [""] * 6)[:6]
+        try:
+            qt = int(padded[2])
+        except (ValueError, TypeError):
+            qt = 1
+        try:
+            qa = int(padded[3])
+        except (ValueError, TypeError):
+            qa = 0
+        return cls(
+            id=padded[0], item_name=padded[1],
+            qty_taken=qt, qty_after=qa,
+            taken_at=padded[4], note=padded[5],
+        )
+
+
+# ── 생리주기 ─────────────────────────────────────────────────────
+CYCLE_COLUMNS = ["id", "start_date", "end_date", "cycle_length", "note", "created_at"]
+
+
+@dataclass
+class CycleRecord:
+    id: str = ""
+    start_date: str = ""   # "2026-03-17"
+    end_date: str = ""     # "2026-03-21" or "" (진행 중)
+    cycle_length: int = 0  # 다음 주기까지 일수 (0 = 미확정)
+    note: str = ""
+    created_at: str = ""
+
+    def to_row(self) -> list:
+        return [
+            self.id, self.start_date, self.end_date,
+            str(self.cycle_length), self.note, self.created_at,
+        ]
+
+    @classmethod
+    def from_row(cls, row: list) -> "CycleRecord":
+        padded = (row + [""] * 6)[:6]
+        try:
+            cl = int(padded[3])
+        except (ValueError, TypeError):
+            cl = 0
+        return cls(
+            id=padded[0], start_date=padded[1], end_date=padded[2],
+            cycle_length=cl, note=padded[4], created_at=padded[5],
+        )
+
+
 @dataclass
 class ParsedIntent:
     action: str = "unknown"

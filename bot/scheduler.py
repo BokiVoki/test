@@ -1,6 +1,6 @@
 import calendar
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
@@ -57,3 +57,44 @@ async def check_reminders_job(context: CallbackContext):
                     todos_client.reschedule(todo.id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
     except Exception as e:
         logger.error(f"Todo alarm check error: {e}")
+
+    # ── 생리주기 단계 알림 (하루 1회, 단계 변경 시) ──
+    try:
+        cycle_client = context.bot_data.get("cycle_client")
+        if cycle_client and user_id:
+            status = cycle_client.get_current_status()
+            if "error" not in status:
+                today_str = date.today().isoformat()
+                phase = status.get("phase", "")
+                cycle_day = status.get("cycle_day", 0)
+                notified = context.bot_data.setdefault("phase_notified", {})
+
+                # 단계 전환 알림 (여포기 day6, 배란기 day14, 황체기 day17, PMS day21)
+                alert_days = {6: "🌱 여포기", 14: "🌸 배란기", 17: "🌙 황체기", 21: "⚠️ PMS 구간"}
+                for trigger_day, label in alert_days.items():
+                    key = f"{today_str}_{trigger_day}"
+                    if cycle_day == trigger_day and key not in notified:
+                        notified[key] = True
+                        phase_info = cycle_client.format_status(status)
+                        msg = f"{label} 시작!\n\n{phase_info}"
+                        if trigger_day == 21:
+                            msg = f"⚠️ **PMS 구간 진입** (황체기 {cycle_day}일차)\n에프람/뉴프람/인데놀 챙기세요!\n\n{phase_info}"
+                        await context.bot.send_message(
+                            chat_id=int(user_id),
+                            text=msg,
+                            parse_mode="Markdown",
+                        )
+    except Exception as e:
+        logger.error(f"Cycle phase alert error: {e}")
+
+
+async def send_checkin_job(context: CallbackContext):
+    """오전(10시)/오후(15시) 체크인 알림"""
+    from . import handlers as _handlers
+    user_id = context.bot_data.get("user_id")
+    checkin_type = context.job.data.get("type", "morning")
+    if user_id:
+        try:
+            await _handlers.send_daily_checkin(context.bot, int(user_id), checkin_type)
+        except Exception as e:
+            logger.error(f"Checkin job error: {e}")

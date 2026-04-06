@@ -276,6 +276,130 @@ def parse_todo(user_input: str, now_kst_str: str) -> dict:
     raise ValueError(f"파싱 실패: {raw}")
 
 
+def parse_intake_message(text: str, item_names: list[str]) -> dict:
+    """
+    영양제/약 복용 관련 자연어 파싱.
+    반환: {
+      "action": "log|query_stock|query_today",
+      "items": [{"name": "비타민C", "qty": 1, "note": ""}],
+      "target_name": null
+    }
+    """
+    import re
+    client = _get_client()
+    names_str = ", ".join(item_names) if item_names else "없음"
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=400,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"등록된 영양제/약 목록: {names_str}\n"
+                f"사용자 입력: \"{text}\"\n\n"
+                "다음 JSON만 반환하세요:\n"
+                "{\n"
+                "  \"action\": \"log\",\n"
+                "  \"items\": [{\"name\": \"비타민C\", \"qty\": 1, \"note\": \"\"}],\n"
+                "  \"target_name\": null\n"
+                "}\n\n"
+                "action 규칙:\n"
+                "- log: 먹었어/복용/챙겼어/먹음/마셨어\n"
+                "- query_stock: 남은/재고/얼마나/몇 정/현황\n"
+                "- query_today: 오늘 뭐 먹었어/오늘 복용 내역/오늘 뭐 챙겼어\n"
+                "items 규칙:\n"
+                "- name은 목록에서 가장 유사한 이름으로 매칭\n"
+                "- 여러 항목 동시 처리 가능 (예: '비타민C랑 셀레늄 먹었어' → items 2개)\n"
+                "- qty 기본값: 1\n"
+                "- query_stock/query_today: items는 빈 배열, target_name에 대상 영양제명 (전체면 null)"
+            ),
+        }],
+    )
+    raw = resp.content[0].text.strip()
+    m = re.search(r'\{.*\}', raw, re.DOTALL)
+    if m:
+        return json.loads(m.group())
+    return {"action": "query_stock", "items": [], "target_name": None}
+
+
+def parse_cycle_message(text: str, now_str: str) -> dict:
+    """
+    생리주기 관련 자연어 파싱.
+    반환: {
+      "action": "start_period|end_period|query_status|query_next",
+      "date": "2026-04-06",
+      "note": ""
+    }
+    """
+    import re
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=200,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"현재 한국 시간: {now_str}\n"
+                f"사용자 입력: \"{text}\"\n\n"
+                "다음 JSON만 반환하세요:\n"
+                "{\n"
+                "  \"action\": \"query_status\",\n"
+                "  \"date\": \"2026-04-06\",\n"
+                "  \"note\": \"\"\n"
+                "}\n\n"
+                "action 규칙:\n"
+                "- start_period: 생리 시작/시작했어/생리했어/생리 왔어\n"
+                "- end_period: 생리 끝/끝났어\n"
+                "- query_status: 지금 몇 기야/어느 단계/현재 주기/지금 어때\n"
+                "- query_next: 생리 언제야/다음 생리/예정일\n"
+                "date 규칙: 명시적 날짜 있으면 변환, 없으면 오늘 날짜\n"
+                "note: 증상이나 메모 있으면 포함"
+            ),
+        }],
+    )
+    raw = resp.content[0].text.strip()
+    m = re.search(r'\{.*\}', raw, re.DOTALL)
+    if m:
+        return json.loads(m.group())
+    return {"action": "query_status", "date": now_str[:10], "note": ""}
+
+
+def parse_checkin_response(text: str) -> dict:
+    """
+    체크인 응답 파싱 (수면시간, 음수량, 집중도).
+    반환: {"sleep_hours": float|null, "water_glasses": int|null, "focus": "good|okay|bad", "note": str}
+    """
+    import re
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=200,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"체크인 응답: \"{text}\"\n\n"
+                "다음 JSON만 반환하세요:\n"
+                "{\n"
+                "  \"sleep_hours\": 7.5,\n"
+                "  \"water_glasses\": 3,\n"
+                "  \"focus\": \"good\",\n"
+                "  \"note\": \"\"\n"
+                "}\n\n"
+                "규칙:\n"
+                "- sleep_hours: 수면 시간 언급 없으면 null\n"
+                "- water_glasses: 음수량 언급 없으면 null\n"
+                "- focus: 좋음/잘됨/활발 → good, 보통/그냥 → okay, 산만/힘듦/못됨/없음 → bad\n"
+                "  언급 없으면 okay\n"
+                "- note: 원문 또는 추가 내용"
+            ),
+        }],
+    )
+    raw = resp.content[0].text.strip()
+    m = re.search(r'\{.*\}', raw, re.DOTALL)
+    if m:
+        return json.loads(m.group())
+    return {"sleep_hours": None, "water_glasses": None, "focus": "okay", "note": text}
+
+
 def summarize_conversation(history: list[dict], mode: str) -> str:
     """대화 히스토리를 핵심 내용으로 요약"""
     if not history:

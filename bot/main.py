@@ -14,7 +14,10 @@ from .sheets import SheetsClient
 from .reminders_sheet import RemindersClient
 from .todos_sheet import TodosClient
 from .memos_sheet import MemosClient
-from .scheduler import check_reminders_job
+from .inventory_sheet import InventoryClient
+from .intake_sheet import IntakeLogClient
+from .cycle_sheet import CycleClient
+from .scheduler import check_reminders_job, send_checkin_job
 from . import handlers
 
 load_dotenv()
@@ -51,11 +54,25 @@ def main():
     handlers.init_memos(memos)
     logger.info("Memos 연결 완료")
 
+    inventory = InventoryClient(spreadsheet_id=spreadsheet_id)
+    handlers.init_inventory(inventory)
+    logger.info("Inventory 연결 완료")
+
+    intake = IntakeLogClient(spreadsheet_id=spreadsheet_id)
+    handlers.init_intake(intake)
+    logger.info("IntakeLog 연결 완료")
+
+    cycle = CycleClient(spreadsheet_id=spreadsheet_id)
+    handlers.init_cycle(cycle)
+    logger.info("Cycle 연결 완료")
+
     user_id = os.getenv("TELEGRAM_USER_ID", "")
 
     app = Application.builder().token(token).build()
     app.bot_data["reminders_client"] = reminders  # 기존 명령어 호환용
     app.bot_data["todos_client"] = todos
+    app.bot_data["intake_client"] = intake
+    app.bot_data["cycle_client"] = cycle
     app.bot_data["user_id"] = user_id
 
     # 모드 전환 (텔레그램 명령어는 영어/숫자만 가능)
@@ -91,11 +108,28 @@ def main():
     app.add_handler(CommandHandler("memos", handlers.memos_handler))
     app.add_handler(CommandHandler("memo_del", handlers.memo_del_handler))
 
-    # 1분마다 리마인더 체크
+    # 영양제/생리주기/ADHD
+    app.add_handler(CommandHandler("inventory", handlers.inventory_handler))
+    app.add_handler(CommandHandler("intake", handlers.intake_handler))
+    app.add_handler(CommandHandler("cycle", handlers.cycle_handler))
+    app.add_handler(CommandHandler("setup_supplements", handlers.setup_supplements_handler))
+
+    # 1분마다 투두 알람 + 생리주기 단계 알림 체크
     app.job_queue.run_repeating(check_reminders_job, interval=60, first=10)
 
+    # 오전 10시 / 오후 3시 체크인 (KST = UTC+9)
+    import datetime as _dt
+    app.job_queue.run_daily(
+        send_checkin_job, time=_dt.time(1, 0, tzinfo=_dt.timezone.utc),  # KST 10:00
+        data={"type": "morning"},
+    )
+    app.job_queue.run_daily(
+        send_checkin_job, time=_dt.time(6, 0, tzinfo=_dt.timezone.utc),  # KST 15:00
+        data={"type": "afternoon"},
+    )
+
     # 인라인 버튼 콜백 (되돌리기/취소)
-    app.add_handler(CallbackQueryHandler(handlers.callback_handler, pattern=r"^(undo:|remind:)"))
+    app.add_handler(CallbackQueryHandler(handlers.callback_handler, pattern=r"^(undo:|remind:|pomo:)"))
 
     # 자연어 메시지 (모든 텍스트)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.message_handler))
