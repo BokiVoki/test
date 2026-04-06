@@ -74,6 +74,21 @@ class RemindersClient:
                 sheet.update_cell(i, 5, "0")
                 return
 
+    def reschedule(self, reminder_id: str, new_trigger_at: str):
+        """재알람: trigger_at 업데이트 + active=1 로 재활성화"""
+        sheet = self._get_sheet()
+        for i, row in enumerate(sheet.get_all_values()[1:], start=2):
+            if row and row[0] == reminder_id:
+                sheet.update(f"C{i}:E{i}", [[new_trigger_at, row[3] if len(row) > 3 else "none", "1"]])
+                return
+
+    def get_by_id(self, reminder_id: str) -> Optional[Reminder]:
+        sheet = self._get_sheet()
+        for row in sheet.get_all_values()[1:]:
+            if row and row[0] == reminder_id:
+                return Reminder.from_row(row)
+        return None
+
     def clear_all(self):
         """헤더 제외 전체 행 삭제"""
         sheet = self._get_sheet()

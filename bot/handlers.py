@@ -7,10 +7,11 @@ from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from .models import BotMode, ContentEntry, Reminder, TodoItem, STATUS_KR, CONTENT_TYPE_KR
+from .models import BotMode, ContentEntry, Reminder, TodoItem, MemoEntry, STATUS_KR, CONTENT_TYPE_KR
 from .sheets import SheetsClient
 from .reminders_sheet import RemindersClient
 from .todos_sheet import TodosClient
+from .memos_sheet import MemosClient
 from . import claude_client
 from . import figma_client
 from .mode_prompts import MODE_NAMES
@@ -32,7 +33,9 @@ _current_instagram_agent: str = "manager"  # designer | writer | manager
 _sheets: Optional[SheetsClient] = None
 _reminders: Optional[RemindersClient] = None
 _todos: Optional[TodosClient] = None
+_memos: Optional[MemosClient] = None
 _undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
+_pending_snooze: dict[int, str] = {}  # chat_id → reminder_id (직접입력 대기 중)
 
 
 def init_sheets(sheets: SheetsClient):
@@ -48,6 +51,31 @@ def init_reminders(reminders: RemindersClient):
 def init_todos(todos: TodosClient):
     global _todos
     _todos = todos
+
+
+def init_memos(memos: MemosClient):
+    global _memos
+    _memos = memos
+
+
+def _reminder_action_keyboard(reminder_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ 완료", callback_data=f"remind:done:{reminder_id}"),
+        InlineKeyboardButton("🔁 재알람", callback_data=f"remind:snooze:{reminder_id}"),
+    ]])
+
+
+def _snooze_options_keyboard(reminder_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("10분 뒤", callback_data=f"remind:snooze10m:{reminder_id}"),
+            InlineKeyboardButton("1시간 뒤", callback_data=f"remind:snooze1h:{reminder_id}"),
+        ],
+        [
+            InlineKeyboardButton("하루 뒤", callback_data=f"remind:snooze1d:{reminder_id}"),
+            InlineKeyboardButton("직접 입력", callback_data=f"remind:snooze_custom:{reminder_id}"),
+        ],
+    ])
 
 
 def _undo_keyboard(label: str = "↩️ 되돌리기") -> tuple[str, InlineKeyboardMarkup]:
@@ -382,13 +410,27 @@ async def todos_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/todos — 미완료 투두 목록"""
     if not _auth(update):
         return
-    pending = _todos.get_pending()
+    if _todos is None:
+        await update.message.reply_text("❌ 투두 초기화 실패.")
+        return
+    try:
+        pending = _todos.get_pending()
+    except Exception as e:
+        await update.message.reply_text(f"❌ 오류: {e}")
+        return
     if not pending:
         await update.message.reply_text("✅ 할 일이 없어요!")
         return
     lines = ["**📋 할 일 목록**\n"]
-    for i, t in enumerate(pending, 1):
-        lines.append(f"{i}. {t.text}{_fmt_due(t.due_date)}  `{t.id}`")
+    for i, item in enumerate(pending, 1):
+        alarm_str = ""
+        if item.trigger_at:
+            try:
+                dt = datetime.fromisoformat(item.trigger_at)
+                alarm_str = f" ⏰{dt.strftime('%m/%d %H:%M')}"
+            except Exception:
+                alarm_str = " ⏰"
+        lines.append(f"{i}. {item.text}{_fmt_due(item.due_date)}{alarm_str}  `{item.id}`")
     lines.append("\n완료: `완료 [내용]` 또는 `/todo_done [ID]`")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
@@ -425,14 +467,72 @@ async def todo_del_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
 
 
+_MEMO_SAVE_KEYWORDS = ("기록해줘", "저장해줘", "메모해줘", "기억해줘", "기록해", "저장해", "메모해", "기억해", "적어줘", "노트해줘")
+_MEMO_LIST_KEYWORDS = ("기록 목록", "메모 목록", "저장 목록", "기록 보여", "메모 보여", "노트 보여", "기록 뭐", "메모 뭐")
+_MEMO_MODE_KR = {"secretary": "비서", "finance": "금융전문가", "consultant": "컨설턴트"}
+
+
+async def _save_memo(update: Update, mode: str, content: str):
+    """대화 내용을 Memos 시트에 저장"""
+    entry = _memos.add(mode, content)
+    dt = datetime.fromisoformat(entry.created_at).strftime("%m/%d %H:%M")
+    key, markup = _undo_keyboard("↩️ 삭제")
+    _undo_state[key] = {"type": "delete_memo", "memo_id": entry.id}
+    await update.message.reply_text(
+        f"📝 저장했어요! ({_MEMO_MODE_KR.get(mode, mode)} / {dt})",
+        reply_markup=markup
+    )
+
+
+async def memos_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/memos [mode] — 메모 목록"""
+    if not _auth(update):
+        return
+    mode = _current_mode.value
+    if context and context.args:
+        arg = context.args[0].lower()
+        if arg in ("finance", "금융"):
+            mode = "finance"
+        elif arg in ("consultant", "컨설턴트"):
+            mode = "consultant"
+        elif arg in ("secretary", "비서"):
+            mode = "secretary"
+    try:
+        entries = _memos.get_by_mode(mode)
+    except Exception as e:
+        await update.message.reply_text(f"❌ 오류: {e}")
+        return
+    if not entries:
+        await update.message.reply_text(f"저장된 {_MEMO_MODE_KR.get(mode, mode)} 메모가 없어요.")
+        return
+    lines = [f"**📝 {_MEMO_MODE_KR.get(mode, mode)} 메모**\n"]
+    for i, e in enumerate(entries, 1):
+        dt = e.created_at[:10] if e.created_at else ""
+        preview = e.content[:60] + ("..." if len(e.content) > 60 else "")
+        lines.append(f"{i}. [{dt}] {preview}  `{e.id}`")
+    lines.append("\n삭제: `/memo_del [ID]`")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
+async def memo_del_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/memo_del [id]"""
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text("`/memo_del [ID]`", parse_mode="Markdown")
+        return
+    ok = _memos.delete(context.args[0])
+    await update.message.reply_text("🗑 삭제했어요." if ok else "찾지 못했어요.")
+
+
 async def _handle_todo_natural(update: Update, text: str):
-    """자연어 투두 처리"""
+    """자연어 투두+알람 통합 처리"""
     if _todos is None:
         await update.message.reply_text("❌ 투두 초기화 실패.")
         return
 
     kst = timezone(timedelta(hours=9))
-    now_str = datetime.now(kst).strftime("%Y년 %m월 %d일")
+    now_str = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
     try:
         parsed = claude_client.parse_todo(text, now_str)
     except Exception as e:
@@ -440,39 +540,61 @@ async def _handle_todo_natural(update: Update, text: str):
         return
 
     action = parsed.get("action", "add")
-    todo_text = parsed.get("text", text).strip()
+    todo_text = (parsed.get("text") or text).strip()
     due_date = parsed.get("due_date") or ""
+    trigger_at = parsed.get("trigger_at") or ""
+    repeat = parsed.get("repeat") or "none"
 
-    if action == "list":
-        await todos_handler(update, None)
+    try:
+        if action == "list":
+            await todos_handler(update, None)
 
-    elif action == "add":
-        await update.message.chat.send_action("typing")
-        item = TodoItem(text=todo_text, due_date=due_date)
-        _todos.add(item)
-        due_str = _fmt_due(due_date)
-        key, markup = _undo_keyboard("↩️ 취소")
-        _undo_state[key] = {"type": "delete_todo", "todo_id": item.id}
-        await update.message.reply_text(
-            f"📋 **{todo_text}** 추가했어요!{due_str}",
-            parse_mode="Markdown", reply_markup=markup
-        )
+        elif action == "add":
+            await update.message.chat.send_action("typing")
+            item = TodoItem(text=todo_text, due_date=due_date, trigger_at=trigger_at, repeat=repeat)
+            _todos.add(item)
+            key, markup = _undo_keyboard("↩️ 취소")
+            _undo_state[key] = {"type": "delete_todo", "todo_id": item.id}
+            if trigger_at:
+                try:
+                    dt = datetime.fromisoformat(trigger_at)
+                    time_label = dt.strftime("%m/%d %H:%M")
+                except Exception:
+                    time_label = trigger_at
+                rep_label = {"daily": " (매일)", "weekly": " (매주)", "monthly": " (매달)"}.get(repeat, "")
+                await update.message.reply_text(
+                    f"⏰ **{todo_text}** — {time_label}에 알림{rep_label}",
+                    parse_mode="Markdown", reply_markup=markup
+                )
+            else:
+                due_str = _fmt_due(due_date)
+                await update.message.reply_text(
+                    f"📋 **{todo_text}** 추가했어요!{due_str}",
+                    parse_mode="Markdown", reply_markup=markup
+                )
 
-    elif action == "complete":
-        item = _todos.find_by_text(todo_text)
-        if not item:
-            await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요. `/todos`로 목록 확인해주세요.", parse_mode="Markdown")
-            return
-        _todos.complete(item.id)
-        await update.message.reply_text(f"✅ **{item.text}** 완료!", parse_mode="Markdown")
+        elif action == "complete":
+            item = _todos.find_by_text(todo_text)
+            if not item:
+                await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요. `/todos`로 목록 확인해주세요.", parse_mode="Markdown")
+                return
+            _todos.complete(item.id)
+            await update.message.reply_text(f"✅ **{item.text}** 완료!", parse_mode="Markdown")
 
-    elif action == "delete":
-        item = _todos.find_by_text(todo_text)
-        if not item:
-            await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요.")
-            return
-        _todos.delete(item.id)
-        await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
+        elif action == "delete":
+            item = _todos.find_by_text(todo_text)
+            if not item:
+                await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요.")
+                return
+            _todos.delete(item.id)
+            await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
+
+        elif action == "cancel_alarms":
+            _todos.cancel_all_alarms()
+            await update.message.reply_text("🔕 모든 알람을 해제했어요. (투두 항목은 유지됩니다)")
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ 오류: {e}")
 
 
 async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -494,6 +616,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     data = query.data or ""
+
+    # ── 리마인더 완료 / 재알람 버튼 ──
+    if data.startswith("remind:"):
+        await _handle_remind_callback(query, data)
+        return
+
     if not data.startswith("undo:"):
         return
 
@@ -526,6 +654,71 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif t == "delete_todo":
         ok = _todos.delete(state["todo_id"])
         await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
+
+    elif t == "delete_memo":
+        ok = _memos.delete(state["memo_id"])
+        await query.edit_message_text("🗑 메모 삭제했어요." if ok else "❌ 이미 삭제됐어요.")
+
+
+def _now_kst() -> datetime:
+    return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
+
+
+async def _handle_remind_callback(query, data: str):
+    """remind:done:{id} | remind:snooze:{id} | remind:snooze10m/1h/1d/custom:{id}"""
+    global _pending_snooze
+    if _todos is None:
+        await query.edit_message_text("❌ 투두 초기화 실패.")
+        return
+
+    parts = data.split(":", 2)  # ["remind", action, id]
+    if len(parts) < 3:
+        return
+    action, todo_id = parts[1], parts[2]
+
+    if action == "done":
+        _todos.complete(todo_id)
+        await query.edit_message_text("✅ 완료했어요!")
+
+    elif action == "snooze":
+        original_text = query.message.text or "🔔 알림"
+        await query.edit_message_text(
+            f"{original_text}\n\n⏰ 언제 다시 알려드릴까요?",
+            reply_markup=_snooze_options_keyboard(todo_id),
+        )
+
+    elif action in ("snooze10m", "snooze1h", "snooze1d"):
+        delta = {"snooze10m": timedelta(minutes=10), "snooze1h": timedelta(hours=1), "snooze1d": timedelta(days=1)}[action]
+        label = {"snooze10m": "10분", "snooze1h": "1시간", "snooze1d": "하루"}[action]
+        new_trigger = (_now_kst() + delta).strftime("%Y-%m-%dT%H:%M:%S")
+        _todos.reschedule(todo_id, new_trigger)
+        await query.edit_message_text(f"⏰ {label} 뒤에 다시 알려드릴게요!")
+
+    elif action == "snooze_custom":
+        chat_id = query.message.chat_id
+        _pending_snooze[chat_id] = todo_id
+        await query.edit_message_text("⏰ 재알람 시간을 입력해주세요.\n예: 30분 뒤, 내일 오전 9시, 3일 후")
+
+
+_MODE_WORDS: dict[BotMode, tuple] = {
+    BotMode.SECRETARY:  ("비서", "secretary"),
+    BotMode.FINANCE:    ("금융 모드", "금융전문가", "금융 전문가", "finance"),
+    BotMode.CONSULTANT: ("컨설턴트", "consultant", "전략가"),
+}
+_SWITCH_WORDS = ("전환", "바꿔", "변경", "모드", "켜줘", "해줘", "시작")
+
+
+def _detect_mode_switch(text: str) -> Optional[BotMode]:
+    t = text.strip().lower()
+    for mode, words in _MODE_WORDS.items():
+        if any(w in t for w in words):
+            # "모드" 키워드 포함 → 항상 전환
+            if "모드" in t:
+                return mode
+            # 짧은 메시지(≤12자) → 전환 (예: "금융전문가 전환해", "컨설턴트")
+            if len(t) <= 12:
+                return mode
+    return None
 
 
 # ── 인스타그램 팀 핸들러 ─────────────────────────────────────
@@ -651,12 +844,83 @@ async def _handle_instagram(update: Update, text: str):
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global _current_mode
     if not _auth(update):
         return
     text = update.message.text.strip()
-    mode = _current_mode.value
+    chat_id = update.message.chat_id
 
-    # 비서 모드: 아카이브 관련 파싱 먼저 시도
+    # ── 재알람 직접 입력 대기 중 ──
+    if chat_id in _pending_snooze:
+        reminder_id = _pending_snooze.pop(chat_id)
+        if _reminders is not None:
+            try:
+                from datetime import timezone, timedelta
+                now_str = _now_kst().strftime("%Y-%m-%d %H:%M")
+                parsed_list = claude_client.parse_reminder_times(text, now_str)
+                if parsed_list:
+                    new_trigger = parsed_list[0]["trigger_at"]
+                    _reminders.reschedule(reminder_id, new_trigger)
+                    # 사람이 읽기 좋은 시간 표시
+                    try:
+                        dt = datetime.fromisoformat(new_trigger)
+                        label = dt.strftime("%m/%d %H:%M")
+                    except Exception:
+                        label = new_trigger
+                    await update.message.reply_text(f"⏰ {label}에 다시 알려드릴게요!")
+                else:
+                    await update.message.reply_text("⚠️ 시간을 이해하지 못했어요. 다시 시도해주세요. (예: 30분 뒤, 내일 오전 9시)")
+            except Exception as e:
+                await update.message.reply_text(f"❌ 오류: {e}")
+        return
+
+    # 자연어 모드 전환 감지 (모든 모드에서 동작)
+    new_mode = _detect_mode_switch(text)
+    if new_mode:
+        _current_mode = new_mode
+        name = MODE_NAMES[_current_mode.value]
+        await update.message.reply_text(f"{name} 모드로 전환했어요.")
+        return
+
+    mode = _current_mode.value
+    t = text.lower()
+
+    # 메모 저장 감지 (모든 모드)
+    if any(kw in t for kw in _MEMO_SAVE_KEYWORDS):
+        # 저장 키워드를 제거한 나머지 텍스트
+        remaining = text
+        for kw in _MEMO_SAVE_KEYWORDS:
+            remaining = remaining.replace(kw, "").replace(kw.replace("줘", ""), "")
+        remaining = remaining.strip(" \n.,")
+
+        await update.message.chat.send_action("typing")
+
+        if len(remaining) > 20:
+            # 메시지 안에 내용이 있으면 그걸 그대로 저장
+            content = remaining
+        else:
+            # 대화 히스토리 요약
+            hist = _history.get(mode, [])
+            if not hist:
+                await update.message.reply_text(
+                    "저장할 내용이 없어요.\n내용을 직접 입력하거나 대화 후 기록해줘 해주세요.\n\n예: `청년적금 35만원, 투자 20만원 기록해줘`",
+                    parse_mode="Markdown"
+                )
+                return
+            content = claude_client.summarize_conversation(hist[-10:], mode)
+
+        if not content:
+            await update.message.reply_text("요약할 내용이 없어요.")
+            return
+        await _save_memo(update, mode, content)
+        return
+
+    # 메모 목록 감지 (모든 모드)
+    if any(kw in t for kw in _MEMO_LIST_KEYWORDS):
+        await memos_handler(update, None)
+        return
+
+    # 비서 모드
     if mode == "secretary":
         await _handle_secretary(update, text)
     elif mode == "instagram":
@@ -665,12 +929,29 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 금융/컨설턴트 모드: Claude 대화
         await update.message.chat.send_action("typing")
         _add_history(mode, "user", text)
-        reply = claude_client.chat(mode, text, history=_history[mode][:-1])
+        # 해당 모드의 저장된 메모를 context로 넘겨 Claude가 인식하게 함
+        memo_context = ""
+        if _memos is not None:
+            try:
+                recent_memos = _memos.get_by_mode(mode, limit=5)
+                if recent_memos:
+                    memo_lines = [f"[{m.created_at}] {m.content}" for m in recent_memos]
+                    memo_context = "저장된 메모:\n" + "\n---\n".join(memo_lines)
+            except Exception:
+                pass
+        reply = claude_client.chat(mode, text, context=memo_context, history=_history[mode][:-1])
         _add_history(mode, "assistant", reply)
         await update.message.reply_text(reply)
 
 
-_TODO_WORDS = ("투두", "할 일", "할일", "todo", "할거", "할 거")
+_TODO_WORDS = (
+    "투두", "할 일", "할일", "todo", "할거", "할 거",
+    # 미완료/조회 자연어
+    "미완료", "못 한", "못한", "안 한", "안한",
+    "남은 거", "남은거", "뭐 남", "뭐남", "남아있",
+    "뭐 해야", "뭐해야", "해야 할", "해야할",
+    "아직", "안 끝", "안끝",
+)
 _REMINDER_WORDS = ("리마인더", "알람", "알림", "remind")
 _REMINDER_LIST_KEYWORDS = ("목록", "뭐 있", "있어", "보여", "알려줘", "리스트", "list")
 _REMINDER_CANCEL_ALL_KEYWORDS = ("전부 취소", "다 취소", "모두 취소", "전부취소", "다취소", "모두취소", "전체 취소", "다 지워", "전부 지워", "모두 지워")
@@ -731,19 +1012,9 @@ def _is_reminder_intent(t: str, keywords: tuple) -> bool:
 async def _handle_secretary(update: Update, text: str):
     t = text.lower()
 
-    # 투두 관련 메시지
-    if any(w in t for w in _TODO_WORDS):
+    # 투두/알람 통합 처리 ("투두" 또는 "리마인더" 키워드 모두 포함)
+    if any(w in t for w in _TODO_WORDS) or any(w in t for w in _REMINDER_WORDS):
         await _handle_todo_natural(update, text)
-        return
-
-    # 리마인더 관련 메시지: 취소 → 목록 → 그 외는 등록으로 처리
-    if any(w in t for w in _REMINDER_WORDS):
-        if _is_reminder_intent(t, _REMINDER_CANCEL_ALL_KEYWORDS):
-            await cancel_all_reminders_handler(update, None)
-        elif _is_reminder_intent(t, _REMINDER_LIST_KEYWORDS):
-            await reminders_handler(update, None)
-        else:
-            await _handle_remind_natural(update, text)
         return
 
     known_titles = _sheets.get_titles()
