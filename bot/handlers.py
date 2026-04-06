@@ -163,27 +163,59 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return
     text = (
-        "**📌 사용 방법**\n\n"
-        "**모드 전환**\n"
-        "/secretary — 콘텐츠 아카이브 + 일상 비서\n"
-        "/finance — 재무 분석, 투자 상담\n"
-        "/consultant — 전략, 의사결정 지원\n"
+        "**📌 전체 기능 안내**\n\n"
+
+        "**🔀 모드 전환**\n"
+        "/secretary — 비서 (기본)\n"
+        "/finance — 금융·재무 상담\n"
+        "/consultant — 전략·의사결정\n"
+        "/instagram — 인스타그램 마케팅팀\n"
         "/mode — 현재 모드 확인\n\n"
-        "**비서 모드 — 자연어 예시**\n"
+
+        "**📚 콘텐츠 아카이브** (비서 모드)\n"
         "• `소로 레벨링 87화 읽었어`\n"
-        "• `무빙 다 봤어, 9점`\n"
-        "• `파친코 추가해줘`\n"
-        "• `판타지 웹툰 추천해줘`\n"
-        "• `이번달에 뭐 봤더라?`\n\n"
-        "**비서 모드 — 명령어**\n"
-        "/list [필터] — 목록 (예: /list 드라마, /list 완료)\n"
-        "/stats — 통계 요약\n"
-        "/get [제목] — 상세 조회\n"
-        "/done [제목] — 완료 처리\n"
-        "/drop [제목] — 중단 처리\n"
-        "/export — Google Sheets 링크\n\n"
-        "**금융/컨설턴트 모드**\n"
-        "모드 전환 후 자유롭게 질문하세요."
+        "• `무빙 다 봤어 9점` / `파친코 추가해줘`\n"
+        "• `판타지 웹툰 추천해줘` / `이번달에 뭐 봤더라`\n"
+        "/list [필터] · /stats · /get [제목] · /export\n\n"
+
+        "**📋 투두 & 알람**\n"
+        "• `투두 청소하기` — 알람 없는 투두\n"
+        "• `투두 약 먹기 매일 9시` — 반복 알람\n"
+        "• `투두 청소, 빨래, 장보기` — 여러 개 동시 등록\n"
+        "• `투두 물 마시기 2시간마다` — 완료 후 2시간 뒤 재알람\n"
+        "• `미완료된 거 뭐 있어` — 목록 조회\n"
+        "/todos · /remind · /reminders · /cancel_reminder [ID]\n"
+        "/migrate_reminders — 기존 리마인더 → 투두 이전\n\n"
+
+        "**💊 영양제·약 재고**\n"
+        "• `비타민C 먹었어` — 복용 기록 + 재고 차감\n"
+        "• `셀레늄 얼마나 남았어` — 재고 조회\n"
+        "• `오메가3 60정 추가해줘` — 신규 등록\n"
+        "• `비타민C 120정 새로 샀어` — 보충(재입고)\n"
+        "/inventory · /intake · /setup_supplements\n\n"
+
+        "**🌸 생리주기**\n"
+        "• `생리 시작했어` / `생리 끝났어`\n"
+        "• `지금 몇 기야` / `다음 생리 언제야`\n"
+        "/cycle\n\n"
+
+        "**🧠 ADHD 지원**\n"
+        "• `25분 집중할게` — 포모도로 타이머\n"
+        "• `발표 준비 어떻게 시작해` — 과제 분해 → 투두 생성\n"
+        "오전 10시·오후 3시 수면/음수/집중도 체크인 자동 발송\n\n"
+
+        "**📝 메모**\n"
+        "• `기록해줘` — 현재 대화 요약 저장\n"
+        "• `이전에 말한 거 기억해?` — 저장 메모 자동 참고\n"
+        "/memos · /memo_del [ID]\n\n"
+
+        "**📱 인스타그램 팀**\n"
+        "/designer · /writer · /igmanager\n"
+        "에이전트별 대화 내용 중요 결정 자동 저장\n\n"
+
+        "**기타**\n"
+        "/import_archive — CSV 일괄 가져오기\n"
+        "/clear_reminders — 리마인더 시트 초기화"
     )
     await update.message.reply_text(text, parse_mode="Markdown")
 
@@ -773,15 +805,50 @@ def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
 
 
-def _load_memo_context(mode: str, limit: int = 8) -> str:
-    """Memos 시트에서 mode별 최근 메모를 불러와 컨텍스트 문자열로 반환"""
+def _load_memo_context(mode: str, query: str = "", limit: int = 20) -> str:
+    """
+    Memos 시트에서 mode별 메모를 불러와 query와 관련된 것만 반환.
+    query가 없거나 트리거 단어 없으면 빈 문자열 반환 (토큰 절약).
+    """
     if _memos is None:
         return ""
+
+    # 메모 참고가 필요한 트리거 단어
+    MEMO_TRIGGER_WORDS = (
+        "아까", "이전에", "저번에", "전에", "기억", "메모", "기록",
+        "말했", "얘기했", "정했", "결정했", "확정", "했던", "봤던",
+        "지난번", "지난달", "지난주", "어제", "예전",
+    )
+    q = query.lower()
+    has_trigger = any(w in q for w in MEMO_TRIGGER_WORDS)
+
+    # 트리거 없으면 메모 주입 스킵 (속도·비용 절약)
+    if not has_trigger:
+        return ""
+
     try:
-        recent = _memos.get_by_mode(mode, limit=limit)
-        if not recent:
+        all_memos = _memos.get_by_mode(mode, limit=limit)
+        if not all_memos:
             return ""
-        lines = [f"[{m.created_at[:10]}] {m.content}" for m in recent]
+
+        # 키워드 관련성 점수: query 단어가 메모 내용에 몇 개 포함되는지
+        query_words = [w for w in q.split() if len(w) > 1]
+        if query_words:
+            scored = []
+            for m in all_memos:
+                content_lower = m.content.lower()
+                score = sum(1 for w in query_words if w in content_lower)
+                scored.append((score, m))
+            # 관련 있는 것 우선, 최근 3개
+            scored.sort(key=lambda x: (-x[0], -all_memos.index(x[1])))
+            relevant = [m for score, m in scored if score > 0][:3]
+            if not relevant:
+                # 관련 키워드 없으면 가장 최근 2개만
+                relevant = all_memos[:2]
+        else:
+            relevant = all_memos[:3]
+
+        lines = [f"[{m.created_at[:10]}] {m.content}" for m in relevant]
         return "\n---\n".join(lines)
     except Exception:
         return ""
@@ -960,7 +1027,7 @@ def _detect_instagram_agent(text: str) -> str | None:
     return None
 
 
-async def _handle_instagram(update: Update, text: str):
+async def _handle_instagram(update: Update, text: str, memo_context: str = ""):
     """인스타그램 에이전트에게 메시지 라우팅 (자연어 감지 포함)"""
     global _current_instagram_agent
 
@@ -997,16 +1064,8 @@ async def _handle_instagram(update: Update, text: str):
 
     await update.message.chat.send_action("typing")
 
-    # 저장된 메모를 컨텍스트로 포함
-    memo_context = ""
-    if _memos is not None:
-        try:
-            recent_memos = _memos.get_by_mode(memo_mode, limit=5)
-            if recent_memos:
-                memo_lines = [f"[{m.created_at}] {m.content}" for m in recent_memos]
-                memo_context = "저장된 메모:\n" + "\n---\n".join(memo_lines)
-        except Exception:
-            pass
+    # memo_context: 상위에서 _load_memo_context(mode, query)로 전달받음
+    # (트리거 단어 있을 때만 주입, 없으면 빈 문자열)
 
     # 디자이너 모드: 피그마 컴포넌트 컨텍스트 포함
     figma_context = ""
@@ -1129,14 +1188,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await memos_handler(update, None)
         return
 
-    # 메모 컨텍스트 로드 (모든 모드 공통)
-    memo_context = _load_memo_context(mode)
+    # 메모 컨텍스트 로드 (트리거 단어 있을 때만 관련 메모 주입)
+    memo_context = _load_memo_context(mode, query=text)
 
     # 비서 모드
     if mode == "secretary":
         await _handle_secretary(update, context, text, memo_context=memo_context)
     elif mode == "instagram":
-        await _handle_instagram(update, text)
+        await _handle_instagram(update, text, memo_context=memo_context)
     else:
         # 금융/컨설턴트 모드: Claude 대화
         await update.message.chat.send_action("typing")
