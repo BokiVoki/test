@@ -597,8 +597,34 @@ async def figma_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"피그마 조회 실패: {e}")
 
 
+_DESIGNER_KEYWORDS = ("디자이너", "디자인", "피그마", "레이아웃", "컬러", "폰트", "비주얼", "포스터", "템플릿", "시안")
+_WRITER_KEYWORDS = ("작가", "캡션", "한줄평", "카피", "문구", "글", "해시태그", "훅", "추천작", "소개글")
+_MANAGER_KEYWORDS = ("매니저", "통계", "분석", "캘린더", "일정", "이벤트", "전략", "기획", "팔로워", "도달", "릴스")
+
+
+def _detect_instagram_agent(text: str) -> str | None:
+    """자연어에서 에이전트 의도 감지. 감지 못하면 None 반환."""
+    t = text.lower()
+    if any(k in t for k in _DESIGNER_KEYWORDS):
+        return "designer"
+    if any(k in t for k in _WRITER_KEYWORDS):
+        return "writer"
+    if any(k in t for k in _MANAGER_KEYWORDS):
+        return "manager"
+    return None
+
+
 async def _handle_instagram(update: Update, text: str):
-    """인스타그램 에이전트에게 메시지 라우팅"""
+    """인스타그램 에이전트에게 메시지 라우팅 (자연어 감지 포함)"""
+    global _current_instagram_agent
+
+    # 자연어로 에이전트 전환 감지
+    detected = _detect_instagram_agent(text)
+    if detected and detected != _current_instagram_agent:
+        _current_instagram_agent = detected
+        name = INSTAGRAM_AGENT_NAMES[detected]
+        await update.message.reply_text(f"{name} 에이전트로 자동 전환했어요.", parse_mode="Markdown")
+
     agent = _current_instagram_agent
     history_key = f"instagram_{agent}"
     await update.message.chat.send_action("typing")
