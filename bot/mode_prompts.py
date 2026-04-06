@@ -70,6 +70,7 @@ MODE_NAMES = {
     "secretary": "🗂 비서",
     "finance": "💰 금융전문가",
     "consultant": "📊 컨설턴트",
+    "instagram": "📱 인스타그램팀",
 }
 
 PROMPTS = {
