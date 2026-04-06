@@ -911,7 +911,40 @@ async def _handle_instagram(update: Update, text: str):
 
     agent = _current_instagram_agent
     history_key = f"instagram_{agent}"
+    memo_mode = f"instagram_{agent}"  # Memos 시트에 저장할 mode 키
+
+    # 메모 저장 요청 감지
+    t = text.lower()
+    if any(kw in t for kw in _MEMO_SAVE_KEYWORDS):
+        remaining = text
+        for kw in _MEMO_SAVE_KEYWORDS:
+            remaining = remaining.replace(kw, "").replace(kw.replace("줘", ""), "")
+        remaining = remaining.strip(" \n.,")
+        await update.message.chat.send_action("typing")
+        if len(remaining) > 20:
+            content = remaining
+        else:
+            hist = _history.get(history_key, [])
+            if not hist:
+                await update.message.reply_text("저장할 내용이 없어요. 대화 후 기록해줘 해주세요.")
+                return
+            content = claude_client.summarize_conversation(hist[-10:], memo_mode)
+        if content:
+            await _save_memo(update, memo_mode, content)
+        return
+
     await update.message.chat.send_action("typing")
+
+    # 저장된 메모를 컨텍스트로 포함
+    memo_context = ""
+    if _memos is not None:
+        try:
+            recent_memos = _memos.get_by_mode(memo_mode, limit=5)
+            if recent_memos:
+                memo_lines = [f"[{m.created_at}] {m.content}" for m in recent_memos]
+                memo_context = "저장된 메모:\n" + "\n---\n".join(memo_lines)
+        except Exception:
+            pass
 
     # 디자이너 모드: 피그마 컴포넌트 컨텍스트 포함
     figma_context = ""
@@ -929,9 +962,24 @@ async def _handle_instagram(update: Update, text: str):
             pass
 
     _add_history(history_key, "user", text)
-    reply = claude_client.instagram_chat(agent, text, history=_history[history_key][:-1], figma_context=figma_context)
+    reply = claude_client.instagram_chat(
+        agent, text,
+        history=_history[history_key][:-1],
+        figma_context=figma_context,
+        memo_context=memo_context,
+    )
     _add_history(history_key, "assistant", reply)
     await update.message.reply_text(reply)
+
+    # 자동 메모 저장: 중요 결정/피드백 감지 시 자동 저장
+    if _memos is not None:
+        try:
+            if claude_client.detect_important_decision(reply):
+                summary = claude_client.summarize_instagram_decision(reply, agent)
+                if summary:
+                    _memos.add(memo_mode, summary)
+        except Exception:
+            pass
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1126,6 +1174,11 @@ _BREAKDOWN_KEYWORDS = ("어떻게 시작", "뭐부터 해", "막막해", "쪼개
 async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
     t = text.lower()
 
+    # 투두/알람은 최우선 — "투두"가 있으면 다른 키워드보다 먼저 처리
+    if any(w in t for w in _TODO_WORDS) or any(w in t for w in _REMINDER_WORDS):
+        await _handle_todo_natural(update, text)
+        return
+
     # 생리주기
     if any(w in t for w in _CYCLE_KEYWORDS):
         await _handle_cycle_natural(update, text)
@@ -1144,11 +1197,6 @@ async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     # 과제 분해
     if any(w in t for w in _BREAKDOWN_KEYWORDS):
         await _handle_breakdown(update, text)
-        return
-
-    # 투두/알람 통합 처리 ("투두" 또는 "리마인더" 키워드 모두 포함)
-    if any(w in t for w in _TODO_WORDS) or any(w in t for w in _REMINDER_WORDS):
-        await _handle_todo_natural(update, text)
         return
 
     known_titles = _sheets.get_titles()

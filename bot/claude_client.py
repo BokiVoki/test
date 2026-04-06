@@ -443,6 +443,43 @@ def summarize_conversation(history: list[dict], mode: str) -> str:
     return resp.content[0].text.strip()
 
 
+def detect_important_decision(assistant_reply: str) -> bool:
+    """에이전트 답변에 중요 결정/피드백이 포함됐는지 빠르게 판단 (Haiku)"""
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=10,
+        messages=[{
+            "role": "user",
+            "content": (
+                "다음 인스타그램 팀 에이전트 답변에 나중에 기억해야 할 중요한 결정, 확정된 방향, "
+                "구체적 수치/스펙, 피드백이 포함됐나요? yes 또는 no로만 답하세요.\n\n"
+                f"{assistant_reply[:800]}"
+            ),
+        }],
+    )
+    return resp.content[0].text.strip().lower().startswith("yes")
+
+
+def summarize_instagram_decision(reply: str, agent: str) -> str:
+    """인스타그램 에이전트 답변에서 핵심 결정/피드백만 추출"""
+    agent_kr = {"designer": "디자이너", "writer": "작가", "manager": "매니저"}.get(agent, agent)
+    client = _get_client()
+    resp = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=300,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"인스타그램 {agent_kr} 에이전트 답변에서 중요 결정/확정 사항/수치를 "
+                "한 줄~세 줄로 요약해주세요. 없으면 빈 문자열만 반환.\n\n"
+                f"{reply[:1000]}"
+            ),
+        }],
+    )
+    return resp.content[0].text.strip()
+
+
 def answer_query(query: str, entries: list[ContentEntry]) -> str:
     """
     자연어 쿼리에 맞게 아카이브를 필터링/요약합니다.
@@ -463,12 +500,14 @@ def answer_query(query: str, entries: list[ContentEntry]) -> str:
     return chat("secretary", prompt)
 
 
-def instagram_chat(agent: str, user_message: str, history: list[dict] | None = None, figma_context: str = "") -> str:
+def instagram_chat(agent: str, user_message: str, history: list[dict] | None = None, figma_context: str = "", memo_context: str = "") -> str:
     """인스타그램 팀 에이전트 대화"""
     from .instagram_prompts import INSTAGRAM_PROMPTS
     system = INSTAGRAM_PROMPTS.get(agent, INSTAGRAM_PROMPTS["manager"])
     if figma_context:
         system = f"{system}\n\n---\n현재 피그마 컴포넌트 현황:\n{figma_context}"
+    if memo_context:
+        system = f"{system}\n\n---\n이전 저장 메모 (중요 결정/피드백):\n{memo_context}"
 
     messages = (history or [])[:]
     messages.append({"role": "user", "content": user_message})
