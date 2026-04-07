@@ -95,7 +95,7 @@ def main():
     app.add_handler(CommandHandler("stats", handlers.stats_handler))
     app.add_handler(CommandHandler("get", handlers.get_handler))
     app.add_handler(CommandHandler("search", handlers.search_handler))
-    app.add_handler(CommandHandler("기록", handlers.record_handler))
+    app.add_handler(CommandHandler("record", handlers.record_handler))
     app.add_handler(CommandHandler("done", handlers.done_handler))
     app.add_handler(CommandHandler("drop", handlers.drop_handler))
     app.add_handler(CommandHandler("export", handlers.export_handler))

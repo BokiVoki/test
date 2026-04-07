@@ -840,19 +840,8 @@ async def _handle_todo_natural(update: Update, text: str):
         await update.message.reply_text(f"❌ 오류: {e}")
 
 
-async def record_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/기록 제목, 작가, 연도, 출판사 — 아카이브 직접 등록 (콤마 구분)"""
-    if not _auth(update):
-        return
-    if not context.args:
-        await update.message.reply_text(
-            "`/기록 제목, 작가, 연도, 출판사` 형식으로 입력해주세요.\n"
-            "예: `/기록 말론 죽다, 사뮈엘 베케트, 2026, 갈리마르`\n"
-            "작가/연도/출판사는 생략 가능해요.",
-            parse_mode="Markdown"
-        )
-        return
-    raw = " ".join(context.args)
+async def _do_record(update: Update, raw: str):
+    """콤마 구분 문자열로 아카이브 등록"""
     parts = [p.strip() for p in raw.split(",")]
     title = parts[0] if len(parts) > 0 else ""
     author = parts[1] if len(parts) > 1 else ""
@@ -892,6 +881,21 @@ async def record_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ **{added.title}** ({type_kr}) 등록했어요!\n{meta_str}\n\n평점이나 한줄평도 남길까요?",
         parse_mode="Markdown"
     )
+
+
+async def record_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/record 제목, 작가, 연도, 출판사"""
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "`/기록 제목, 작가, 연도, 출판사` 형식으로 입력해주세요.\n"
+            "예: `/기록 말론 죽다, 사뮈엘 베케트, 2026, 워크룸`\n"
+            "작가/연도/출판사는 생략 가능해요.",
+            parse_mode="Markdown"
+        )
+        return
+    await _do_record(update, " ".join(context.args))
 
 
 async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1355,11 +1359,15 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("⚠️ 시간을 이해하지 못했어요. 다시 시도해주세요.")
         return
 
-    # ── /검색 자연어 감지 (텔레그램 한글 커맨드 미지원 대비) ──
+    # ── 한글 커맨드 감지 (텔레그램 한글 커맨드 미지원 대비) ──
     import re as _re2
     _search_kw_m = _re2.match(r'^/?검색\s+(.+)', text.strip())
     if _search_kw_m:
         await _do_search(update, _search_kw_m.group(1).strip())
+        return
+    _record_m = _re2.match(r'^/?기록\s+(.+)', text.strip(), _re2.DOTALL)
+    if _record_m:
+        await _do_record(update, _record_m.group(1).strip())
         return
 
     # ── 검색 결과 번호 선택: "N 메모 - ...", "N 보여줘", "N 완료" ──
