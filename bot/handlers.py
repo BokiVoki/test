@@ -292,6 +292,36 @@ async def get_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(_format_entry_detail(entry), parse_mode="Markdown")
 
 
+# 검색 결과 임시 저장 (번호 선택용)
+_search_results: list = []
+
+
+async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/검색 [키워드] — 제목 검색 후 번호로 선택"""
+    global _search_results
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text("`/검색 달리기` 처럼 키워드를 입력해주세요.", parse_mode="Markdown")
+        return
+    keyword = " ".join(context.args).lower().strip()
+    all_entries = _sheets.get_all_entries()
+    matches = [e for e in all_entries if keyword in e.title.lower()]
+    if not matches:
+        await update.message.reply_text(f"'{keyword}' 포함된 작품을 찾지 못했어요.")
+        return
+    _search_results = matches
+    from .models import CONTENT_TYPE_KR, STATUS_KR
+    lines = [f"**🔍 '{keyword}' 검색 결과 {len(matches)}개**\n"]
+    for i, e in enumerate(matches, 1):
+        type_kr = CONTENT_TYPE_KR.get(e.type, e.type)
+        status_kr = STATUS_KR.get(e.status, e.status)
+        rating_str = f" ⭐{e.rating}" if e.rating is not None else ""
+        lines.append(f"{i}. **{e.title}** ({type_kr} · {status_kr}{rating_str})")
+    lines.append("\n번호로 선택: `1 메모 - 내용`, `2 보여줘`, `3 완료`")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
 async def done_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return
@@ -1224,6 +1254,50 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("⚠️ 시간을 이해하지 못했어요. 다시 시도해주세요.")
         return
+
+    # ── 검색 결과 번호 선택: "N 메모 - ...", "N 보여줘", "N 완료" ──
+    if _search_results:
+        import re as _re2
+        _sel = _re2.match(r'^(\d+)\s+(.*)', text.strip(), _re2.DOTALL)
+        if _sel:
+            sel_n = int(_sel.group(1))
+            sel_rest = _sel.group(2).strip()
+            if 1 <= sel_n <= len(_search_results):
+                sel_entry = _search_results[sel_n - 1]
+                # 메모 추가: "N 메모 - 내용" 또는 "N - 내용"
+                _memo_m = _re2.match(r'^(?:메모\s*[-–]?\s*|[-–]\s*)(.*)', sel_rest, _re2.DOTALL)
+                if _memo_m or sel_rest.startswith("메모"):
+                    note_text = _memo_m.group(1).strip() if _memo_m else sel_rest[2:].strip()
+                    if note_text:
+                        kst_stamp = _now_kst().strftime("%m/%d")
+                        new_note = f"[{kst_stamp}] {note_text}"
+                        sel_entry.notes = f"{sel_entry.notes}\n{new_note}".strip() if sel_entry.notes else new_note
+                        _sheets.update_entry(sel_entry)
+                        await update.message.reply_text(f"📝 **{sel_entry.title}** 메모 추가했어요!\n`{new_note}`", parse_mode="Markdown")
+                        return
+                # 상세 보기: "N 보여줘", "N 상세"
+                elif any(kw in sel_rest for kw in ("보여줘", "보여", "상세", "알려줘", "detail")):
+                    await update.message.reply_text(_format_entry_detail(sel_entry), parse_mode="Markdown")
+                    return
+                # 완료: "N 완료"
+                elif "완료" in sel_rest:
+                    sel_entry.status = "completed"
+                    from datetime import date as _date2
+                    if not sel_entry.date_completed:
+                        sel_entry.date_completed = str(_date2.today())
+                    _sheets.update_entry(sel_entry)
+                    await update.message.reply_text(f"✅ **{sel_entry.title}** 완료 처리했어요!", parse_mode="Markdown")
+                    return
+                # 평점: "N 평점 4.5" 또는 "N ⭐4"
+                _rating_m = _re2.search(r'(?:평점|⭐)\s*([\d.]+)', sel_rest)
+                if _rating_m:
+                    try:
+                        sel_entry.rating = float(_rating_m.group(1))
+                        _sheets.update_entry(sel_entry)
+                        await update.message.reply_text(f"⭐ **{sel_entry.title}** 평점 {sel_entry.rating} 저장했어요!", parse_mode="Markdown")
+                        return
+                    except ValueError:
+                        pass
 
     # 자연어 모드 전환 감지 (모든 모드에서 동작)
     new_mode = _detect_mode_switch(text)
