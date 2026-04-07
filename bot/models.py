@@ -42,11 +42,12 @@ STATUS_KR = {
     "on_hold": "보류",
 }
 
-# Archive 시트 컬럼 순서 (A~M)
+# Archive 시트 컬럼 순서 (A~P)
 SHEET_COLUMNS = [
     "id", "title", "type", "status", "progress",
     "rating", "notes", "tags", "date_added", "date_updated",
-    "date_completed", "source", "raw_log"
+    "date_completed", "source", "raw_log",
+    "author", "year_watched", "publisher"
 ]
 
 
@@ -65,6 +66,9 @@ class ContentEntry:
     date_completed: str = ""
     source: str = ""
     raw_log: str = ""
+    author: str = ""
+    year_watched: str = ""
+    publisher: str = ""
 
     def to_row(self) -> list:
         return [
@@ -81,6 +85,9 @@ class ContentEntry:
             self.date_completed,
             self.source,
             self.raw_log,
+            self.author,
+            self.year_watched,
+            self.publisher,
         ]
 
     @classmethod
@@ -107,6 +114,9 @@ class ContentEntry:
             date_completed=padded[10],
             source=padded[11],
             raw_log=padded[12],
+            author=padded[13],
+            year_watched=padded[14],
+            publisher=padded[15],
         )
 
     def summary(self) -> str:

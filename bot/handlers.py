@@ -851,6 +851,44 @@ async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("SPREADSHEET_ID 환경변수가 설정되지 않았어요.")
 
 
+async def migrate_archive_fields_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/migrate_archive_fields — notes에 섞인 참여:/연도:/출판: 을 전용 열로 분리"""
+    if not _auth(update):
+        return
+    import re as _re
+    await update.message.reply_text("⏳ 아카이브 마이그레이션 시작...")
+    entries = _sheets.get_all_entries(force=True)
+    updated = 0
+    for entry in entries:
+        changed = False
+        notes_lines = entry.notes.split("\n") if entry.notes else []
+        remaining = []
+        for line in notes_lines:
+            m_author = _re.match(r'^참여\s*[:：]\s*(.+)', line.strip())
+            m_year   = _re.match(r'^연도\s*[:：]\s*(.+)', line.strip())
+            m_pub    = _re.match(r'^출판\s*[:：]\s*(.+)', line.strip())
+            if m_author and not entry.author:
+                entry.author = m_author.group(1).strip()
+                changed = True
+            elif m_year and not entry.year_watched:
+                entry.year_watched = m_year.group(1).strip()
+                changed = True
+            elif m_pub and not entry.publisher:
+                entry.publisher = m_pub.group(1).strip()
+                changed = True
+            else:
+                remaining.append(line)
+        if changed:
+            entry.notes = "\n".join(remaining).strip()
+            _sheets.update_entry(entry)
+            updated += 1
+    await update.message.reply_text(
+        f"✅ 마이그레이션 완료!\n{updated}개 항목에서 참여/연도/출판 분리했어요.\n\n"
+        "Google Sheets N열(author), O열(year_watched), P열(publisher) 헤더를 추가해주세요.",
+        parse_mode="Markdown"
+    )
+
+
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -1649,6 +1687,12 @@ def _format_entry_detail(entry: ContentEntry) -> str:
         f"**{entry.title}**",
         f"종류: {type_kr} · 상태: {status_kr}",
     ]
+    if entry.author:
+        lines.append(f"참여: {entry.author}")
+    if entry.publisher:
+        lines.append(f"출판/제작: {entry.publisher}")
+    if entry.year_watched:
+        lines.append(f"감상연도: {entry.year_watched}")
     if entry.progress:
         lines.append(f"진행: {entry.progress}")
     if entry.rating is not None:
@@ -1661,7 +1705,7 @@ def _format_entry_detail(entry: ContentEntry) -> str:
             lines.append(f"메모: {entry.notes}")
         else:
             lines.append(f"메모 ({len(note_lines)}개):")
-            for nl in note_lines[-5:]:  # 최근 5개만 표시
+            for nl in note_lines[-5:]:
                 lines.append(f"  • {nl}")
     if entry.date_added:
         lines.append(f"등록일: {entry.date_added}")

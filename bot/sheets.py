@@ -127,7 +127,7 @@ class SheetsClient:
         for i, row in enumerate(rows[1:], start=2):  # 1-indexed, skip header
             if row and row[0] == entry.id:
                 sheet.update(
-                    range_name=f"A{i}:M{i}",
+                    range_name=f"A{i}:P{i}",
                     values=[entry.to_row()],
                     value_input_option="USER_ENTERED",
                 )
