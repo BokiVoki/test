@@ -540,7 +540,7 @@ async def todos_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = ["**📋 할 일 목록**\n"]
     for i, item in enumerate(sorted_items, 1):
         lines.append(_fmt_todo_line(item, index=i, show_id=True))
-    lines.append("\n완료: `완료 [내용]` 또는 `/todo_done [ID]`")
+    lines.append("\n완료: `완료 3` (번호) 또는 `완료 [내용]` 또는 `/todo_done [ID]`")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
@@ -730,12 +730,36 @@ async def _handle_todo_natural(update: Update, text: str):
 
         elif action == "complete":
             todo_text = _first_text()
-            item = _todos.find_by_text(todo_text)
-            if not item:
-                await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요. `/todos`로 목록 확인해주세요.", parse_mode="Markdown")
-                return
-            _todos.complete(item.id)
-            await update.message.reply_text(f"✅ **{item.text}** 완료!", parse_mode="Markdown")
+            # 숫자 기반 완료: "완료 3" 또는 "1, 3" 등
+            import re as _re
+            nums = [int(n) for n in _re.findall(r'\d+', todo_text)] if todo_text else []
+            if nums:
+                pending = _todos.get_pending()
+                imp = [t for t in pending if _is_important(t.text)]
+                norm = [t for t in pending if not _is_important(t.text)]
+                sorted_pending = imp + norm
+                completed = []
+                not_found = []
+                for n in nums:
+                    if 1 <= n <= len(sorted_pending):
+                        item = sorted_pending[n - 1]
+                        _todos.complete(item.id)
+                        completed.append(item.text)
+                    else:
+                        not_found.append(str(n))
+                lines = []
+                for t in completed:
+                    lines.append(f"✅ **{t}** 완료!")
+                if not_found:
+                    lines.append(f"⚠️ {', '.join(not_found)}번 항목을 찾지 못했어요.")
+                await update.message.reply_text("\n".join(lines) or "완료할 항목이 없어요.", parse_mode="Markdown")
+            else:
+                item = _todos.find_by_text(todo_text)
+                if not item:
+                    await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요. `/todos`로 목록 확인해주세요.", parse_mode="Markdown")
+                    return
+                _todos.complete(item.id)
+                await update.message.reply_text(f"✅ **{item.text}** 완료!", parse_mode="Markdown")
 
         elif action == "delete":
             todo_text = _first_text()
