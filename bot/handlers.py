@@ -296,30 +296,37 @@ async def get_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 _search_results: list = []
 
 
-async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/검색 [키워드] — 제목 검색 후 번호로 선택"""
+async def _do_search(update: Update, keyword: str):
+    """키워드로 아카이브 검색 후 번호 목록 출력"""
     global _search_results
-    if not _auth(update):
-        return
-    if not context.args:
-        await update.message.reply_text("`/검색 달리기` 처럼 키워드를 입력해주세요.", parse_mode="Markdown")
-        return
-    keyword = " ".join(context.args).lower().strip()
+    from .models import CONTENT_TYPE_KR, STATUS_KR
     all_entries = _sheets.get_all_entries()
-    matches = [e for e in all_entries if keyword in e.title.lower()]
+    matches = [e for e in all_entries if keyword.lower() in e.title.lower()]
     if not matches:
         await update.message.reply_text(f"'{keyword}' 포함된 작품을 찾지 못했어요.")
         return
     _search_results = matches
-    from .models import CONTENT_TYPE_KR, STATUS_KR
     lines = [f"**🔍 '{keyword}' 검색 결과 {len(matches)}개**\n"]
     for i, e in enumerate(matches, 1):
         type_kr = CONTENT_TYPE_KR.get(e.type, e.type)
         status_kr = STATUS_KR.get(e.status, e.status)
         rating_str = f" ⭐{e.rating}" if e.rating is not None else ""
         lines.append(f"{i}. **{e.title}** ({type_kr} · {status_kr}{rating_str})")
-    lines.append("\n번호로 선택: `1 메모 - 내용`, `2 보여줘`, `3 완료`")
+    if len(matches) == 1:
+        lines.append("\n`메모 - 내용` 또는 `보여줘` / `완료` / `평점 4.5`")
+    else:
+        lines.append("\n번호로 선택: `1 메모 - 내용`, `2 보여줘`, `3 완료`")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
+async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/search [키워드] — 제목 검색 후 번호로 선택"""
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text("`/search 달리기` 처럼 키워드를 입력해주세요.", parse_mode="Markdown")
+        return
+    await _do_search(update, " ".join(context.args))
 
 
 async def done_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1255,49 +1262,74 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("⚠️ 시간을 이해하지 못했어요. 다시 시도해주세요.")
         return
 
+    # ── /검색 자연어 감지 (텔레그램 한글 커맨드 미지원 대비) ──
+    import re as _re2
+    _search_kw_m = _re2.match(r'^/?검색\s+(.+)', text.strip())
+    if _search_kw_m:
+        await _do_search(update, _search_kw_m.group(1).strip())
+        return
+
     # ── 검색 결과 번호 선택: "N 메모 - ...", "N 보여줘", "N 완료" ──
+    def _apply_search_action(entry, action_text: str) -> bool | None:
+        """검색 결과 항목에 액션 적용. 처리됐으면 True 반환"""
+        _memo_m2 = _re2.match(r'^(?:메모\s*)?[-–]\s*(.*)', action_text, _re2.DOTALL)
+        if _memo_m2 or action_text.startswith("메모"):
+            raw = _memo_m2.group(1).strip() if _memo_m2 else _re2.sub(r'^메모\s*', '', action_text).strip()
+            if raw:
+                stamp = _now_kst().strftime("%m/%d")
+                new_note = f"[{stamp}] {raw}"
+                entry.notes = f"{entry.notes}\n{new_note}".strip() if entry.notes else new_note
+                _sheets.update_entry(entry)
+                return ("memo", new_note, entry.title)
+        if any(kw in action_text for kw in ("보여줘", "보여", "상세", "알려줘")):
+            return ("detail", entry)
+        if "완료" in action_text:
+            entry.status = "completed"
+            from datetime import date as _date2
+            if not entry.date_completed:
+                entry.date_completed = str(_date2.today())
+            _sheets.update_entry(entry)
+            return ("done", entry.title)
+        _rm = _re2.search(r'(?:평점|⭐)\s*([\d.]+)', action_text)
+        if _rm:
+            try:
+                entry.rating = float(_rm.group(1))
+                _sheets.update_entry(entry)
+                return ("rate", entry.rating, entry.title)
+            except ValueError:
+                pass
+        return None
+
     if _search_results:
-        import re as _re2
         _sel = _re2.match(r'^(\d+)\s+(.*)', text.strip(), _re2.DOTALL)
+        # 결과 1개이고 번호 없이 "메모 - ..." 형식
+        _no_num_memo = _re2.match(r'^(?:메모\s*)?[-–]\s*(.*)', text.strip(), _re2.DOTALL) or text.strip().startswith("메모")
         if _sel:
             sel_n = int(_sel.group(1))
             sel_rest = _sel.group(2).strip()
             if 1 <= sel_n <= len(_search_results):
-                sel_entry = _search_results[sel_n - 1]
-                # 메모 추가: "N 메모 - 내용" 또는 "N - 내용"
-                _memo_m = _re2.match(r'^(?:메모\s*[-–]?\s*|[-–]\s*)(.*)', sel_rest, _re2.DOTALL)
-                if _memo_m or sel_rest.startswith("메모"):
-                    note_text = _memo_m.group(1).strip() if _memo_m else sel_rest[2:].strip()
-                    if note_text:
-                        kst_stamp = _now_kst().strftime("%m/%d")
-                        new_note = f"[{kst_stamp}] {note_text}"
-                        sel_entry.notes = f"{sel_entry.notes}\n{new_note}".strip() if sel_entry.notes else new_note
-                        _sheets.update_entry(sel_entry)
-                        await update.message.reply_text(f"📝 **{sel_entry.title}** 메모 추가했어요!\n`{new_note}`", parse_mode="Markdown")
-                        return
-                # 상세 보기: "N 보여줘", "N 상세"
-                elif any(kw in sel_rest for kw in ("보여줘", "보여", "상세", "알려줘", "detail")):
-                    await update.message.reply_text(_format_entry_detail(sel_entry), parse_mode="Markdown")
+                result = _apply_search_action(_search_results[sel_n - 1], sel_rest)
+                if result:
+                    if result[0] == "memo":
+                        await update.message.reply_text(f"📝 **{result[2]}** 메모 추가했어요!\n`{result[1]}`", parse_mode="Markdown")
+                    elif result[0] == "detail":
+                        await update.message.reply_text(_format_entry_detail(result[1]), parse_mode="Markdown")
+                    elif result[0] == "done":
+                        await update.message.reply_text(f"✅ **{result[1]}** 완료 처리했어요!", parse_mode="Markdown")
+                    elif result[0] == "rate":
+                        await update.message.reply_text(f"⭐ **{result[2]}** 평점 {result[1]} 저장했어요!", parse_mode="Markdown")
                     return
-                # 완료: "N 완료"
-                elif "완료" in sel_rest:
-                    sel_entry.status = "completed"
-                    from datetime import date as _date2
-                    if not sel_entry.date_completed:
-                        sel_entry.date_completed = str(_date2.today())
-                    _sheets.update_entry(sel_entry)
-                    await update.message.reply_text(f"✅ **{sel_entry.title}** 완료 처리했어요!", parse_mode="Markdown")
-                    return
-                # 평점: "N 평점 4.5" 또는 "N ⭐4"
-                _rating_m = _re2.search(r'(?:평점|⭐)\s*([\d.]+)', sel_rest)
-                if _rating_m:
-                    try:
-                        sel_entry.rating = float(_rating_m.group(1))
-                        _sheets.update_entry(sel_entry)
-                        await update.message.reply_text(f"⭐ **{sel_entry.title}** 평점 {sel_entry.rating} 저장했어요!", parse_mode="Markdown")
-                        return
-                    except ValueError:
-                        pass
+        elif _no_num_memo and len(_search_results) == 1:
+            # 검색 결과 1개일 때 번호 생략 허용
+            result = _apply_search_action(_search_results[0], text.strip())
+            if result:
+                if result[0] == "memo":
+                    await update.message.reply_text(f"📝 **{result[2]}** 메모 추가했어요!\n`{result[1]}`", parse_mode="Markdown")
+                elif result[0] == "detail":
+                    await update.message.reply_text(_format_entry_detail(result[1]), parse_mode="Markdown")
+                elif result[0] == "done":
+                    await update.message.reply_text(f"✅ **{result[1]}** 완료 처리했어요!", parse_mode="Markdown")
+                return
 
     # 자연어 모드 전환 감지 (모든 모드에서 동작)
     new_mode = _detect_mode_switch(text)
