@@ -852,13 +852,13 @@ async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def migrate_archive_fields_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/migrate_archive_fields — notes에 섞인 참여:/연도:/출판: 을 전용 열로 분리"""
+    """/migrate_archive_fields — notes에 섞인 참여:/연도:/출판: 을 전용 열로 분리 (배치처리)"""
     if not _auth(update):
         return
     import re as _re
     await update.message.reply_text("⏳ 아카이브 마이그레이션 시작...")
     entries = _sheets.get_all_entries(force=True)
-    updated = 0
+    to_update = []
     for entry in entries:
         changed = False
         notes_lines = entry.notes.split("\n") if entry.notes else []
@@ -880,11 +880,12 @@ async def migrate_archive_fields_handler(update: Update, context: ContextTypes.D
                 remaining.append(line)
         if changed:
             entry.notes = "\n".join(remaining).strip()
-            _sheets.update_entry(entry)
-            updated += 1
+            to_update.append(entry)
+    # 한 번의 batch API 호출로 전체 업데이트
+    updated = _sheets.batch_update_entries(to_update)
     await update.message.reply_text(
         f"✅ 마이그레이션 완료!\n{updated}개 항목에서 참여/연도/출판 분리했어요.\n\n"
-        "Google Sheets N열(author), O열(year_watched), P열(publisher) 헤더를 추가해주세요.",
+        "Google Sheets N열(author), O열(year\\_watched), P열(publisher) 헤더를 추가해주세요.",
         parse_mode="Markdown"
     )
 

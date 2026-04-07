@@ -136,6 +136,29 @@ class SheetsClient:
         # id로 못 찾으면 새로 추가
         self.add_entry(entry)
 
+    def batch_update_entries(self, entries: list[ContentEntry]) -> int:
+        """여러 항목을 한 번의 batch API 호출로 업데이트 (rate limit 방지)"""
+        if not entries:
+            return 0
+        today = str(date.today())
+        sheet = self._get_sheet()
+        rows = sheet.get_all_values()
+        # id → row index 맵 미리 생성
+        id_to_row = {row[0]: i for i, row in enumerate(rows[1:], start=2) if row and row[0]}
+        batch_data = []
+        for entry in entries:
+            entry.date_updated = today
+            i = id_to_row.get(entry.id)
+            if i:
+                batch_data.append({
+                    "range": f"A{i}:P{i}",
+                    "values": [entry.to_row()],
+                })
+        if batch_data:
+            sheet.batch_update(batch_data, value_input_option="USER_ENTERED")
+        self._invalidate_cache()
+        return len(batch_data)
+
     def get_recent(
         self,
         n: int = 10,
