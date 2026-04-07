@@ -640,6 +640,31 @@ async def _handle_todo_natural(update: Update, text: str):
         await update.message.reply_text("❌ 투두 초기화 실패.")
         return
 
+    # ── 빠른 경로: "완료 N" 또는 "N 완료" 패턴 — Claude 파싱 불필요
+    import re as _re
+    _quick_match = _re.fullmatch(r'[완료\s\d,]+', text.strip())
+    _num_complete = _re.match(r'^(?:완료\s*)?([\d,\s]+)(?:\s*완료)?$', text.strip())
+    if _num_complete and '완료' in text:
+        nums = [int(n) for n in _re.findall(r'\d+', text)]
+        if nums:
+            pending = _todos.get_pending()
+            imp = [t for t in pending if _is_important(t.text)]
+            norm = [t for t in pending if not _is_important(t.text)]
+            sorted_pending = imp + norm
+            completed_names, not_found = [], []
+            for n in nums:
+                if 1 <= n <= len(sorted_pending):
+                    item = sorted_pending[n - 1]
+                    _todos.complete(item.id)
+                    completed_names.append(item.text)
+                else:
+                    not_found.append(str(n))
+            lines = [f"✅ **{t}** 완료!" for t in completed_names]
+            if not_found:
+                lines.append(f"⚠️ {', '.join(not_found)}번 항목을 찾지 못했어요.")
+            await update.message.reply_text("\n".join(lines) or "완료할 항목이 없어요.", parse_mode="Markdown")
+            return
+
     kst = timezone(timedelta(hours=9))
     now_str = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
     try:
@@ -1265,6 +1290,8 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 _TODO_WORDS = (
     "투두", "할 일", "할일", "todo", "할거", "할 거",
+    # 완료 처리
+    "완료", "다했어", "다 했어", "끝냈어", "끝났어", "했어", "완성",
     # 미완료/조회 자연어
     "미완료", "못 한", "못한", "안 한", "안한",
     "남은 거", "남은거", "뭐 남", "뭐남", "남아있",
