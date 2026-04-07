@@ -1506,7 +1506,10 @@ async def _handle_archive_action(update, intent):
         entry.rating = intent.rating
 
     if intent.note:
-        entry.notes = f"{entry.notes}\n{intent.note}".strip() if entry.notes else intent.note
+        kst = _now_kst()
+        stamp = kst.strftime("%m/%d")
+        new_note = f"[{stamp}] {intent.note}"
+        entry.notes = f"{entry.notes}\n{new_note}".strip() if entry.notes else new_note
 
     _sheets.update_entry(entry)
     key, markup = _undo_keyboard()
@@ -1547,7 +1550,13 @@ def _format_entry_detail(entry: ContentEntry) -> str:
     if entry.tags:
         lines.append(f"태그: {entry.tags}")
     if entry.notes:
-        lines.append(f"메모: {entry.notes}")
+        note_lines = entry.notes.strip().split("\n")
+        if len(note_lines) == 1:
+            lines.append(f"메모: {entry.notes}")
+        else:
+            lines.append(f"메모 ({len(note_lines)}개):")
+            for nl in note_lines[-5:]:  # 최근 5개만 표시
+                lines.append(f"  • {nl}")
     if entry.date_added:
         lines.append(f"등록일: {entry.date_added}")
     if entry.source:
