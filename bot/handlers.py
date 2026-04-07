@@ -43,6 +43,7 @@ _cycle: Optional[CycleClient] = None
 _pending_checkin: dict[int, str] = {}  # chat_id → "morning"|"afternoon"
 _undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
 _pending_snooze: dict[int, str] = {}  # chat_id → reminder_id (직접입력 대기 중)
+_processed_msg_ids: set[int] = set()  # 웹훅 재전송 중복 방지
 
 
 def init_sheets(sheets: SheetsClient):
@@ -475,6 +476,28 @@ async def migrate_reminders_handler(update: Update, context: ContextTypes.DEFAUL
 
 # ── 투두리스트 ────────────────────────────────────────────────────────────────
 
+def _is_important(text: str) -> bool:
+    """텍스트에 (중요) 또는 [중요] 포함 여부"""
+    t = text.lower()
+    return "(중요)" in t or "[중요]" in t or "!!" in t
+
+
+def _fmt_todo_line(item, index: int = None, show_id: bool = False) -> str:
+    """투두 항목 한 줄 포맷 — 중요 항목은 🍎 prefix"""
+    important = _is_important(item.text)
+    prefix = "🍎 " if important else ""
+    num = f"{index}. " if index is not None else "• "
+    alarm_str = ""
+    if item.trigger_at:
+        try:
+            dt = datetime.fromisoformat(item.trigger_at)
+            alarm_str = f" ⏰{dt.strftime('%m/%d %H:%M')}"
+        except Exception:
+            alarm_str = " ⏰"
+    id_str = f"  `{item.id}`" if show_id else ""
+    return f"{num}{prefix}{item.text}{_fmt_due(item.due_date)}{alarm_str}{id_str}"
+
+
 def _fmt_due(due_date: str) -> str:
     if not due_date:
         return ""
@@ -510,16 +533,13 @@ async def todos_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pending:
         await update.message.reply_text("✅ 할 일이 없어요!")
         return
+    # 중요 항목 먼저
+    important = [t for t in pending if _is_important(t.text)]
+    normal = [t for t in pending if not _is_important(t.text)]
+    sorted_items = important + normal
     lines = ["**📋 할 일 목록**\n"]
-    for i, item in enumerate(pending, 1):
-        alarm_str = ""
-        if item.trigger_at:
-            try:
-                dt = datetime.fromisoformat(item.trigger_at)
-                alarm_str = f" ⏰{dt.strftime('%m/%d %H:%M')}"
-            except Exception:
-                alarm_str = " ⏰"
-        lines.append(f"{i}. {item.text}{_fmt_due(item.due_date)}{alarm_str}  `{item.id}`")
+    for i, item in enumerate(sorted_items, 1):
+        lines.append(_fmt_todo_line(item, index=i, show_id=True))
     lines.append("\n완료: `완료 [내용]` 또는 `/todo_done [ID]`")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
@@ -1112,6 +1132,15 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global _current_mode
     if not _auth(update):
         return
+
+    # 웹훅 재전송 중복 방지
+    msg_id = update.message.message_id
+    if msg_id in _processed_msg_ids:
+        return
+    _processed_msg_ids.add(msg_id)
+    if len(_processed_msg_ids) > 500:  # 메모리 정리
+        _processed_msg_ids.clear()
+
     text = update.message.text.strip()
     chat_id = update.message.chat_id
 
@@ -1917,8 +1946,13 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
     def _fmt_todos(items) -> str:
         if not items:
             return "없어요 🎉"
+        # 중요 항목 먼저
+        imp = [t for t in items if _is_important(t.text)]
+        nml = [t for t in items if not _is_important(t.text)]
+        sorted_items = (imp + nml)[:10]
         lines = []
-        for t in items[:10]:
+        for t in sorted_items:
+            prefix = "🍎 " if _is_important(t.text) else "• "
             due = f" (~{t.due_date[5:]})" if t.due_date else ""
             alarm = ""
             if t.trigger_at:
@@ -1927,7 +1961,7 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
                     alarm = f" ⏰{dt.strftime('%H:%M')}"
                 except Exception:
                     pass
-            lines.append(f"• {t.text}{due}{alarm}")
+            lines.append(f"{prefix}{t.text}{due}{alarm}")
         if len(items) > 10:
             lines.append(f"  … 외 {len(items)-10}개")
         return "\n".join(lines)
