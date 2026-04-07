@@ -1887,17 +1887,89 @@ async def send_daily_checkin(bot, chat_id: int, checkin_type: str):
     _pending_checkin[chat_id] = checkin_type
     if checkin_type == "morning":
         text = (
-            "🧠 **오전 체크인!**\n\n"
-            "아래 내용 간단히 알려줘:\n"
-            "1️⃣ 어젯밤 몇 시간 잤어?\n"
-            "2️⃣ 물 몇 잔 마셨어?\n"
-            "3️⃣ 지금 집중 상태는? (좋음/보통/힘듦)"
+            "🌅 **기상 체크인**\n\n"
+            "일어난 직후 간단히 알려줘:\n"
+            "1️⃣ 몇 시간 잤어?\n"
+            "2️⃣ 지금 컨디션은? (좋음/보통/별로)\n"
+            "💧 물 한 잔 마셨어?"
         )
     else:
         text = (
-            "🧠 **오후 체크인!**\n\n"
+            "☀️ **오후 체크인**\n\n"
             "지금 상태 알려줘:\n"
             "1️⃣ 오늘 물 총 몇 잔?\n"
             "2️⃣ 집중 상태는? (좋음/보통/힘듦)"
         )
+    await bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+
+
+async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None):
+    """브리핑 발송: morning / evening / night"""
+    from .scheduler import _fetch_weather
+    today = _now_kst().date()
+    tomorrow = today + timedelta(days=1)
+
+    def _fmt_todos(items) -> str:
+        if not items:
+            return "없어요 🎉"
+        lines = []
+        for t in items[:10]:
+            due = f" (~{t.due_date[5:]})" if t.due_date else ""
+            alarm = ""
+            if t.trigger_at:
+                try:
+                    dt = datetime.fromisoformat(t.trigger_at)
+                    alarm = f" ⏰{dt.strftime('%H:%M')}"
+                except Exception:
+                    pass
+            lines.append(f"• {t.text}{due}{alarm}")
+        if len(items) > 10:
+            lines.append(f"  … 외 {len(items)-10}개")
+        return "\n".join(lines)
+
+    all_todos = todos_client.get_all() if todos_client else []
+    undone = [t for t in all_todos if not t.done]
+
+    # 오늘 할 일: trigger_at이 오늘이거나 due_date가 오늘이거나 둘 다 없는 것
+    def _is_today(t):
+        for field in (t.trigger_at, t.due_date):
+            if field and field[:10] == today.isoformat():
+                return True
+        return not t.trigger_at and not t.due_date  # 날짜 없는 것도 포함
+
+    def _is_tomorrow(t):
+        for field in (t.trigger_at, t.due_date):
+            if field and field[:10] == tomorrow.isoformat():
+                return True
+        return False
+
+    if briefing_type == "morning":
+        weather = _fetch_weather("Seoul")
+        today_todos = [t for t in undone if _is_today(t)]
+        text = (
+            f"☀️ **굿모닝 브리핑**\n\n"
+            f"🌤 날씨: {weather}\n\n"
+            f"📋 **오늘 할 일** ({len(today_todos)}개)\n"
+            f"{_fmt_todos(today_todos)}"
+        )
+
+    elif briefing_type == "evening":
+        remaining = [t for t in undone if _is_today(t)]
+        text = (
+            f"🌆 **저녁 브리핑**\n\n"
+            f"📋 **오늘 남은 일** ({len(remaining)}개)\n"
+            f"{_fmt_todos(remaining)}"
+        )
+
+    else:  # night
+        remaining_today = [t for t in undone if _is_today(t)]
+        tomorrow_todos = [t for t in undone if _is_tomorrow(t)]
+        text = (
+            f"🌙 **밤 브리핑**\n\n"
+            f"📋 **오늘 남은 일** ({len(remaining_today)}개)\n"
+            f"{_fmt_todos(remaining_today)}\n\n"
+            f"📋 **내일 할 일** ({len(tomorrow_todos)}개)\n"
+            f"{_fmt_todos(tomorrow_todos)}"
+        )
+
     await bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")

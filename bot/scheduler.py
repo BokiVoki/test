@@ -1,5 +1,6 @@
 import calendar
 import logging
+import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -10,6 +11,30 @@ logger = logging.getLogger(__name__)
 
 def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
+
+
+def _fetch_weather(city: str = "Seoul") -> str:
+    """wttr.in 날씨 (API키 불필요)"""
+    try:
+        url = f"https://wttr.in/{city}?format=%C+%t+%h습도&lang=ko"
+        with urllib.request.urlopen(url, timeout=4) as r:
+            return r.read().decode("utf-8").strip()
+    except Exception:
+        return "날씨 조회 실패"
+
+
+async def send_briefing_job(context: CallbackContext):
+    """오전/오후6시/밤11시 브리핑"""
+    from . import handlers as _handlers
+    user_id = context.bot_data.get("user_id")
+    briefing_type = context.job.data.get("type", "morning")
+    todos_client = context.bot_data.get("todos_client")
+    if not user_id:
+        return
+    try:
+        await _handlers.send_briefing(context.bot, int(user_id), briefing_type, todos_client)
+    except Exception as e:
+        logger.error(f"Briefing job error: {e}")
 
 
 def _next_trigger(trigger: datetime, repeat: str, now: datetime = None) -> datetime:

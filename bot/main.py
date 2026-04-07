@@ -17,7 +17,7 @@ from .memos_sheet import MemosClient
 from .inventory_sheet import InventoryClient
 from .intake_sheet import IntakeLogClient
 from .cycle_sheet import CycleClient
-from .scheduler import check_reminders_job, send_checkin_job
+from .scheduler import check_reminders_job, send_checkin_job, send_briefing_job
 from . import handlers
 
 load_dotenv()
@@ -125,15 +125,28 @@ def main():
     # 1분마다 투두 알람 + 생리주기 단계 알림 체크
     app.job_queue.run_repeating(check_reminders_job, interval=60, first=10)
 
-    # 오전 10시 / 오후 3시 체크인 (KST = UTC+9)
     import datetime as _dt
+    # 체크인: 기상 직후(08:30) / 오후(14:00)
     app.job_queue.run_daily(
-        send_checkin_job, time=_dt.time(1, 0, tzinfo=_dt.timezone.utc),  # KST 10:00
+        send_checkin_job, time=_dt.time(23, 30, tzinfo=_dt.timezone.utc),  # KST 08:30
         data={"type": "morning"},
     )
     app.job_queue.run_daily(
-        send_checkin_job, time=_dt.time(6, 0, tzinfo=_dt.timezone.utc),  # KST 15:00
+        send_checkin_job, time=_dt.time(5, 0, tzinfo=_dt.timezone.utc),   # KST 14:00
         data={"type": "afternoon"},
+    )
+    # 브리핑: 오전(09:00) / 저녁(18:00) / 밤(23:00)
+    app.job_queue.run_daily(
+        send_briefing_job, time=_dt.time(0, 0, tzinfo=_dt.timezone.utc),  # KST 09:00
+        data={"type": "morning"},
+    )
+    app.job_queue.run_daily(
+        send_briefing_job, time=_dt.time(9, 0, tzinfo=_dt.timezone.utc),  # KST 18:00
+        data={"type": "evening"},
+    )
+    app.job_queue.run_daily(
+        send_briefing_job, time=_dt.time(14, 0, tzinfo=_dt.timezone.utc), # KST 23:00
+        data={"type": "night"},
     )
 
     # 인라인 버튼 콜백 (되돌리기/취소)
