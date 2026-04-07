@@ -37,6 +37,9 @@ def parse_archive_message(text: str, known_titles: list[str]) -> ParsedIntent:
   "status": "string|null",   // {STATUS_VALUES}
   "rating": "number|null",   // 1-10
   "note": "string|null",
+  "author": "string|null",   // 작가/감독/제작자
+  "year_watched": "string|null", // 감상한 연도 (예: "2026")
+  "publisher": "string|null", // 출판사/제작사/방송사
   "query_text": "string|null",
   "recommend_context": "string|null",
   "confidence": "number"     // 0.0-1.0
@@ -52,6 +55,8 @@ def parse_archive_message(text: str, known_titles: list[str]) -> ParsedIntent:
 - "보여줘", "목록", "뭐 봤더라" → query
 - 제목은 목록과 유사한 것이 있으면 반드시 매칭
 - "다 봤어" + 평점이 함께 오면 action은 mark_status, rating에 값 포함
+- "작가", "감독" 언급되면 author 필드에 저장
+- "년에 봤어", "년도에" 언급되면 year_watched에 연도만 저장
 
 JSON만 반환하고 다른 텍스트는 절대 포함하지 마세요."""
 
@@ -78,6 +83,9 @@ JSON만 반환하고 다른 텍스트는 절대 포함하지 마세요."""
             status=data.get("status"),
             rating=data.get("rating"),
             note=data.get("note"),
+            author=data.get("author"),
+            year_watched=data.get("year_watched"),
+            publisher=data.get("publisher"),
             query_text=data.get("query_text"),
             recommend_context=data.get("recommend_context"),
             confidence=float(data.get("confidence", 1.0)),

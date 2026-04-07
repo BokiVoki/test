@@ -348,5 +348,8 @@ class ParsedIntent:
     note: Optional[str] = None
     query_text: Optional[str] = None
     recommend_context: Optional[str] = None
+    author: Optional[str] = None
+    year_watched: Optional[str] = None
+    publisher: Optional[str] = None
     confidence: float = 1.0
     raw_message: str = ""

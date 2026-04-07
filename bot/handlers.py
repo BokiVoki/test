@@ -840,6 +840,60 @@ async def _handle_todo_natural(update: Update, text: str):
         await update.message.reply_text(f"❌ 오류: {e}")
 
 
+async def record_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/기록 제목, 작가, 연도, 출판사 — 아카이브 직접 등록 (콤마 구분)"""
+    if not _auth(update):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "`/기록 제목, 작가, 연도, 출판사` 형식으로 입력해주세요.\n"
+            "예: `/기록 말론 죽다, 사뮈엘 베케트, 2026, 갈리마르`\n"
+            "작가/연도/출판사는 생략 가능해요.",
+            parse_mode="Markdown"
+        )
+        return
+    raw = " ".join(context.args)
+    parts = [p.strip() for p in raw.split(",")]
+    title = parts[0] if len(parts) > 0 else ""
+    author = parts[1] if len(parts) > 1 else ""
+    year_watched = parts[2] if len(parts) > 2 else ""
+    publisher = parts[3] if len(parts) > 3 else ""
+    if not title:
+        await update.message.reply_text("제목을 입력해주세요.")
+        return
+    # 타입 자동 추론 (간단 키워드)
+    t = title.lower()
+    if any(k in t for k in ("웹툰", "만화", "manhwa", "comic")):
+        ctype = "webtoon"
+    elif any(k in t for k in ("영화", "film", "movie")):
+        ctype = "movie"
+    elif any(k in t for k in ("드라마", "시즌", "ep.", "시리즈")):
+        ctype = "drama"
+    else:
+        ctype = "book"
+    today = str(date.today())
+    new_entry = ContentEntry(
+        title=title,
+        type=ctype,
+        status="in_progress",
+        author=author,
+        year_watched=year_watched,
+        publisher=publisher,
+        date_added=today,
+    )
+    added = _sheets.add_entry(new_entry)
+    type_kr = CONTENT_TYPE_KR.get(added.type, added.type)
+    meta = []
+    if added.author: meta.append(f"작가: {added.author}")
+    if added.year_watched: meta.append(f"{added.year_watched}년")
+    if added.publisher: meta.append(added.publisher)
+    meta_str = " · ".join(meta) if meta else ""
+    await update.message.reply_text(
+        f"✅ **{added.title}** ({type_kr}) 등록했어요!\n{meta_str}\n\n평점이나 한줄평도 남길까요?",
+        parse_mode="Markdown"
+    )
+
+
 async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return
@@ -1598,9 +1652,12 @@ async def _handle_archive_action(update, intent):
         new_entry = ContentEntry(
             title=intent.title or "제목 없음",
             type=intent.content_type or "other",
-            status=intent.status or "not_started",
+            status=intent.status or "in_progress",
             progress=intent.progress or "",
             notes=intent.note or "",
+            author=intent.author or "",
+            year_watched=intent.year_watched or "",
+            publisher=intent.publisher or "",
             date_added=today,
         )
         added = _sheets.add_entry(new_entry)
@@ -1608,8 +1665,13 @@ async def _handle_archive_action(update, intent):
         status_kr = STATUS_KR.get(added.status, added.status)
         key, markup = _undo_keyboard()
         _undo_state[key] = {"type": "delete", "entry_id": added.id}
+        meta = []
+        if added.author: meta.append(f"작가: {added.author}")
+        if added.year_watched: meta.append(f"{added.year_watched}년")
+        if added.publisher: meta.append(added.publisher)
+        meta_str = " · ".join(meta)
         await update.message.reply_text(
-            f"**{added.title}** ({type_kr}) 추가했어요! 상태: {status_kr}",
+            f"✅ **{added.title}** ({type_kr}) 추가했어요!\n{meta_str}",
             parse_mode="Markdown", reply_markup=markup
         )
         return
