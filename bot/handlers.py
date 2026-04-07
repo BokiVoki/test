@@ -1951,9 +1951,26 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
     if briefing_type == "morning":
         weather = _fetch_weather("Seoul")
         today_todos = [t for t in undone if _is_today(t)]
+
+        # 생리주기 한 줄 요약
+        cycle_line = ""
+        if _cycle:
+            try:
+                status = _cycle.get_current_status()
+                if "error" not in status:
+                    phase = status["phase"]
+                    info = status.get("phase_info", {})
+                    emoji = info.get("emoji", "")
+                    day = status["cycle_day"]
+                    pms = " ⚠️ PMS 구간" if status.get("pms_alert") else ""
+                    cycle_line = f"\n{emoji} **생리주기**: {phase} {day}일차{pms}"
+            except Exception:
+                pass
+
         text = (
             f"☀️ **굿모닝 브리핑**\n\n"
-            f"🌤 날씨: {weather}\n\n"
+            f"🌤 날씨: {weather}"
+            f"{cycle_line}\n\n"
             f"📋 **오늘 할 일** ({len(today_todos)}개)\n"
             f"{_fmt_todos(today_todos)}"
         )
