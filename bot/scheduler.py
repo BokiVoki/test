@@ -13,14 +13,42 @@ def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
 
 
+_WMO_KR = {
+    0: "맑음", 1: "대체로 맑음", 2: "구름 조금", 3: "흐림",
+    45: "안개", 48: "안개",
+    51: "이슬비", 53: "이슬비", 55: "이슬비",
+    61: "비", 63: "비", 65: "강한 비",
+    71: "눈", 73: "눈", 75: "강한 눈",
+    77: "싸락눈",
+    80: "소나기", 81: "소나기", 82: "강한 소나기",
+    85: "눈 소나기", 86: "눈 소나기",
+    95: "뇌우", 96: "뇌우", 99: "강한 뇌우",
+}
+
 def _fetch_weather(city: str = "Seoul") -> str:
-    """wttr.in 날씨 (API키 불필요)"""
+    """Open-Meteo 날씨 (API키 불필요, 서울 고정)"""
+    import json as _json
+    # 서울 좌표
+    lat, lon = 37.5665, 126.9780
+    url = (
+        f"https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat}&longitude={lon}"
+        f"&current=temperature_2m,relative_humidity_2m,weathercode"
+        f"&timezone=Asia%2FSeoul"
+    )
     try:
-        url = f"https://wttr.in/{city}?format=%C+%t+%h습도&lang=ko"
-        with urllib.request.urlopen(url, timeout=4) as r:
-            return r.read().decode("utf-8").strip()
-    except Exception:
-        return "날씨 조회 실패"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = _json.loads(r.read().decode("utf-8"))
+        cur = data["current"]
+        temp = round(cur["temperature_2m"])
+        hum  = cur["relative_humidity_2m"]
+        code = cur["weathercode"]
+        desc = _WMO_KR.get(code, "알 수 없음")
+        return f"{desc} {temp}°C 습도 {hum}%"
+    except Exception as e:
+        logger.warning(f"날씨 조회 실패: {e}")
+        return "날씨 정보 없음"
 
 
 async def send_briefing_job(context: CallbackContext):
