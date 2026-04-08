@@ -795,23 +795,43 @@ async def _handle_todo_natural(update: Update, text: str):
             # 숫자 기반 완료: "완료 3" 또는 "1, 3" 등
             import re as _re
             nums = [int(n) for n in _re.findall(r'\d+', todo_text)] if todo_text else []
+
+            def _complete_or_reschedule(item) -> str:
+                """반복 투두면 재스케줄, 아니면 done 처리. 결과 메시지 반환"""
+                if item.repeat in ("daily", "weekly", "monthly"):
+                    from .scheduler import _next_trigger
+                    try:
+                        trigger = datetime.fromisoformat(item.trigger_at)
+                    except Exception:
+                        trigger = _now_kst()
+                    next_t = _next_trigger(trigger, item.repeat, now=_now_kst())
+                    _todos.reschedule(item.id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
+                    repeat_kr = {"daily": "내일", "weekly": "다음 주", "monthly": "다음 달"}[item.repeat]
+                    return f"✅ **{item.text}** 완료! ({repeat_kr} 재알람)"
+                elif item.repeat.startswith("after:"):
+                    try:
+                        minutes = int(item.repeat.split(":")[1])
+                    except (IndexError, ValueError):
+                        minutes = 60
+                    next_t = (_now_kst() + timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%S")
+                    _todos.reschedule(item.id, next_t)
+                    return f"✅ **{item.text}** 완료! ({_fmt_interval(minutes)} 후 재알람)"
+                else:
+                    _todos.complete(item.id)
+                    return f"✅ **{item.text}** 완료!"
+
             if nums:
                 pending = _todos.get_pending()
                 imp = [t for t in pending if _is_important(t.text)]
                 norm = [t for t in pending if not _is_important(t.text)]
                 sorted_pending = imp + norm
-                completed = []
+                lines = []
                 not_found = []
                 for n in nums:
                     if 1 <= n <= len(sorted_pending):
-                        item = sorted_pending[n - 1]
-                        _todos.complete(item.id)
-                        completed.append(item.text)
+                        lines.append(_complete_or_reschedule(sorted_pending[n - 1]))
                     else:
                         not_found.append(str(n))
-                lines = []
-                for t in completed:
-                    lines.append(f"✅ **{t}** 완료!")
                 if not_found:
                     lines.append(f"⚠️ {', '.join(not_found)}번 항목을 찾지 못했어요.")
                 await update.message.reply_text("\n".join(lines) or "완료할 항목이 없어요.", parse_mode="Markdown")
@@ -820,8 +840,7 @@ async def _handle_todo_natural(update: Update, text: str):
                 if not item:
                     await update.message.reply_text(f"'{todo_text}'을(를) 찾지 못했어요. `/todos`로 목록 확인해주세요.", parse_mode="Markdown")
                     return
-                _todos.complete(item.id)
-                await update.message.reply_text(f"✅ **{item.text}** 완료!", parse_mode="Markdown")
+                await update.message.reply_text(_complete_or_reschedule(item), parse_mode="Markdown")
 
         elif action == "delete":
             todo_text = _first_text()
@@ -1098,9 +1117,19 @@ async def _handle_remind_callback(query, data: str):
                 minutes = 60
             next_t = (_now_kst() + timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%S")
             _todos.reschedule(todo_id, next_t)
-            # done 플래그는 False로 유지 (반복 항목이므로)
             label = _fmt_interval(minutes)
             await query.edit_message_text(f"✅ 완료! {label} 후에 다시 알려드릴게요.")
+        elif todo_item and todo_item.repeat in ("daily", "weekly", "monthly"):
+            # 반복 투두 — done 세우지 않고 다음 트리거로 재스케줄
+            from .scheduler import _next_trigger
+            try:
+                trigger = datetime.fromisoformat(todo_item.trigger_at)
+            except Exception:
+                trigger = _now_kst()
+            next_t = _next_trigger(trigger, todo_item.repeat, now=_now_kst())
+            _todos.reschedule(todo_id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
+            repeat_kr = {"daily": "내일", "weekly": "다음 주", "monthly": "다음 달"}[todo_item.repeat]
+            await query.edit_message_text(f"✅ 완료! {repeat_kr} 같은 시간에 다시 알려드릴게요.")
         else:
             _todos.complete(todo_id)
             await query.edit_message_text("✅ 완료했어요!")
