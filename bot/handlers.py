@@ -1028,8 +1028,12 @@ def _now_kst() -> datetime:
 
 
 def _parse_trigger_dt(trigger_at: str) -> datetime:
-    """trigger_at 문자열 파싱 — 공백/T 구분자 모두 처리"""
-    return datetime.fromisoformat(trigger_at.replace(" ", "T"))
+    """trigger_at 문자열 파싱 — 공백/T 구분자, 한 자리 시각 모두 처리"""
+    import re as _re
+    s = trigger_at.strip().replace(" ", "T")
+    # "T9:00:00" → "T09:00:00" (한 자리 시간 패딩)
+    s = _re.sub(r'T(\d):', r'T0\1:', s)
+    return datetime.fromisoformat(s)
 
 
 def _next_trigger_manual(trigger_at: str, repeat: str) -> datetime:

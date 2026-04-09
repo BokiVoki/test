@@ -96,7 +96,10 @@ async def check_reminders_job(context: CallbackContext):
         now = _now_kst()
         for todo in todos_client.get_with_alarm():
             try:
-                trigger = datetime.fromisoformat(todo.trigger_at.replace(" ", "T"))
+                import re as _re
+                _ts = todo.trigger_at.strip().replace(" ", "T")
+                _ts = _re.sub(r'T(\d):', r'T0\1:', _ts)
+                trigger = datetime.fromisoformat(_ts)
             except (ValueError, AttributeError):
                 continue
             if trigger <= now:
