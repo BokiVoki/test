@@ -96,8 +96,8 @@ async def check_reminders_job(context: CallbackContext):
         now = _now_kst()
         for todo in todos_client.get_with_alarm():
             try:
-                trigger = datetime.fromisoformat(todo.trigger_at)
-            except ValueError:
+                trigger = datetime.fromisoformat(todo.trigger_at.replace(" ", "T"))
+            except (ValueError, AttributeError):
                 continue
             if trigger <= now:
                 keyboard = InlineKeyboardMarkup([

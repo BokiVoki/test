@@ -799,15 +799,10 @@ async def _handle_todo_natural(update: Update, text: str):
             def _complete_or_reschedule(item) -> str:
                 """반복 투두면 재스케줄, 아니면 done 처리. 결과 메시지 반환"""
                 if item.repeat in ("daily", "weekly", "monthly"):
-                    from .scheduler import _next_trigger
-                    try:
-                        trigger = datetime.fromisoformat(item.trigger_at)
-                    except Exception:
-                        trigger = _now_kst()
-                    next_t = _next_trigger(trigger, item.repeat, now=_now_kst())
+                    next_t = _next_trigger_manual(item.trigger_at, item.repeat)
                     _todos.reschedule(item.id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
                     repeat_kr = {"daily": "내일", "weekly": "다음 주", "monthly": "다음 달"}[item.repeat]
-                    return f"✅ **{item.text}** 완료! ({repeat_kr} 재알람)"
+                    return f"✅ **{item.text}** 완료! ({repeat_kr} {next_t.strftime('%H:%M')} 재알람)"
                 elif item.repeat.startswith("after:"):
                     try:
                         minutes = int(item.repeat.split(":")[1])
@@ -1032,6 +1027,35 @@ def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
 
 
+def _parse_trigger_dt(trigger_at: str) -> datetime:
+    """trigger_at 문자열 파싱 — 공백/T 구분자 모두 처리"""
+    return datetime.fromisoformat(trigger_at.replace(" ", "T"))
+
+
+def _next_trigger_manual(trigger_at: str, repeat: str) -> datetime:
+    """수동 완료 시 다음 트리거 — 오늘 기준 다음 주기 같은 시각"""
+    now = _now_kst()
+    try:
+        trigger = _parse_trigger_dt(trigger_at)
+        t_time = trigger.time()  # 원래 시각 (HH:MM:SS) 보존
+    except Exception:
+        t_time = now.time()
+    if repeat == "daily":
+        next_date = now.date() + timedelta(days=1)
+    elif repeat == "weekly":
+        next_date = now.date() + timedelta(weeks=1)
+    elif repeat == "monthly":
+        import calendar as _cal
+        y, m = now.year, now.month + 1
+        if m > 12:
+            y, m = y + 1, 1
+        d = min(now.day, _cal.monthrange(y, m)[1])
+        next_date = now.date().replace(year=y, month=m, day=d)
+    else:
+        next_date = now.date() + timedelta(days=1)
+    return datetime.combine(next_date, t_time)
+
+
 def _load_memo_context(mode: str, query: str = "", limit: int = 20) -> str:
     """
     Memos 시트에서 mode별 메모를 불러와 query와 관련된 것만 반환.
@@ -1120,16 +1144,11 @@ async def _handle_remind_callback(query, data: str):
             label = _fmt_interval(minutes)
             await query.edit_message_text(f"✅ 완료! {label} 후에 다시 알려드릴게요.")
         elif todo_item and todo_item.repeat in ("daily", "weekly", "monthly"):
-            # 반복 투두 — done 세우지 않고 다음 트리거로 재스케줄
-            from .scheduler import _next_trigger
-            try:
-                trigger = datetime.fromisoformat(todo_item.trigger_at)
-            except Exception:
-                trigger = _now_kst()
-            next_t = _next_trigger(trigger, todo_item.repeat, now=_now_kst())
+            # 반복 투두 — 오늘 기준 다음 주기 같은 시각으로 재스케줄
+            next_t = _next_trigger_manual(todo_item.trigger_at, todo_item.repeat)
             _todos.reschedule(todo_id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
             repeat_kr = {"daily": "내일", "weekly": "다음 주", "monthly": "다음 달"}[todo_item.repeat]
-            await query.edit_message_text(f"✅ 완료! {repeat_kr} 같은 시간에 다시 알려드릴게요.")
+            await query.edit_message_text(f"✅ 완료! {repeat_kr} {next_t.strftime('%H:%M')}에 다시 알려드릴게요.")
         else:
             _todos.complete(todo_id)
             await query.edit_message_text("✅ 완료했어요!")
