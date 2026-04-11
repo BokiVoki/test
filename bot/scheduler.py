@@ -26,9 +26,8 @@ _WMO_KR = {
 }
 
 def _fetch_weather(city: str = "Seoul") -> str:
-    """Open-Meteo 날씨 (API키 불필요, 서울 고정)"""
+    """날씨 조회 — open-meteo(1차) → requests 라이브러리 폴백(2차)"""
     import json as _json
-    # 서울 좌표
     lat, lon = 37.5665, 126.9780
     url = (
         f"https://api.open-meteo.com/v1/forecast"
@@ -36,19 +35,31 @@ def _fetch_weather(city: str = "Seoul") -> str:
         f"&current=temperature_2m,relative_humidity_2m,weathercode"
         f"&timezone=Asia%2FSeoul"
     )
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; weather-bot/1.0)"}
+
+    # 1차 시도: urllib
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=8) as r:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as r:
             data = _json.loads(r.read().decode("utf-8"))
         cur = data["current"]
-        temp = round(cur["temperature_2m"])
-        hum  = cur["relative_humidity_2m"]
-        code = cur["weathercode"]
-        desc = _WMO_KR.get(code, "알 수 없음")
-        return f"{desc} {temp}°C 습도 {hum}%"
-    except Exception as e:
-        logger.warning(f"날씨 조회 실패: {e}")
-        return "날씨 정보 없음"
+        desc = _WMO_KR.get(cur["weathercode"], "")
+        return f"{desc} {round(cur['temperature_2m'])}°C 습도 {cur['relative_humidity_2m']}%"
+    except Exception as e1:
+        logger.warning(f"날씨 urllib 실패: {e1}")
+
+    # 2차 시도: requests 라이브러리
+    try:
+        import requests as _req
+        r = _req.get(url, headers=headers, timeout=10)
+        data = r.json()
+        cur = data["current"]
+        desc = _WMO_KR.get(cur["weathercode"], "")
+        return f"{desc} {round(cur['temperature_2m'])}°C 습도 {cur['relative_humidity_2m']}%"
+    except Exception as e2:
+        logger.warning(f"날씨 requests 실패: {e2}")
+
+    return "날씨 정보 없음"
 
 
 async def send_briefing_job(context: CallbackContext):

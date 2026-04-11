@@ -2309,11 +2309,14 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
     all_todos = todos_client.get_all() if todos_client else []
     undone = [t for t in all_todos if not t.done]
 
-    # 오늘 할 일: trigger_at이 오늘이거나 due_date가 오늘이거나 둘 다 없는 것
+    # 오늘 할 일: trigger_at이 오늘이거나 / 반복 투두(daily 등) / 날짜 없는 것
     def _is_today(t):
         for field in (t.trigger_at, t.due_date):
             if field and field[:10] == today.isoformat():
                 return True
+        # 반복 투두는 trigger_at이 내일로 바뀌어도 항상 표시
+        if t.repeat in ("daily", "weekly", "monthly") or t.repeat.startswith("after:"):
+            return True
         return not t.trigger_at and not t.due_date  # 날짜 없는 것도 포함
 
     def _is_tomorrow(t):
