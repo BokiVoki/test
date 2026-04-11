@@ -1206,7 +1206,9 @@ async def _handle_remind_callback(query, data: str):
         arc_action, entry_id = parts[1], parts[2]
         entry = next((e for e in _search_results if e.id == entry_id), None)
         if entry is None and _sheets:
-            entry = _sheets.get_entry_by_title(entry_id)  # fallback
+            # fallback: ID로 전체 시트에서 조회
+            all_entries = _sheets.get_all_entries()
+            entry = next((e for e in all_entries if e.id == entry_id), None)
 
         if arc_action == "sel":
             if not entry:
