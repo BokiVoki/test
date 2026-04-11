@@ -4,7 +4,7 @@ import uuid as uuid_module
 from datetime import date, datetime, timezone, timedelta
 from typing import Optional
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes
 
 from .models import BotMode, ContentEntry, Reminder, TodoItem, MemoEntry, STATUS_KR, CONTENT_TYPE_KR
@@ -43,6 +43,9 @@ _cycle: Optional[CycleClient] = None
 _pending_checkin: dict[int, tuple] = {}  # chat_id → ("morning"|"afternoon", sent_at_datetime)
 _undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
 _pending_snooze: dict[int, str] = {}  # chat_id → reminder_id (직접입력 대기 중)
+_pending_archive_memo: dict[int, str] = {}   # chat_id → entry_id (메모 입력 대기)
+_pending_archive_rate: dict[int, str] = {}   # chat_id → entry_id (평점 입력 대기)
+_pending_search: dict[int, bool] = {}        # chat_id → 검색 키워드 입력 대기
 _processed_msg_ids: set[int] = set()  # 웹훅 재전송 중복 방지
 
 
@@ -157,7 +160,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/help — 전체 도움말\n\n"
         "또는 그냥 메시지 보내세요. 다 알아들어요!"
     )
-    await update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=PERSISTENT_KEYBOARD)
 
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -223,7 +226,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/import_archive — CSV 일괄 가져오기\n"
         "/clear_reminders — 리마인더 시트 초기화"
     )
-    await update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=PERSISTENT_KEYBOARD)
 
 
 async def mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -295,9 +298,25 @@ async def get_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 검색 결과 임시 저장 (번호 선택용)
 _search_results: list = []
 
+PERSISTENT_KEYBOARD = ReplyKeyboardMarkup(
+    [[KeyboardButton("🔍 검색"), KeyboardButton("📋 할일")],
+     [KeyboardButton("💊 영양제"), KeyboardButton("📊 통계")]],
+    resize_keyboard=True,
+    is_persistent=True,
+)
+
+
+def _archive_action_keyboard(entry_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📝 메모", callback_data=f"arc:memo:{entry_id}"),
+         InlineKeyboardButton("📖 상세", callback_data=f"arc:detail:{entry_id}")],
+        [InlineKeyboardButton("✅ 완료", callback_data=f"arc:done:{entry_id}"),
+         InlineKeyboardButton("⭐ 평점", callback_data=f"arc:rate:{entry_id}")],
+    ])
+
 
 async def _do_search(update: Update, keyword: str):
-    """키워드로 아카이브 검색 후 번호 목록 출력"""
+    """키워드로 아카이브 검색 후 인라인 버튼으로 출력"""
     global _search_results
     from .models import CONTENT_TYPE_KR, STATUS_KR
     all_entries = _sheets.get_all_entries()
@@ -307,16 +326,16 @@ async def _do_search(update: Update, keyword: str):
         return
     _search_results = matches
     lines = [f"**🔍 '{keyword}' 검색 결과 {len(matches)}개**\n"]
+    buttons = []
     for i, e in enumerate(matches, 1):
         type_kr = CONTENT_TYPE_KR.get(e.type, e.type)
         status_kr = STATUS_KR.get(e.status, e.status)
         rating_str = f" ⭐{e.rating}" if e.rating is not None else ""
-        lines.append(f"{i}. **{e.title}** ({type_kr} · {status_kr}{rating_str})")
-    if len(matches) == 1:
-        lines.append("\n`메모 - 내용` 또는 `보여줘` / `완료` / `평점 4.5`")
-    else:
-        lines.append("\n번호로 선택: `1 메모 - 내용`, `2 보여줘`, `3 완료`")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+        lines.append(f"{i}. {e.title} ({type_kr} · {status_kr}{rating_str})")
+        label = f"{i}. {e.title[:25]}{'…' if len(e.title) > 25 else ''}"
+        buttons.append([InlineKeyboardButton(label, callback_data=f"arc:sel:{e.id}")])
+    markup = InlineKeyboardMarkup(buttons)
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown", reply_markup=markup)
 
 
 async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1179,6 +1198,94 @@ async def _handle_remind_callback(query, data: str):
         _pending_snooze[chat_id] = todo_id
         await query.edit_message_text("⏰ 재알람 시간을 입력해주세요.\n예: 30분 뒤, 내일 오전 9시, 3일 후")
 
+    # ── 아카이브 검색 결과 버튼 ──
+    elif data.startswith("arc:"):
+        parts = data.split(":", 2)
+        if len(parts) < 3:
+            return
+        arc_action, entry_id = parts[1], parts[2]
+        entry = next((e for e in _search_results if e.id == entry_id), None)
+        if entry is None and _sheets:
+            entry = _sheets.get_entry_by_title(entry_id)  # fallback
+
+        if arc_action == "sel":
+            if not entry:
+                await query.edit_message_text("항목을 찾지 못했어요. 다시 검색해주세요.")
+                return
+            type_kr = CONTENT_TYPE_KR.get(entry.type, entry.type)
+            status_kr = STATUS_KR.get(entry.status, entry.status)
+            rating_str = f" ⭐{entry.rating}" if entry.rating is not None else ""
+            author_str = f"\n작가: {entry.author}" if entry.author else ""
+            text = f"**{entry.title}**{author_str}\n{type_kr} · {status_kr}{rating_str}"
+            await query.edit_message_text(text, parse_mode="Markdown",
+                                          reply_markup=_archive_action_keyboard(entry_id))
+
+        elif arc_action == "detail":
+            if not entry:
+                await query.answer("항목을 찾지 못했어요.", show_alert=True)
+                return
+            await query.edit_message_text(_format_entry_detail(entry), parse_mode="Markdown",
+                                          reply_markup=_archive_action_keyboard(entry_id))
+
+        elif arc_action == "done":
+            if not entry:
+                await query.answer("항목을 찾지 못했어요.", show_alert=True)
+                return
+            entry.status = "completed"
+            if not entry.date_completed:
+                entry.date_completed = str(date.today())
+            _sheets.update_entry(entry)
+            await query.edit_message_text(f"✅ **{entry.title}** 완료 처리했어요!", parse_mode="Markdown")
+
+        elif arc_action == "memo":
+            if not entry:
+                await query.answer("항목을 찾지 못했어요.", show_alert=True)
+                return
+            chat_id = query.message.chat_id
+            _pending_archive_memo[chat_id] = entry_id
+            await query.edit_message_text(
+                f"📝 **{entry.title}** 메모를 입력해주세요:",
+                parse_mode="Markdown"
+            )
+
+        elif arc_action == "rate":
+            if not entry:
+                await query.answer("항목을 찾지 못했어요.", show_alert=True)
+                return
+            chat_id = query.message.chat_id
+            _pending_archive_rate[chat_id] = entry_id
+            # 평점 버튼 0.5 단위
+            rate_buttons = [
+                [InlineKeyboardButton(f"⭐{r}", callback_data=f"arc:rate_val:{entry_id}:{r}")
+                 for r in [1, 2, 3, 4, 5]],
+                [InlineKeyboardButton(f"⭐{r}", callback_data=f"arc:rate_val:{entry_id}:{r}")
+                 for r in [6, 7, 8, 9, 10]],
+            ]
+            await query.edit_message_text(
+                f"⭐ **{entry.title}** 평점을 선택해주세요 (1~10):",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(rate_buttons)
+            )
+
+        elif arc_action == "rate_val":
+            # data = "arc:rate_val:{entry_id}:{rating}"
+            sub = data.split(":")
+            if len(sub) < 4:
+                return
+            entry_id2, rating_val = sub[2], sub[3]
+            entry2 = next((e for e in _search_results if e.id == entry_id2), None)
+            if entry2 and _sheets:
+                try:
+                    entry2.rating = float(rating_val)
+                    _sheets.update_entry(entry2)
+                    await query.edit_message_text(
+                        f"⭐ **{entry2.title}** 평점 {entry2.rating} 저장했어요!",
+                        parse_mode="Markdown",
+                        reply_markup=_archive_action_keyboard(entry_id2)
+                    )
+                except Exception:
+                    await query.answer("저장 실패", show_alert=True)
+
 
 _MODE_WORDS: dict[BotMode, tuple] = {
     BotMode.SECRETARY:  ("비서", "secretary"),
@@ -1413,6 +1520,72 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"❌ 오류: {e}")
         else:
             await update.message.reply_text("⚠️ 시간을 이해하지 못했어요. 다시 시도해주세요.")
+        return
+
+    # ── 아카이브 메모 입력 대기 중 ──
+    if chat_id in _pending_archive_memo:
+        entry_id = _pending_archive_memo.pop(chat_id)
+        entry = next((e for e in _search_results if e.id == entry_id), None)
+        if entry is None and _sheets:
+            # ID로 직접 조회
+            all_entries = _sheets.get_all_entries()
+            entry = next((e for e in all_entries if e.id == entry_id), None)
+        if entry:
+            stamp = _now_kst().strftime("%m/%d")
+            new_note = f"[{stamp}] {text}"
+            entry.notes = f"{entry.notes}\n{new_note}".strip() if entry.notes else new_note
+            _sheets.update_entry(entry)
+            await update.message.reply_text(
+                f"📝 **{entry.title}** 메모 추가했어요!\n`{new_note}`",
+                parse_mode="Markdown",
+            )
+        else:
+            await update.message.reply_text("⚠️ 항목을 찾지 못했어요. 다시 검색해주세요.")
+        return
+
+    # ── 아카이브 평점 텍스트 입력 대기 중 ──
+    if chat_id in _pending_archive_rate:
+        entry_id = _pending_archive_rate.pop(chat_id)
+        entry = next((e for e in _search_results if e.id == entry_id), None)
+        if entry is None and _sheets:
+            all_entries = _sheets.get_all_entries()
+            entry = next((e for e in all_entries if e.id == entry_id), None)
+        if entry:
+            import re as _re_rate
+            m = _re_rate.search(r'[\d.]+', text)
+            if m:
+                try:
+                    entry.rating = float(m.group())
+                    _sheets.update_entry(entry)
+                    await update.message.reply_text(
+                        f"⭐ **{entry.title}** 평점 {entry.rating} 저장했어요!",
+                        parse_mode="Markdown",
+                    )
+                    return
+                except ValueError:
+                    pass
+        await update.message.reply_text("⚠️ 숫자로 평점을 입력해주세요. 예: `8.5`", parse_mode="Markdown")
+        return
+
+    # ── 검색어 입력 대기 중 ──
+    if chat_id in _pending_search:
+        del _pending_search[chat_id]
+        await _do_search(update, text)
+        return
+
+    # ── 영구 키보드 버튼 ──
+    if text == "🔍 검색":
+        _pending_search[chat_id] = True
+        await update.message.reply_text("검색할 작품 제목(또는 키워드)을 입력해주세요:")
+        return
+    if text == "📋 할일":
+        await todos_handler(update, context)
+        return
+    if text == "💊 영양제":
+        await inventory_handler(update, context)
+        return
+    if text == "📊 통계":
+        await stats_handler(update, context)
         return
 
     # ── 한글 커맨드 감지 (텔레그램 한글 커맨드 미지원 대비) ──
