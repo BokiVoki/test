@@ -47,6 +47,7 @@ _pending_archive_memo: dict[int, str] = {}   # chat_id → entry_id (메모 입�
 _pending_archive_rate: dict[int, str] = {}   # chat_id → entry_id (평점 입력 대기)
 _pending_search: dict[int, bool] = {}        # chat_id → 검색 키워드 입력 대기
 _processed_msg_ids: set[int] = set()  # 웹훅 재전송 중복 방지
+_last_selected_entry_id: Optional[str] = None  # 최근 선택한 작품 ID
 
 
 def init_sheets(sheets: SheetsClient):
@@ -299,8 +300,8 @@ async def get_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 _search_results: list = []
 
 PERSISTENT_KEYBOARD = ReplyKeyboardMarkup(
-    [[KeyboardButton("🔍 검색"), KeyboardButton("📋 할일")],
-     [KeyboardButton("💊 영양제"), KeyboardButton("📊 통계")]],
+    [[KeyboardButton("🔍 검색"), KeyboardButton("🕐 최근검색")],
+     [KeyboardButton("📋 할일"), KeyboardButton("💊 영양제"), KeyboardButton("📊 통계")]],
     resize_keyboard=True,
     is_persistent=True,
 )
@@ -1214,6 +1215,8 @@ async def _handle_remind_callback(query, data: str):
             if not entry:
                 await query.edit_message_text("항목을 찾지 못했어요. 다시 검색해주세요.")
                 return
+            global _last_selected_entry_id
+            _last_selected_entry_id = entry_id
             type_kr = CONTENT_TYPE_KR.get(entry.type, entry.type)
             status_kr = STATUS_KR.get(entry.status, entry.status)
             rating_str = f" ⭐{entry.rating}" if entry.rating is not None else ""
@@ -1579,6 +1582,26 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "🔍 검색":
         _pending_search[chat_id] = True
         await update.message.reply_text("검색할 작품 제목(또는 키워드)을 입력해주세요:")
+        return
+    if text == "🕐 최근검색":
+        if not _last_selected_entry_id:
+            await update.message.reply_text("아직 선택한 작품이 없어요. 먼저 🔍 검색으로 작품을 찾아보세요.")
+            return
+        entry = next((e for e in _search_results if e.id == _last_selected_entry_id), None)
+        if entry is None and _sheets:
+            all_entries = _sheets.get_all_entries()
+            entry = next((e for e in all_entries if e.id == _last_selected_entry_id), None)
+        if not entry:
+            await update.message.reply_text("최근 작품을 찾지 못했어요. 다시 검색해주세요.")
+            return
+        from .models import CONTENT_TYPE_KR, STATUS_KR
+        type_kr = CONTENT_TYPE_KR.get(entry.type, entry.type)
+        status_kr = STATUS_KR.get(entry.status, entry.status)
+        rating_str = f" ⭐{entry.rating}" if entry.rating is not None else ""
+        author_str = f"\n작가: {entry.author}" if entry.author else ""
+        msg = f"**{entry.title}**{author_str}\n{type_kr} · {status_kr}{rating_str}"
+        await update.message.reply_text(msg, parse_mode="Markdown",
+                                        reply_markup=_archive_action_keyboard(_last_selected_entry_id))
         return
     if text == "📋 할일":
         await todos_handler(update, context)
