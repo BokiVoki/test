@@ -40,7 +40,7 @@ _memos: Optional[MemosClient] = None
 _inventory: Optional[InventoryClient] = None
 _intake: Optional[IntakeLogClient] = None
 _cycle: Optional[CycleClient] = None
-_pending_checkin: dict[int, str] = {}  # chat_id → "morning"|"afternoon"
+_pending_checkin: dict[int, tuple] = {}  # chat_id → ("morning"|"afternoon", sent_at_datetime)
 _undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
 _pending_snooze: dict[int, str] = {}  # chat_id → reminder_id (직접입력 대기 중)
 _processed_msg_ids: set[int] = set()  # 웹훅 재전송 중복 방지
@@ -1379,11 +1379,15 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.message.chat_id
 
-    # ── 체크인 응답 대기 중 ──
+    # ── 체크인 응답 대기 중 (발송 후 1시간 이내만 유효) ──
     if chat_id in _pending_checkin:
-        checkin_type = _pending_checkin.pop(chat_id)
-        await _handle_checkin_response(update, text, checkin_type)
-        return
+        checkin_type, sent_at = _pending_checkin[chat_id]
+        if (_now_kst() - sent_at).total_seconds() <= 3600:
+            del _pending_checkin[chat_id]
+            await _handle_checkin_response(update, text, checkin_type)
+            return
+        else:
+            del _pending_checkin[chat_id]  # 만료 — 그냥 흘려보냄
 
     # ── 재알람 직접 입력 대기 중 ──
     if chat_id in _pending_snooze:
@@ -2254,7 +2258,7 @@ async def _handle_checkin_response(update: Update, text: str, checkin_type: str)
 
 async def send_daily_checkin(bot, chat_id: int, checkin_type: str):
     """체크인 메시지 발송 (scheduler에서 호출)"""
-    _pending_checkin[chat_id] = checkin_type
+    _pending_checkin[chat_id] = (checkin_type, _now_kst())
     if checkin_type == "morning":
         text = (
             "🌅 **기상 체크인**\n\n"
