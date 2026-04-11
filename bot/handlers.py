@@ -1005,42 +1005,40 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("🍅 새 포모도로를 시작하려면 '포모도로 시작' 이라고 보내주세요!")
         return
 
-    if not data.startswith("undo:"):
-        return
+    if data.startswith("undo:"):
+        key = data[5:]
+        state = _undo_state.pop(key, None)
+        if not state:
+            await query.edit_message_reply_markup(reply_markup=None)
+            await query.message.reply_text("이미 되돌렸거나 시간이 지났어요.")
+            return
 
-    key = data[5:]
-    state = _undo_state.pop(key, None)
-    if not state:
-        await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text("이미 되돌렸거나 시간이 지났어요.")
-        return
+        t = state["type"]
+        if t == "delete":
+            ok = _sheets.delete_entry(state["entry_id"])
+            await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
 
-    t = state["type"]
-    if t == "delete":
-        ok = _sheets.delete_entry(state["entry_id"])
-        await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
+        elif t == "restore":
+            _sheets.update_entry(state["entry"])
+            await query.edit_message_text("↩️ 되돌렸어요!")
 
-    elif t == "restore":
-        _sheets.update_entry(state["entry"])
-        await query.edit_message_text("↩️ 되돌렸어요!")
+        elif t == "cancel_remind":
+            _reminders.deactivate(state["reminder_id"])
+            await query.edit_message_text("🔕 리마인더 취소했어요!")
 
-    elif t == "cancel_remind":
-        _reminders.deactivate(state["reminder_id"])
-        await query.edit_message_text("🔕 리마인더 취소했어요!")
+        elif t == "cancel_remind_list":
+            for rid in state.get("ids", []):
+                _reminders.deactivate(rid)
+            n = len(state.get("ids", []))
+            await query.edit_message_text(f"🔕 리마인더 {n}개 취소했어요!")
 
-    elif t == "cancel_remind_list":
-        for rid in state.get("ids", []):
-            _reminders.deactivate(rid)
-        n = len(state.get("ids", []))
-        await query.edit_message_text(f"🔕 리마인더 {n}개 취소했어요!")
+        elif t == "delete_todo":
+            ok = _todos.delete(state["todo_id"])
+            await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
 
-    elif t == "delete_todo":
-        ok = _todos.delete(state["todo_id"])
-        await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
-
-    elif t == "delete_memo":
-        ok = _memos.delete(state["memo_id"])
-        await query.edit_message_text("🗑 메모 삭제했어요." if ok else "❌ 이미 삭제됐어요.")
+        elif t == "delete_memo":
+            ok = _memos.delete(state["memo_id"])
+            await query.edit_message_text("🗑 메모 삭제했어요." if ok else "❌ 이미 삭제됐어요.")
 
 
 def _now_kst() -> datetime:
