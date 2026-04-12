@@ -1040,6 +1040,98 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ok = _memos.delete(state["memo_id"])
             await query.edit_message_text("🗑 메모 삭제했어요." if ok else "❌ 이미 삭제됐어요.")
 
+    # ── 아카이브 검색 결과 버튼 ──
+    elif data.startswith("arc:"):
+        parts = data.split(":", 2)
+        if len(parts) < 3:
+            return
+        arc_action, entry_id = parts[1], parts[2]
+        entry = next((e for e in _search_results if e.id == entry_id), None)
+        if entry is None and _sheets:
+            all_entries = _sheets.get_all_entries()
+            entry = next((e for e in all_entries if e.id == entry_id), None)
+
+        if arc_action == "sel":
+            if not entry:
+                await query.edit_message_text("항목을 찾지 못했어요. 다시 검색해주세요.")
+                return
+            global _last_selected_entry_id
+            _last_selected_entry_id = entry_id
+            type_kr = CONTENT_TYPE_KR.get(entry.type, entry.type)
+            status_kr = STATUS_KR.get(entry.status, entry.status)
+            rating_str = f" ⭐{entry.rating}" if entry.rating is not None else ""
+            author_str = f"\n작가: {entry.author}" if entry.author else ""
+            msg = f"**{entry.title}**{author_str}\n{type_kr} · {status_kr}{rating_str}"
+            await query.edit_message_text(msg, parse_mode="Markdown",
+                                          reply_markup=_archive_action_keyboard(entry_id))
+
+        elif arc_action == "detail":
+            if not entry:
+                await query.answer("항목을 찾지 못했어요.", show_alert=True)
+                return
+            await query.edit_message_text(_format_entry_detail(entry), parse_mode="Markdown",
+                                          reply_markup=_archive_action_keyboard(entry_id))
+
+        elif arc_action == "done":
+            if not entry:
+                await query.answer("항목을 찾지 못했어요.", show_alert=True)
+                return
+            entry.status = "completed"
+            if not entry.date_completed:
+                entry.date_completed = str(date.today())
+            _sheets.update_entry(entry)
+            await query.edit_message_text(f"✅ **{entry.title}** 완료 처리했어요!", parse_mode="Markdown")
+
+        elif arc_action == "memo":
+            if not entry:
+                await query.answer("항목을 찾지 못했어요.", show_alert=True)
+                return
+            chat_id = query.message.chat_id
+            _pending_archive_memo[chat_id] = entry_id
+            await query.edit_message_text(
+                f"📝 **{entry.title}** 메모를 입력해주세요:",
+                parse_mode="Markdown"
+            )
+
+        elif arc_action == "rate":
+            if not entry:
+                await query.answer("항목을 찾지 못했어요.", show_alert=True)
+                return
+            chat_id = query.message.chat_id
+            _pending_archive_rate[chat_id] = entry_id
+            rate_buttons = [
+                [InlineKeyboardButton(f"⭐{r}", callback_data=f"arc:rate_val:{entry_id}:{r}")
+                 for r in [1, 2, 3, 4, 5]],
+                [InlineKeyboardButton(f"⭐{r}", callback_data=f"arc:rate_val:{entry_id}:{r}")
+                 for r in [6, 7, 8, 9, 10]],
+            ]
+            await query.edit_message_text(
+                f"⭐ **{entry.title}** 평점을 선택해주세요 (1~10):",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(rate_buttons)
+            )
+
+        elif arc_action == "rate_val":
+            sub = data.split(":")
+            if len(sub) < 4:
+                return
+            entry_id2, rating_val = sub[2], sub[3]
+            entry2 = next((e for e in _search_results if e.id == entry_id2), None)
+            if entry2 is None and _sheets:
+                all_entries = _sheets.get_all_entries()
+                entry2 = next((e for e in all_entries if e.id == entry_id2), None)
+            if entry2 and _sheets:
+                try:
+                    entry2.rating = float(rating_val)
+                    _sheets.update_entry(entry2)
+                    await query.edit_message_text(
+                        f"⭐ **{entry2.title}** 평점 {entry2.rating} 저장했어요!",
+                        parse_mode="Markdown",
+                        reply_markup=_archive_action_keyboard(entry_id2)
+                    )
+                except Exception:
+                    await query.answer("저장 실패", show_alert=True)
+
 
 def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
@@ -1196,98 +1288,6 @@ async def _handle_remind_callback(query, data: str):
         chat_id = query.message.chat_id
         _pending_snooze[chat_id] = todo_id
         await query.edit_message_text("⏰ 재알람 시간을 입력해주세요.\n예: 30분 뒤, 내일 오전 9시, 3일 후")
-
-    # ── 아카이브 검색 결과 버튼 ──
-    elif data.startswith("arc:"):
-        parts = data.split(":", 2)
-        if len(parts) < 3:
-            return
-        arc_action, entry_id = parts[1], parts[2]
-        entry = next((e for e in _search_results if e.id == entry_id), None)
-        if entry is None and _sheets:
-            # fallback: ID로 전체 시트에서 조회
-            all_entries = _sheets.get_all_entries()
-            entry = next((e for e in all_entries if e.id == entry_id), None)
-
-        if arc_action == "sel":
-            if not entry:
-                await query.edit_message_text("항목을 찾지 못했어요. 다시 검색해주세요.")
-                return
-            global _last_selected_entry_id
-            _last_selected_entry_id = entry_id
-            type_kr = CONTENT_TYPE_KR.get(entry.type, entry.type)
-            status_kr = STATUS_KR.get(entry.status, entry.status)
-            rating_str = f" ⭐{entry.rating}" if entry.rating is not None else ""
-            author_str = f"\n작가: {entry.author}" if entry.author else ""
-            text = f"**{entry.title}**{author_str}\n{type_kr} · {status_kr}{rating_str}"
-            await query.edit_message_text(text, parse_mode="Markdown",
-                                          reply_markup=_archive_action_keyboard(entry_id))
-
-        elif arc_action == "detail":
-            if not entry:
-                await query.answer("항목을 찾지 못했어요.", show_alert=True)
-                return
-            await query.edit_message_text(_format_entry_detail(entry), parse_mode="Markdown",
-                                          reply_markup=_archive_action_keyboard(entry_id))
-
-        elif arc_action == "done":
-            if not entry:
-                await query.answer("항목을 찾지 못했어요.", show_alert=True)
-                return
-            entry.status = "completed"
-            if not entry.date_completed:
-                entry.date_completed = str(date.today())
-            _sheets.update_entry(entry)
-            await query.edit_message_text(f"✅ **{entry.title}** 완료 처리했어요!", parse_mode="Markdown")
-
-        elif arc_action == "memo":
-            if not entry:
-                await query.answer("항목을 찾지 못했어요.", show_alert=True)
-                return
-            chat_id = query.message.chat_id
-            _pending_archive_memo[chat_id] = entry_id
-            await query.edit_message_text(
-                f"📝 **{entry.title}** 메모를 입력해주세요:",
-                parse_mode="Markdown"
-            )
-
-        elif arc_action == "rate":
-            if not entry:
-                await query.answer("항목을 찾지 못했어요.", show_alert=True)
-                return
-            chat_id = query.message.chat_id
-            _pending_archive_rate[chat_id] = entry_id
-            # 평점 버튼 0.5 단위
-            rate_buttons = [
-                [InlineKeyboardButton(f"⭐{r}", callback_data=f"arc:rate_val:{entry_id}:{r}")
-                 for r in [1, 2, 3, 4, 5]],
-                [InlineKeyboardButton(f"⭐{r}", callback_data=f"arc:rate_val:{entry_id}:{r}")
-                 for r in [6, 7, 8, 9, 10]],
-            ]
-            await query.edit_message_text(
-                f"⭐ **{entry.title}** 평점을 선택해주세요 (1~10):",
-                parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup(rate_buttons)
-            )
-
-        elif arc_action == "rate_val":
-            # data = "arc:rate_val:{entry_id}:{rating}"
-            sub = data.split(":")
-            if len(sub) < 4:
-                return
-            entry_id2, rating_val = sub[2], sub[3]
-            entry2 = next((e for e in _search_results if e.id == entry_id2), None)
-            if entry2 and _sheets:
-                try:
-                    entry2.rating = float(rating_val)
-                    _sheets.update_entry(entry2)
-                    await query.edit_message_text(
-                        f"⭐ **{entry2.title}** 평점 {entry2.rating} 저장했어요!",
-                        parse_mode="Markdown",
-                        reply_markup=_archive_action_keyboard(entry_id2)
-                    )
-                except Exception:
-                    await query.answer("저장 실패", show_alert=True)
 
 
 _MODE_WORDS: dict[BotMode, tuple] = {
