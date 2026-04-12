@@ -155,6 +155,9 @@ def main():
     # 인라인 버튼 콜백 (되돌리기/취소)
     app.add_handler(CallbackQueryHandler(handlers.callback_handler, pattern=r"^(undo:|remind:|pomo:|arc:)"))
 
+    # 사진 메시지 → Drive 업로드
+    app.add_handler(MessageHandler(filters.PHOTO, handlers.photo_handler))
+
     # 자연어 메시지 (모든 텍스트)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.message_handler))
 

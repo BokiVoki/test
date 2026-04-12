@@ -943,6 +943,69 @@ async def export_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("SPREADSHEET_ID 환경변수가 설정되지 않았어요.")
 
 
+async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """사진 메시지 → Google Drive 업로드 → 선택된 작품 메모에 링크 저장"""
+    if not _auth(update):
+        return
+    from . import drive_client as _drive
+
+    if not _drive.is_configured():
+        await update.message.reply_text(
+            "⚠️ Google Drive 연동이 설정되지 않았어요.\n"
+            "`GOOGLE_CREDENTIALS_PATH` 환경변수를 확인해주세요.",
+            parse_mode="Markdown"
+        )
+        return
+
+    chat_id = update.message.chat_id
+    # 메모 대기 중 항목 우선, 없으면 최근 선택 작품
+    entry_id = _pending_archive_memo.pop(chat_id, None) or _last_selected_entry_id
+    if not entry_id:
+        await update.message.reply_text(
+            "📎 어느 작품에 첨부할까요?\n"
+            "먼저 🔍 검색으로 작품을 선택한 뒤 📝 메모 버튼을 눌러주세요."
+        )
+        return
+
+    await update.message.chat.send_action("upload_photo")
+
+    # 가장 큰 해상도 사진
+    photo = update.message.photo[-1]
+    tg_file = await context.bot.get_file(photo.file_id)
+    file_bytes = bytes(await tg_file.download_as_bytearray())
+
+    stamp = _now_kst().strftime("%Y%m%d_%H%M%S")
+    try:
+        drive_url = _drive.upload_photo(file_bytes, f"memo_{stamp}.jpg")
+    except Exception as e:
+        logger.error(f"Drive upload error: {e}")
+        await update.message.reply_text(f"❌ 업로드 실패: {e}")
+        return
+
+    # 작품 찾기
+    entry = next((e for e in _search_results if e.id == entry_id), None)
+    if entry is None and _sheets:
+        all_entries = _sheets.get_all_entries()
+        entry = next((e for e in all_entries if e.id == entry_id), None)
+
+    if not entry:
+        await update.message.reply_text(f"⚠️ 작품을 찾지 못했어요. 링크만 저장됐어요:\n{drive_url}")
+        return
+
+    date_stamp = _now_kst().strftime("%m/%d")
+    caption = update.message.caption or ""
+    note_line = f"[{date_stamp}] 📷 {drive_url}" + (f" — {caption}" if caption else "")
+    entry.notes = f"{entry.notes}\n{note_line}".strip() if entry.notes else note_line
+    _sheets.update_entry(entry)
+
+    await update.message.reply_text(
+        f"📷 **{entry.title}** 사진 저장했어요!\n"
+        f"[Drive에서 보기]({drive_url})",
+        parse_mode="Markdown",
+        reply_markup=_archive_action_keyboard(entry_id),
+    )
+
+
 async def migrate_archive_fields_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/migrate_archive_fields — notes에 섞인 참여:/연도:/출판: 을 전용 열로 분리 (배치처리)"""
     if not _auth(update):

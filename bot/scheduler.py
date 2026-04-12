@@ -29,29 +29,49 @@ def _fetch_weather(city: str = "Seoul") -> str:
     """날씨 조회 — open-meteo(1차) → requests 라이브러리 폴백(2차)"""
     import json as _json
     lat, lon = 37.5665, 126.9780
+    # past_days=1 → daily[0]=어제, daily[1]=오늘
     url = (
         f"https://api.open-meteo.com/v1/forecast"
         f"?latitude={lat}&longitude={lon}"
         f"&current=weathercode,relative_humidity_2m"
         f"&daily=temperature_2m_max,temperature_2m_min,weathercode"
         f"&timezone=Asia%2FSeoul"
-        f"&forecast_days=1"
+        f"&past_days=1&forecast_days=1"
     )
     headers = {"User-Agent": "Mozilla/5.0 (compatible; weather-bot/1.0)"}
 
     def _parse(data: dict) -> str:
         cur = data.get("current", {})
         daily = data.get("daily", {})
-        t_max = daily.get("temperature_2m_max", [None])[0]
-        t_min = daily.get("temperature_2m_min", [None])[0]
-        wcode = (daily.get("weathercode") or [None])[0] or cur.get("weathercode")
+        t_max_list = daily.get("temperature_2m_max", [])
+        t_min_list = daily.get("temperature_2m_min", [])
+        wcode_list = daily.get("weathercode", [])
+
+        # past_days=1 이면 [어제, 오늘], 아니면 [오늘]
+        if len(t_max_list) >= 2:
+            y_max, t_max = t_max_list[0], t_max_list[1]
+            y_min, t_min = t_min_list[0], t_min_list[1]
+            wcode = wcode_list[1] if len(wcode_list) >= 2 else cur.get("weathercode")
+        else:
+            y_max = y_min = None
+            t_max = t_max_list[0] if t_max_list else None
+            t_min = t_min_list[0] if t_min_list else None
+            wcode = wcode_list[0] if wcode_list else cur.get("weathercode")
+
         humidity = cur.get("relative_humidity_2m", "")
         desc = _WMO_KR.get(wcode, "")
+
         if t_max is not None and t_min is not None:
-            avg = round((t_max + t_min) / 2)
-            temp_str = f"평균 {avg}°C (최고 {round(t_max)} / 최저 {round(t_min)})"
+            avg = (t_max + t_min) / 2
+            temp_str = f"평균 {round(avg)}°C (최고 {round(t_max)} / 최저 {round(t_min)})"
+            if y_max is not None and y_min is not None:
+                y_avg = (y_max + y_min) / 2
+                diff = avg - y_avg
+                sign = "+" if diff >= 0 else ""
+                temp_str += f" · 어제보다 {sign}{round(diff)}°C"
         else:
             temp_str = ""
+
         humidity_str = f" 습도 {humidity}%" if humidity != "" else ""
         return f"{desc} {temp_str}{humidity_str}".strip()
 
