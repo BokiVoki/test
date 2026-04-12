@@ -32,19 +32,35 @@ def _fetch_weather(city: str = "Seoul") -> str:
     url = (
         f"https://api.open-meteo.com/v1/forecast"
         f"?latitude={lat}&longitude={lon}"
-        f"&current=temperature_2m,relative_humidity_2m,weathercode"
+        f"&current=weathercode,relative_humidity_2m"
+        f"&daily=temperature_2m_max,temperature_2m_min,weathercode"
         f"&timezone=Asia%2FSeoul"
+        f"&forecast_days=1"
     )
     headers = {"User-Agent": "Mozilla/5.0 (compatible; weather-bot/1.0)"}
+
+    def _parse(data: dict) -> str:
+        cur = data.get("current", {})
+        daily = data.get("daily", {})
+        t_max = daily.get("temperature_2m_max", [None])[0]
+        t_min = daily.get("temperature_2m_min", [None])[0]
+        wcode = (daily.get("weathercode") or [None])[0] or cur.get("weathercode")
+        humidity = cur.get("relative_humidity_2m", "")
+        desc = _WMO_KR.get(wcode, "")
+        if t_max is not None and t_min is not None:
+            avg = round((t_max + t_min) / 2)
+            temp_str = f"평균 {avg}°C (최고 {round(t_max)} / 최저 {round(t_min)})"
+        else:
+            temp_str = ""
+        humidity_str = f" 습도 {humidity}%" if humidity != "" else ""
+        return f"{desc} {temp_str}{humidity_str}".strip()
 
     # 1차 시도: urllib
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as r:
             data = _json.loads(r.read().decode("utf-8"))
-        cur = data["current"]
-        desc = _WMO_KR.get(cur["weathercode"], "")
-        return f"{desc} {round(cur['temperature_2m'])}°C 습도 {cur['relative_humidity_2m']}%"
+        return _parse(data)
     except Exception as e1:
         logger.warning(f"날씨 urllib 실패: {e1}")
 
@@ -52,10 +68,7 @@ def _fetch_weather(city: str = "Seoul") -> str:
     try:
         import requests as _req
         r = _req.get(url, headers=headers, timeout=10)
-        data = r.json()
-        cur = data["current"]
-        desc = _WMO_KR.get(cur["weathercode"], "")
-        return f"{desc} {round(cur['temperature_2m'])}°C 습도 {cur['relative_humidity_2m']}%"
+        return _parse(r.json())
     except Exception as e2:
         logger.warning(f"날씨 requests 실패: {e2}")
 
