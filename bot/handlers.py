@@ -46,6 +46,7 @@ _pending_snooze: dict[int, str] = {}  # chat_id → reminder_id (직접입력 �
 _pending_archive_memo: dict[int, str] = {}   # chat_id → entry_id (메모 입력 대기)
 _pending_archive_rate: dict[int, str] = {}   # chat_id → entry_id (평점 입력 대기)
 _pending_search: dict[int, bool] = {}        # chat_id → 검색 키워드 입력 대기
+_pending_add_entry: dict[int, dict] = {}     # chat_id → {step, title, type, author, year}
 _processed_msg_ids: set[int] = set()  # 웹훅 재전송 중복 방지
 _last_selected_entry_id: Optional[str] = None  # 최근 선택한 작품 ID
 
@@ -300,11 +301,26 @@ async def get_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 _search_results: list = []
 
 PERSISTENT_KEYBOARD = ReplyKeyboardMarkup(
-    [[KeyboardButton("🔍 검색"), KeyboardButton("🕐 최근검색")],
+    [[KeyboardButton("🔍 검색"), KeyboardButton("🕐 최근검색"), KeyboardButton("➕ 작품추가")],
      [KeyboardButton("📋 할일"), KeyboardButton("💊 영양제"), KeyboardButton("📊 통계")]],
     resize_keyboard=True,
     is_persistent=True,
 )
+
+_TYPE_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("📚 책", callback_data="addtype:book"),
+     InlineKeyboardButton("📖 웹소설", callback_data="addtype:webnovel"),
+     InlineKeyboardButton("🎨 웹툰", callback_data="addtype:webtoon")],
+    [InlineKeyboardButton("🖼 만화", callback_data="addtype:manga"),
+     InlineKeyboardButton("🎬 영화", callback_data="addtype:movie"),
+     InlineKeyboardButton("📺 드라마", callback_data="addtype:drama")],
+    [InlineKeyboardButton("🎌 애니", callback_data="addtype:anime"),
+     InlineKeyboardButton("🖼 그래픽북", callback_data="addtype:graphic_book"),
+     InlineKeyboardButton("🎞 다큐", callback_data="addtype:documentary")],
+    [InlineKeyboardButton("🎪 전시", callback_data="addtype:exhibition"),
+     InlineKeyboardButton("🎙 팟캐스트", callback_data="addtype:podcast"),
+     InlineKeyboardButton("🗂 기타", callback_data="addtype:other")],
+])
 
 
 def _archive_action_keyboard(entry_id: str) -> InlineKeyboardMarkup:
@@ -1059,6 +1075,23 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _handle_remind_callback(query, data)
         return
 
+    # ── 작품 종류 선택 버튼 ──
+    if data.startswith("addtype:"):
+        chosen_type = data.split(":", 1)[1]
+        chat_id = query.message.chat_id
+        if chat_id not in _pending_add_entry:
+            await query.answer("세션이 만료됐어요. 다시 ➕ 작품추가를 눌러주세요.", show_alert=True)
+            return
+        _pending_add_entry[chat_id]["type"] = chosen_type
+        _pending_add_entry[chat_id]["step"] = "author"
+        type_kr = CONTENT_TYPE_KR.get(chosen_type, chosen_type)
+        title = _pending_add_entry[chat_id]["title"]
+        await query.edit_message_text(
+            f"📖 **{title}** ({type_kr})\n\n✏️ 작가/감독/원작자를 입력해주세요 (없으면 '-'):",
+            parse_mode="Markdown",
+        )
+        return
+
     # ── 포모도로 버튼 ──
     if data.startswith("pomo:"):
         action = data[5:]
@@ -1588,6 +1621,54 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("⚠️ 시간을 이해하지 못했어요. 다시 시도해주세요.")
         return
 
+    # ── 작품 추가 단계별 입력 대기 중 ──
+    if chat_id in _pending_add_entry:
+        state = _pending_add_entry[chat_id]
+        step = state.get("step")
+
+        if step == "title":
+            state["title"] = text.strip()
+            state["step"] = "type"
+            await update.message.reply_text(
+                f"📂 **{state['title']}** — 종류를 선택해주세요:",
+                parse_mode="Markdown",
+                reply_markup=_TYPE_KEYBOARD,
+            )
+            return
+
+        elif step == "author":
+            state["author"] = "" if text.strip() in ("-", "없음", "skip") else text.strip()
+            state["step"] = "year"
+            await update.message.reply_text(
+                "📅 시작한 연도를 입력해주세요 (예: 2026 · 없으면 '-'):"
+            )
+            return
+
+        elif step == "year":
+            raw = text.strip()
+            state["year"] = "" if raw in ("-", "없음", "skip") else raw
+            # 저장
+            del _pending_add_entry[chat_id]
+            from .models import ContentEntry
+            entry = ContentEntry(
+                title=state["title"],
+                type=state.get("type", "other"),
+                status="in_progress",
+                author=state.get("author", ""),
+                year_watched=state.get("year", ""),
+                date_added=str(date.today()),
+            )
+            _sheets.add_entry(entry)
+            type_kr = CONTENT_TYPE_KR.get(entry.type, entry.type)
+            author_str = f" · {entry.author}" if entry.author else ""
+            year_str = f" ({entry.year_watched})" if entry.year_watched else ""
+            await update.message.reply_text(
+                f"✅ **{entry.title}**{year_str} 추가했어요!\n{type_kr}{author_str} · 읽는 중",
+                parse_mode="Markdown",
+                reply_markup=_archive_action_keyboard(entry.id),
+            )
+            return
+
     # ── 아카이브 메모 입력 대기 중 ──
     if chat_id in _pending_archive_memo:
         entry_id = _pending_archive_memo.pop(chat_id)
@@ -1663,6 +1744,10 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = f"**{entry.title}**{author_str}\n{type_kr} · {status_kr}{rating_str}"
         await update.message.reply_text(msg, parse_mode="Markdown",
                                         reply_markup=_archive_action_keyboard(_last_selected_entry_id))
+        return
+    if text == "➕ 작품추가":
+        _pending_add_entry[chat_id] = {"step": "title"}
+        await update.message.reply_text("📖 작품 제목을 입력해주세요:")
         return
     if text == "📋 할일":
         await todos_handler(update, context)
