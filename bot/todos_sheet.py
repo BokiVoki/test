@@ -99,6 +99,14 @@ class TodosClient:
                 sheet.update_cell(i, 3, "0")  # 완료 해제
                 return
 
+    def set_trigger(self, todo_id: str, new_trigger_at: str):
+        """trigger_at만 업데이트 — done 값은 그대로 유지"""
+        sheet = self._get_sheet()
+        for i, row in enumerate(sheet.get_all_values()[1:], start=2):
+            if row and row[0] == todo_id:
+                sheet.update_cell(i, 6, new_trigger_at)
+                return
+
     def cancel_all_alarms(self):
         """모든 미완료 투두의 trigger_at 초기화"""
         sheet = self._get_sheet()

@@ -836,7 +836,9 @@ async def _handle_todo_natural(update: Update, text: str):
                 """반복 투두면 재스케줄, 아니면 done 처리. 결과 메시지 반환"""
                 if item.repeat in ("daily", "weekly", "monthly"):
                     next_t = _next_trigger_manual(item.trigger_at, item.repeat)
-                    _todos.reschedule(item.id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))
+                    # 먼저 done=1 표시 후 trigger_at만 업데이트 (reschedule은 done=0 리셋하므로 직접 처리)
+                    _todos.complete(item.id)  # done=1
+                    _todos.set_trigger(item.id, next_t.strftime("%Y-%m-%dT%H:%M:%S"))  # trigger_at 갱신, done 건드리지 않음
                     repeat_kr = {"daily": "내일", "weekly": "다음 주", "monthly": "다음 달"}[item.repeat]
                     return f"✅ **{item.text}** 완료! ({repeat_kr} {next_t.strftime('%H:%M')} 재알람)"
                 elif item.repeat.startswith("after:"):
@@ -2646,22 +2648,31 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
                 except Exception:
                     pass
             lines.append(f"{prefix}{t.text}{due}{alarm}")
-        if len(items) > 10:
-            lines.append(f"  … 외 {len(items)-10}개")
+        if len(items) > 15:
+            lines.append(f"  … 외 {len(items)-15}개")
         return "\n".join(lines)
 
     all_todos = todos_client.get_all() if todos_client else []
     undone = [t for t in all_todos if not t.done]
 
-    # 오늘 할 일: trigger_at이 오늘이거나 / 반복 투두(daily 등) / 날짜 없는 것
+    # 오늘 할 일 판정
     def _is_today(t):
+        today_str = today.isoformat()
+        tomorrow_str = tomorrow.isoformat()
+        # trigger_at / due_date 가 오늘이면 항상 포함
         for field in (t.trigger_at, t.due_date):
-            if field and field[:10] == today.isoformat():
+            if field and field[:10] == today_str:
                 return True
-        # 반복 투두는 trigger_at이 내일로 바뀌어도 항상 표시
-        if t.repeat in ("daily", "weekly", "monthly") or t.repeat.startswith("after:"):
+        # daily: 알람이 오늘 발사되어 내일로 재스케줄됐을 경우에도 표시
+        #   단, 사용자가 직접 완료(done=1)하면 already filtered out above
+        if t.repeat == "daily" and t.trigger_at and t.trigger_at[:10] == tomorrow_str:
             return True
-        return not t.trigger_at and not t.due_date  # 날짜 없는 것도 포함
+        # after:N: 완료 후 N분뒤 재알람 → 오늘~내일 범위면 포함
+        if t.repeat.startswith("after:") and t.trigger_at:
+            return t.trigger_at[:10] <= tomorrow_str
+        # weekly/monthly: trigger_at이 오늘인 경우만 (위에서 이미 처리됨)
+        # 날짜 없는 일반 투두
+        return not t.trigger_at and not t.due_date
 
     def _is_tomorrow(t):
         for field in (t.trigger_at, t.due_date):
