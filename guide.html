@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>그래픽 도서 관리 시스템 — 기능 안내</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Noto Sans KR',sans-serif;color:#222;background:#fff;font-size:14px;}
+  :root{--navy:#1a237e;--blue:#1565c0;--accent:#0288d1;--gray:#f5f5f5;--text:#222;}
+  .page{max-width:800px;margin:0 auto 0 auto;padding:40px 50px;}
+  h1{font-size:2.2em;font-weight:700;color:var(--navy);}
+  h2{font-size:1.3em;font-weight:700;color:#fff;background:var(--navy);padding:10px 16px;border-radius:6px;margin:32px 0 14px;}
+  h3{font-size:1.05em;font-weight:700;color:var(--blue);margin:20px 0 8px;}
+  p{line-height:1.8;margin-bottom:10px;color:var(--text);}
+  ul{padding-left:20px;margin-bottom:12px;}
+  li{line-height:2;color:var(--text);}
+  table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:13px;}
+  th{background:var(--navy);color:#fff;padding:9px 12px;text-align:left;}
+  td{padding:8px 12px;border-bottom:1px solid #e0e0e0;}
+  tr:nth-child(even) td{background:#f8f9ff;}
+  .cover{background:var(--navy);color:#fff;min-height:400px;display:flex;flex-direction:column;justify-content:center;padding:60px 60px;border-radius:10px;margin-bottom:40px;}
+  .cover h1{color:#fff;font-size:2.6em;margin-bottom:16px;}
+  .cover .sub{font-size:1.1em;color:#b3c5f7;margin-bottom:8px;}
+  .cover .date{font-size:0.95em;color:#7986cb;margin-top:20px;}
+  .cards{display:flex;gap:16px;margin:16px 0 24px;flex-wrap:wrap;}
+  .card{flex:1;min-width:180px;background:var(--gray);border-left:4px solid var(--accent);border-radius:6px;padding:14px 16px;}
+  .card strong{display:block;color:var(--navy);font-size:1em;margin-bottom:4px;}
+  .card span{font-size:0.88em;color:#555;}
+  .badge{display:inline-block;background:#e3f2fd;color:var(--blue);border-radius:4px;padding:2px 8px;font-size:0.82em;margin:2px;}
+  .tip{background:#fffde7;border-left:4px solid #f9a825;padding:10px 14px;border-radius:4px;font-size:0.9em;margin:10px 0;}
+  @media print{
+    .page{page-break-after:always;padding:0;}
+    @page{margin:15mm;}
+    h2{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    th{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    tr:nth-child(even) td{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+<!-- 표지 -->
+<div class="page">
+  <div class="cover">
+    <div class="sub">그래픽 서점</div>
+    <h1>도서 관리 시스템<br>기능 전체 안내</h1>
+    <div class="date">2026년 4월</div>
+  </div>
+
+  <h2>이 시스템은 무엇인가요?</h2>
+  <p>그래픽 도서 관리 시스템은 <strong>이태원점·위례점 두 지점의 도서를 웹 브라우저 하나로 통합 관리</strong>하는 전용 시스템입니다. 별도 프로그램 설치 없이 어디서든 접속해 재고 확인, 입출고 기록, 위치 관리까지 모두 처리할 수 있습니다.</p>
+
+  <div class="cards">
+    <div class="card"><strong>두 지점 통합</strong><span>이태원·위례 재고를 한 화면에서 관리</span></div>
+    <div class="card"><strong>웹 기반</strong><span>설치 불필요, 브라우저로 바로 접속</span></div>
+    <div class="card"><strong>역할별 접근</strong><span>admin / staff / user 권한 구분</span></div>
+  </div>
+</div>
+<!-- 전체 구성 -->
+<div class="page">
+  <h2>전체 구성 한눈에 보기</h2>
+  <table>
+    <tr><th>페이지</th><th>주소</th><th>누가 쓰나요?</th><th>주요 기능</th></tr>
+    <tr><td>도서 검색</td><td>/</td><td>고객·누구나</td><td>제목·작가·태그 검색, 재고 확인, 댓글</td></tr>
+    <tr><td>로그인</td><td>/login</td><td>모든 사용자</td><td>회원가입·로그인·이메일 인증</td></tr>
+    <tr><td>관리자</td><td>/admin</td><td>admin·staff</td><td>재고관리, 위치관리, 가입자 관리</td></tr>
+    <tr><td>이태원 위치·안내도</td><td>/locaitw</td><td>누구나</td><td>이태원점 도서 위치·층별 안내도</td></tr>
+    <tr><td>위례 위치·안내도</td><td>/locawr</td><td>누구나</td><td>위례점 도서 위치·층별 안내도</td></tr>
+  </table>
+
+  <h3>권한(역할) 구분</h3>
+  <table>
+    <tr><th>역할</th><th>접근 범위</th></tr>
+    <tr><td><strong>admin</strong></td><td>모든 기능 + 가입자 역할 변경</td></tr>
+    <tr><td><strong>staff</strong></td><td>재고 관리 탭 (도서 위치·상태·태그·한줄평 수정)</td></tr>
+    <tr><td><strong>user</strong></td><td>홈 도서 검색·댓글만 가능</td></tr>
+  </table>
+</div>
+<!-- 재고관리 탭 구성 -->
+<div class="page">
+  <h2>도서 관리 — 재고관리 탭</h2>
+  <p>관리자 페이지의 핵심 탭입니다. 스프레드시트처럼 생긴 화면에서 도서 데이터를 직접 수정합니다.</p>
+
+  <h3>세 개의 하위 탭</h3>
+  <table>
+    <tr><th>탭 이름</th><th>역할</th><th>주요 컬럼</th></tr>
+    <tr><td><strong>전체 DB</strong></td><td>모든 도서의 마스터 정보</td><td>ISBN, 제목, 출판사, 작가, 이태원 재고, 위례 재고, 태그, 한줄평, 위치, 표지 URL, 절판 여부 등</td></tr>
+    <tr><td><strong>도서현황 (이태원)</strong></td><td>이태원점 입출고 이력</td><td>status, 날짜, ISBN, 수량, 구매처, 목적, 가격, 처리 여부</td></tr>
+    <tr><td><strong>도서현황 (위례)</strong></td><td>위례점 입출고 이력</td><td>위와 동일 구조</td></tr>
+  </table>
+
+  <h3>도서현황 탭의 status(상태) 종류</h3>
+  <div>
+    <span class="badge">새재고발주</span><span class="badge">DP발주</span><span class="badge">입고</span>
+    <span class="badge">새재고판매</span><span class="badge">DP판매</span><span class="badge">반품예정</span>
+    <span class="badge">취소</span><span class="badge">폐기</span><span class="badge">샘플/선물</span>
+  </div>
+
+  <div class="tip">💡 <strong>재고 자동 조정</strong>: '처리' 체크박스를 체크하면 재고가 자동으로 증감합니다. 발주→입고 시 자동 증가, 판매 체크 시 자동 감소. 1회만 적용되고 중복 처리되지 않습니다.</div>
+</div>
+<!-- 편의 기능 -->
+<div class="page">
+  <h2>스프레드시트 편의 기능</h2>
+
+  <h3>기본 편집</h3>
+  <table>
+    <tr><th>기능</th><th>사용 방법</th></tr>
+    <tr><td>셀 직접 편집</td><td>셀을 더블클릭하면 바로 수정 가능</td></tr>
+    <tr><td>실행취소 / 다시실행</td><td>Ctrl+Z / Ctrl+Shift+Z (또는 상단 버튼)</td></tr>
+    <tr><td>복사·붙여넣기</td><td>Ctrl+C / Ctrl+V — 엑셀에서 복사한 데이터도 붙여넣기 가능</td></tr>
+    <tr><td>자동 채우기</td><td>선택 영역 우측 하단 파란 핸들을 아래로 드래그 (숫자·날짜는 자동 증가)</td></tr>
+  </table>
+
+  <h3>행 관리</h3>
+  <table>
+    <tr><th>기능</th><th>설명</th></tr>
+    <tr><td>행 추가</td><td>상단 '+행 추가' 버튼으로 1·3·5·10·20행 또는 사용자 지정 수량 추가 (최대 100행)</td></tr>
+    <tr><td>중간 행 삽입</td><td>행 우클릭 → 컨텍스트 메뉴에서 원하는 위치에 삽입</td></tr>
+    <tr><td>행 삭제</td><td>행 선택 후 우클릭 → 삭제</td></tr>
+  </table>
+
+  <h3>정렬 & 필터</h3>
+  <table>
+    <tr><th>기능</th><th>설명</th></tr>
+    <tr><td>컬럼 정렬</td><td>헤더 클릭 → 오름/내림차순. Shift+클릭으로 다단계 정렬</td></tr>
+    <tr><td>컬럼 필터</td><td>헤더의 ▼ 아이콘 → 엑셀 스타일 값 필터 (다중 선택)</td></tr>
+    <tr><td>찾기(검색)</td><td>검색어 입력 시 해당 행으로 자동 스크롤, 전체 목록은 유지</td></tr>
+  </table>
+</div>
+<!-- 외부 연동 & 버전관리 -->
+<div class="page">
+  <h2>외부 연동 & 데이터 관리</h2>
+
+  <h3>햄버거 메뉴(≡) 기능 목록</h3>
+  <table>
+    <tr><th>메뉴</th><th>설명</th></tr>
+    <tr><td>도서정보 일괄조회</td><td>ISBN 기반으로 작가·출판사 정보를 자동 수집 (전체DB 탭)</td></tr>
+    <tr><td>표지 일괄수집</td><td>커버 이미지가 없는 도서의 표지를 Naver API로 자동 수집</td></tr>
+    <tr><td>CSV 다운로드</td><td>현재 탭 전체 데이터를 엑셀 호환 CSV로 내보내기 (BOM 포함)</td></tr>
+    <tr><td>Sheets 동기화</td><td>변경된 데이터만 Google Sheets로 동기화</td></tr>
+    <tr><td>전체 재동기화</td><td>모든 데이터를 Google Sheets로 새로 동기화</td></tr>
+    <tr><td>버전 관리</td><td>스냅샷 생성·복원 — 매일 오전 9시·오후 9시 자동 저장, 수동 복원 가능</td></tr>
+  </table>
+
+  <h2>홈페이지 도서 검색 (고객용)</h2>
+  <table>
+    <tr><th>기능</th><th>설명</th></tr>
+    <tr><td>통합 검색</td><td>제목 또는 작가 이름으로 검색</td></tr>
+    <tr><td>태그 검색</td><td>검색창 옆 '태그' 토글 활성화 시 태그만 검색</td></tr>
+    <tr><td>재고 필터링</td><td>모든 지점 재고가 0 이하인 도서는 자동 제외</td></tr>
+    <tr><td>시리즈 그룹핑</td><td>같은 시리즈 도서는 하나의 그룹으로 묶어 표시</td></tr>
+    <tr><td>도서 상세</td><td>표지·재고·위치·태그·스태프 추천·댓글 확인</td></tr>
+  </table>
+</div>
+<!-- 위치 관리 & 마무리 -->
+<div class="page">
+  <h2>위치 관리 기능</h2>
+
+  <h3>도서 위치 탭 (이태원·위례 공통)</h3>
+  <ul>
+    <li>알파벳 그룹 → 섹션 → 도서 순서의 3단계 계층 구조</li>
+    <li>위치 형식: <strong>섹션명 + 행번호 + -열번호</strong> (예: A2-3, 지하A1-2)</li>
+    <li>드래그 앤 드롭으로 도서 순서 변경</li>
+    <li>자연 정렬(Natural Sort) 적용</li>
+  </ul>
+
+  <h3>층별 안내도 탭 (이태원점)</h3>
+  <ul>
+    <li>섹션별 행×열 그리드로 도서 배치를 시각적으로 관리</li>
+    <li>도서를 드래그 앤 드롭으로 셀 간 이동</li>
+    <li>빈 공간 드래그로 여러 도서 동시 선택 후 일괄 이동</li>
+    <li>미배치 도서는 '바구니/미지정' 패널에서 관리</li>
+    <li>셀 너비를 개별 조절해 DB에 저장 — 모든 관리자가 동일한 레이아웃 공유</li>
+    <li><strong>가안(Draft) 시스템</strong>: 최대 5개 레이아웃 안을 서버에 저장·공유</li>
+    <li>도서 제목 검색 후 클릭하면 해당 위치로 자동 스크롤</li>
+  </ul>
+
+  <h2>기능 전체 요약</h2>
+  <div class="cards">
+    <div class="card"><strong>재고 관리</strong><span>전체DB · 도서현황 탭에서 입출고·재고 통합 관리</span></div>
+    <div class="card"><strong>자동화</strong><span>재고 자동 조정 · 표지 자동 수집 · 스냅샷 자동 저장</span></div>
+    <div class="card"><strong>연동</strong><span>Google Sheets 동기화 · CSV 내보내기 · Naver API</span></div>
+    <div class="card"><strong>위치 시각화</strong><span>층별 안내도 · 드래그&드롭 배치 · 가안 시스템</span></div>
+    <div class="card"><strong>고객 검색</strong><span>통합 검색 · 태그 필터 · 시리즈 그룹핑</span></div>
+  </div>
+
+  <p style="margin-top:30px;color:#888;font-size:0.85em;text-align:center;">그래픽 서점 도서 관리 시스템 · 2026</p>
+</div>
+</body>
+</html>
