@@ -38,7 +38,10 @@
     th{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     tr:nth-child(even) td{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   }
+  .mermaid{background:#f8f9ff;border-radius:8px;padding:20px;margin:16px 0;text-align:center;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'base', themeVariables:{primaryColor:'#1a237e',primaryTextColor:'#fff',primaryBorderColor:'#0288d1',lineColor:'#1565c0',secondaryColor:'#e3f2fd',tertiaryColor:'#f5f5f5'}});</script>
 </head>
 <body>
 <!-- 표지 -->
@@ -56,6 +59,30 @@
     <div class="card"><strong>두 지점 통합</strong><span>이태원·위례 재고를 한 화면에서 관리</span></div>
     <div class="card"><strong>웹 기반</strong><span>설치 불필요, 브라우저로 바로 접속</span></div>
     <div class="card"><strong>역할별 접근</strong><span>admin / staff / user 권한 구분</span></div>
+  </div>
+</div>
+<!-- 다이어그램 페이지 -->
+<div class="page">
+  <h2>① 시스템 전체 구조도</h2>
+  <p>사용자 유형별로 접근하는 페이지와 기능의 연결 구조입니다.</p>
+  <div class="mermaid">
+flowchart TD
+    A([사용자]) --> B[/ 도서 검색 홈 /]
+    A --> C[/login 로그인/]
+    C --> D{역할}
+    D -->|admin| E[/admin 관리자 페이지/]
+    D -->|staff| E
+    D -->|user| B
+    E --> F[재고관리 탭]
+    E --> G[위치관리 탭]
+    E --> H[가입자 탭\nadmin 전용]
+    F --> F1[전체 DB]
+    F --> F2[도서현황 이태원]
+    F --> F3[도서현황 위례]
+    G --> G1[이태원 위치·안내도]
+    G --> G2[위례 위치·안내도]
+    A --> I[/locaitw 이태원 안내/]
+    A --> J[/locawr 위례 안내/]
   </div>
 </div>
 <!-- 전체 구성 -->
@@ -78,6 +105,24 @@
     <tr><td><strong>user</strong></td><td>홈 도서 검색·댓글만 가능</td></tr>
   </table>
 </div>
+<!-- 권한 계층도 -->
+<div class="page">
+  <h2>② 권한(역할) 계층도</h2>
+  <p>역할에 따라 접근할 수 있는 기능이 달라집니다.</p>
+  <div class="mermaid">
+flowchart TD
+    SYS[그래픽 도서 관리 시스템] --> R1[admin]
+    SYS --> R2[staff]
+    SYS --> R3[user]
+    R1 --> A1[재고관리 탭 전체]
+    R1 --> A2[위치·안내도 탭]
+    R1 --> A3[가입자 탭\n역할 변경 가능]
+    R1 --> A4[홈 도서 검색 · 댓글]
+    R2 --> B1[재고관리 탭\n도서 위치·상태·태그·한줄평 수정]
+    R2 --> B2[홈 도서 검색 · 댓글]
+    R3 --> C1[홈 도서 검색 · 댓글만]
+  </div>
+</div>
 <!-- 재고관리 탭 구성 -->
 <div class="page">
   <h2>도서 관리 — 재고관리 탭</h2>
@@ -99,6 +144,30 @@
   </div>
 
   <div class="tip">💡 <strong>재고 자동 조정</strong>: '처리' 체크박스를 체크하면 재고가 자동으로 증감합니다. 발주→입고 시 자동 증가, 판매 체크 시 자동 감소. 1회만 적용되고 중복 처리되지 않습니다.</div>
+</div>
+<!-- 재고 흐름도 -->
+<div class="page">
+  <h2>③ 재고 처리 흐름도</h2>
+  <p>도서 입출고부터 재고 자동 조정까지의 전체 흐름입니다.</p>
+  <div class="mermaid">
+flowchart TD
+    START([도서 필요 발생]) --> ORD[도서현황 탭에\n발주 행 입력]
+    ORD --> ORDST{status}
+    ORDST -->|새재고발주| W1[새 도서 주문]
+    ORDST -->|DP발주| W2[전시용 도서 주문]
+    W1 --> ARR[도서 입고]
+    W2 --> ARR
+    ARR --> ARRENT[입고 행 입력\nstatus = 입고]
+    ARRENT --> CHK{처리 체크박스\n체크}
+    CHK -->|체크| AUTO[재고 자동 증가\n전체DB 재고 반영]
+    CHK -->|미체크| WAIT[대기 — 재고 미반영]
+    AUTO --> SELL[판매 발생]
+    SELL --> SELLENT[판매 행 입력\nstatus = 새재고판매 or DP판매]
+    SELLENT --> CHK2{처리 체크박스\n체크}
+    CHK2 -->|체크| AUTO2[재고 자동 감소\n전체DB 재고 반영]
+    CHK2 -->|미체크| WAIT2[대기 — 재고 미반영]
+    AUTO2 --> END([재고 현황 최신화 완료])
+  </div>
 </div>
 <!-- 편의 기능 -->
 <div class="page">
