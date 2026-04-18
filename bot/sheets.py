@@ -86,7 +86,8 @@ class SheetsClient:
         entry.date_updated = today
 
         sheet = self._get_sheet()
-        sheet.append_row(entry.to_row(), value_input_option="USER_ENTERED")
+        # table_range='A1' 명시 — 시트 자동 감지 오류 방지
+        sheet.append_row(entry.to_row(), value_input_option="USER_ENTERED", table_range="A1")
         self._invalidate_cache()
         return entry
 
