@@ -885,8 +885,14 @@ async def _handle_todo_natural(update: Update, text: str):
             await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
 
         elif action == "cancel_alarms":
-            _todos.cancel_all_alarms()
-            await update.message.reply_text("🔕 모든 알람을 해제했어요. (투두 항목은 유지됩니다)")
+            cancelled = _todos.cancel_all_alarms()
+            key, markup = _undo_keyboard("↩️ 되돌리기")
+            _undo_state[key] = {"type": "restore_alarms", "alarms": cancelled}
+            n = len(cancelled)
+            await update.message.reply_text(
+                f"🔕 알람 {n}개를 해제했어요. (투두 항목은 유지됩니다)",
+                reply_markup=markup,
+            )
 
     except Exception as e:
         await update.message.reply_text(f"❌ 오류: {e}")
@@ -1137,6 +1143,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif t == "delete_memo":
             ok = _memos.delete(state["memo_id"])
             await query.edit_message_text("🗑 메모 삭제했어요." if ok else "❌ 이미 삭제됐어요.")
+
+        elif t == "restore_alarms":
+            alarms = state.get("alarms", [])
+            _todos.restore_alarms(alarms)
+            await query.edit_message_text(f"↩️ 알람 {len(alarms)}개를 복구했어요!")
 
     # ── 아카이브 검색 결과 버튼 ──
     elif data.startswith("arc:"):

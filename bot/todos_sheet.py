@@ -107,12 +107,25 @@ class TodosClient:
                 sheet.update_cell(i, 6, new_trigger_at)
                 return
 
-    def cancel_all_alarms(self):
-        """모든 미완료 투두의 trigger_at 초기화"""
+    def cancel_all_alarms(self) -> list[tuple[str, str]]:
+        """모든 미완료 투두의 trigger_at 초기화. 취소된 (id, trigger_at) 목록 반환"""
         sheet = self._get_sheet()
+        cancelled = []
         for i, row in enumerate(sheet.get_all_values()[1:], start=2):
             if row and row[0] and row[2] != "1" and len(row) > 5 and row[5]:
+                cancelled.append((row[0], row[5]))
                 sheet.update_cell(i, 6, "")
+        return cancelled
+
+    def restore_alarms(self, alarm_list: list[tuple[str, str]]):
+        """cancel_all_alarms 되돌리기: (id, trigger_at) 목록으로 복구"""
+        sheet = self._get_sheet()
+        rows = sheet.get_all_values()
+        id_to_row = {row[0]: i for i, row in enumerate(rows[1:], start=2) if row and row[0]}
+        for todo_id, trigger_at in alarm_list:
+            i = id_to_row.get(todo_id)
+            if i:
+                sheet.update_cell(i, 6, trigger_at)
 
     def find_by_text(self, text: str) -> Optional[TodoItem]:
         needle = text.lower().strip()
