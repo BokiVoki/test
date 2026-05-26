@@ -272,6 +272,8 @@ def parse_todo(user_input: str, now_kst_str: str) -> dict:
                 "trigger_at 규칙:\n"
                 "- 구체적인 시각 언급 시 → 해당 시각 (예: '내일 오전 9시' → 내일T09:00:00)\n"
                 "- 날짜만 언급 시 → 해당 날 09:00:00\n"
+                "- '이번 주 금요일' → 현재 날짜 기준 해당 주의 금요일 (현재 날짜의 요일 참고)\n"
+                "- '다음 주 월요일' → 다음 주 월요일 (7일 이상 이후)\n"
                 "- 시간/날짜 없으면 → null\n"
                 "due_date: '~까지' 마감일. trigger_at 있으면 null\n"
                 "repeat: 매일→daily, 매주→weekly, 매달→monthly\n"
@@ -397,42 +399,6 @@ def parse_cycle_message(text: str, now_str: str) -> dict:
         return json.loads(m.group())
     return {"action": "query_status", "date": now_str[:10], "note": ""}
 
-
-def parse_checkin_response(text: str) -> dict:
-    """
-    체크인 응답 파싱 (수면시간, 음수량, 집중도).
-    반환: {"sleep_hours": float|null, "water_glasses": int|null, "focus": "good|okay|bad", "note": str}
-    """
-    import re
-    client = _get_client()
-    resp = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=200,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"체크인 응답: \"{text}\"\n\n"
-                "다음 JSON만 반환하세요:\n"
-                "{\n"
-                "  \"sleep_hours\": 7.5,\n"
-                "  \"water_glasses\": 3,\n"
-                "  \"focus\": \"good\",\n"
-                "  \"note\": \"\"\n"
-                "}\n\n"
-                "규칙:\n"
-                "- sleep_hours: 수면 시간 언급 없으면 null\n"
-                "- water_glasses: 음수량 언급 없으면 null\n"
-                "- focus: 좋음/잘됨/활발 → good, 보통/그냥 → okay, 산만/힘듦/못됨/없음 → bad\n"
-                "  언급 없으면 okay\n"
-                "- note: 원문 또는 추가 내용"
-            ),
-        }],
-    )
-    raw = resp.content[0].text.strip()
-    m = re.search(r'\{.*\}', raw, re.DOTALL)
-    if m:
-        return json.loads(m.group())
-    return {"sleep_hours": None, "water_glasses": None, "focus": "okay", "note": text}
 
 
 def summarize_conversation(history: list[dict], mode: str) -> str:

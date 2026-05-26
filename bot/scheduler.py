@@ -194,15 +194,3 @@ async def check_reminders_job(context: CallbackContext):
                         )
     except Exception as e:
         logger.error(f"Cycle phase alert error: {e}")
-
-
-async def send_checkin_job(context: CallbackContext):
-    """오전(10시)/오후(15시) 체크인 알림"""
-    from . import handlers as _handlers
-    user_id = context.bot_data.get("user_id")
-    checkin_type = context.job.data.get("type", "morning")
-    if user_id:
-        try:
-            await _handlers.send_daily_checkin(context.bot, int(user_id), checkin_type)
-        except Exception as e:
-            logger.error(f"Checkin job error: {e}")

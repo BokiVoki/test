@@ -40,7 +40,6 @@ _memos: Optional[MemosClient] = None
 _inventory: Optional[InventoryClient] = None
 _intake: Optional[IntakeLogClient] = None
 _cycle: Optional[CycleClient] = None
-_pending_checkin: dict[int, tuple] = {}  # chat_id → ("morning"|"afternoon", sent_at_datetime)
 _undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
 _pending_snooze: dict[int, str] = {}  # chat_id → reminder_id (직접입력 대기 중)
 _pending_archive_memo: dict[int, str] = {}   # chat_id → entry_id (메모 입력 대기)
@@ -208,7 +207,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "**🧠 ADHD 지원**\n"
         "• `25분 집중할게` — 포모도로 타이머\n"
         "• `발표 준비 어떻게 시작해` — 과제 분해 → 투두 생성\n"
-        "08:30 기상 체크인 (수면·컨디션·물) / 14:00 오후 체크인 자동 발송\n\n"
+
 
         "**📣 자동 브리핑**\n"
         "09:00 날씨 + 오늘 할 일\n"
@@ -739,7 +738,9 @@ async def _handle_todo_natural(update: Update, text: str):
             return
 
     kst = timezone(timedelta(hours=9))
-    now_str = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
+    _now_dt = datetime.now(kst)
+    _DAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
+    now_str = _now_dt.strftime("%Y-%m-%d(%H:%M) ") + _DAY_KR[_now_dt.weekday()] + "요일"
     try:
         parsed = claude_client.parse_todo(text, now_str)
     except Exception as e:
@@ -1597,16 +1598,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
     chat_id = update.message.chat_id
-
-    # ── 체크인 응답 대기 중 (발송 후 1시간 이내만 유효) ──
-    if chat_id in _pending_checkin:
-        checkin_type, sent_at = _pending_checkin[chat_id]
-        if (_now_kst() - sent_at).total_seconds() <= 3600:
-            del _pending_checkin[chat_id]
-            await _handle_checkin_response(update, text, checkin_type)
-            return
-        else:
-            del _pending_checkin[chat_id]  # 만료 — 그냥 흘려보냄
 
     # ── 재알람 직접 입력 대기 중 ──
     if chat_id in _pending_snooze:
@@ -2577,61 +2568,6 @@ async def _handle_breakdown(update: Update, text: str):
     lines.append("\n첫 번째 것부터 시작해봐요! 💪  `/todos`")
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
-
-async def _handle_checkin_response(update: Update, text: str, checkin_type: str):
-    """오전/오후 체크인 응답 처리"""
-    kst_str = _now_kst().strftime("%Y-%m-%d %H:%M")
-    try:
-        parsed = claude_client.parse_checkin_response(text)
-    except Exception:
-        parsed = {"focus": "unknown", "note": text}
-
-    focus = parsed.get("focus", "unknown")
-    sleep_h = parsed.get("sleep_hours")
-    water = parsed.get("water_glasses")
-
-    # 기록
-    if _intake:
-        try:
-            if sleep_h is not None:
-                _intake.log("수면", int(sleep_h), 0, f"{checkin_type}체크인")
-            if water is not None:
-                _intake.log("음수", int(water), 0, f"{checkin_type}체크인")
-            _intake.log("집중체크인", 1, 0, focus)
-        except Exception:
-            pass
-
-    # 응답 메시지
-    if focus == "good":
-        reply = "👍 좋아요! 지금 집중 모드 유지해봐요. 포모도로 시작할까요? ('포모도로 시작')"
-    elif focus == "bad":
-        reply = "괜찮아요 🌱 지금 가장 작은 할 일 하나만 골라볼까요? ('투두 보여줘')"
-    else:
-        reply = "알겠어요! 기록해뒀어요 📝"
-    if water is not None and int(water) < 3:
-        reply += "\n💧 물 조금 더 챙겨요!"
-    await update.message.reply_text(reply)
-
-
-async def send_daily_checkin(bot, chat_id: int, checkin_type: str):
-    """체크인 메시지 발송 (scheduler에서 호출)"""
-    _pending_checkin[chat_id] = (checkin_type, _now_kst())
-    if checkin_type == "morning":
-        text = (
-            "🌅 **기상 체크인**\n\n"
-            "일어난 직후 간단히 알려줘:\n"
-            "1️⃣ 몇 시간 잤어?\n"
-            "2️⃣ 지금 컨디션은? (좋음/보통/별로)\n"
-            "💧 물 한 잔 마셨어?"
-        )
-    else:
-        text = (
-            "☀️ **오후 체크인**\n\n"
-            "지금 상태 알려줘:\n"
-            "1️⃣ 오늘 물 총 몇 잔?\n"
-            "2️⃣ 집중 상태는? (좋음/보통/힘듦)"
-        )
-    await bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
 
 
 async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None):
