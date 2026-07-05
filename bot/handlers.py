@@ -2602,6 +2602,10 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
     all_todos = todos_client.get_all() if todos_client else []
     undone = [t for t in all_todos if not t.done]
 
+    def _is_fixed_daily(t) -> bool:
+        """매일 반복 고정 알림 — 브리핑에서 제외"""
+        return t.repeat == "daily"
+
     # 오늘 할 일 판정
     def _is_today(t):
         today_str = today.isoformat()
@@ -2629,7 +2633,7 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
 
     if briefing_type == "morning":
         weather = _fetch_weather("Seoul")
-        today_todos = [t for t in undone if _is_today(t)]
+        today_todos = [t for t in undone if _is_today(t) and not _is_fixed_daily(t)]
 
         # 생리주기 한 줄 요약
         cycle_line = ""
@@ -2655,7 +2659,7 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
         )
 
     elif briefing_type == "evening":
-        remaining = [t for t in undone if _is_today(t)]
+        remaining = [t for t in undone if _is_today(t) and not _is_fixed_daily(t)]
         text = (
             f"🌆 **저녁 브리핑**\n\n"
             f"📋 **오늘 남은 일** ({len(remaining)}개)\n"
@@ -2663,8 +2667,8 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
         )
 
     else:  # night
-        remaining_today = [t for t in undone if _is_today(t)]
-        tomorrow_todos = [t for t in undone if _is_tomorrow(t)]
+        remaining_today = [t for t in undone if _is_today(t) and not _is_fixed_daily(t)]
+        tomorrow_todos = [t for t in undone if _is_tomorrow(t) and not _is_fixed_daily(t)]
         text = (
             f"🌙 **밤 브리핑**\n\n"
             f"📋 **오늘 남은 일** ({len(remaining_today)}개)\n"
