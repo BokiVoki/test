@@ -107,6 +107,20 @@ def summarize(source_type: str, url: str, raw: dict, user_text: str) -> dict:
     반환: {"title","summary","why","tags":[...],"hub"}
     source_type: "link" | "idea"
     """
+    # 링크인데 봇이 내용을 못 읽은 경우 (인스타/로그인 필요 사이트 등)
+    has_content = bool((raw.get("description") or "").strip() or (raw.get("text") or "").strip())
+    user_added = bool(user_text and user_text.strip() and user_text.strip() != (url or ""))
+    if source_type == "link" and not has_content and not user_added:
+        domain = re.sub(r"^https?://(www\.)?", "", url or "").split("/")[0]
+        return {
+            "title": (raw.get("title") or domain or "링크"),
+            "summary": "",
+            "why": "",
+            "tags": [],
+            "hub": "",
+            "unreadable": True,  # 내용을 못 읽음 → 자동요약 스킵
+        }
+
     if source_type == "link":
         material = (
             f"URL: {url}\n"
@@ -129,27 +143,28 @@ def summarize(source_type: str, url: str, raw: dict, user_text: str) -> dict:
         "}\n\n"
         f"내용:\n{material}"
     )
-    # 요약 품질이 중요 → 기본 Sonnet (환경변수로 조정 가능)
-    model = os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5")
-    try:
-        resp = _get_client().messages.create(
-            model=model,
-            max_tokens=600,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw_txt = resp.content[0].text.strip()
-        m = re.search(r"\{.*\}", raw_txt, re.DOTALL)
-        if m:
-            data = json.loads(m.group())
-            data.setdefault("tags", [])
-            return data
-    except Exception as e:
-        logger.warning(f"summarize 실패: {e}")
+    # 요약 품질이 중요 → 기본 Sonnet. 실패하면 Haiku로 재시도 (없는 것보단 나음)
+    primary = os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5")
+    for model in (primary, "claude-haiku-4-5"):
+        try:
+            resp = _get_client().messages.create(
+                model=model,
+                max_tokens=600,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw_txt = resp.content[0].text.strip()
+            m = re.search(r"\{.*\}", raw_txt, re.DOTALL)
+            if m:
+                data = json.loads(m.group())
+                data.setdefault("tags", [])
+                return data
+        except Exception as e:
+            logger.warning(f"summarize 실패 (model={model}): {e}")
 
-    # 폴백
+    # 최종 폴백 — URL을 요약칸에 넣지 않는다 (지저분함 방지)
     return {
-        "title": (raw.get("title") or (user_text or "메모")[:20]),
-        "summary": raw.get("description", "") or (user_text or ""),
+        "title": (raw.get("title") or "메모"),
+        "summary": (raw.get("description") or "").strip(),
         "why": "",
         "tags": [],
         "hub": "",
@@ -206,7 +221,13 @@ def build_note(source_type: str, parsed: dict, url: str = "", user_text: str = "
     # 자동 요약은 '보조'로 아래에, AI 생성임을 표시
     summary = (parsed.get("summary") or "").strip()
     why = (parsed.get("why") or "").strip()
-    if summary or why:
+    if parsed.get("unreadable"):
+        # 봇이 내용을 못 읽은 경우 (인스타/로그인 필요 사이트 등)
+        lines.append("---")
+        lines.append("_🔒 이 링크는 봇이 내용을 못 읽었어요 (로그인이 필요한 사이트일 수 있어요). "
+                     "위에 내 생각을 남겨두면 그게 기록이 돼요._")
+        lines.append("")
+    elif summary or why:
         lines.append("---")
         lines.append("### 🤖 자동 요약 (참고용)")
         if summary:
