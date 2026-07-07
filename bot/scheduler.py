@@ -166,27 +166,27 @@ async def check_reminders_job(context: CallbackContext):
     except Exception as e:
         logger.error(f"Todo alarm check error: {e}")
 
-    # ── 생리주기 단계 알림 (하루 1회, 단계 변경 시) ──
+    # ── 생리주기 단계 알림 (단계 진입일에 주기당 1회, 시트에 영구 기록) ──
     try:
         cycle_client = context.bot_data.get("cycle_client")
         if cycle_client and user_id:
             status = cycle_client.get_current_status()
             if "error" not in status:
-                today_str = date.today().isoformat()
-                phase = status.get("phase", "")
                 cycle_day = status.get("cycle_day", 0)
-                notified = context.bot_data.setdefault("phase_notified", {})
-
                 # 단계 전환 알림 (여포기 day6, 배란기 day14, 황체기 day17, PMS day21)
                 alert_days = {6: "🌱 여포기", 14: "🌸 배란기", 17: "🌙 황체기", 21: "⚠️ PMS 구간"}
-                for trigger_day, label in alert_days.items():
-                    key = f"{today_str}_{trigger_day}"
-                    if cycle_day == trigger_day and key not in notified:
-                        notified[key] = True
+                if cycle_day in alert_days:
+                    # 이번 주기에 이미 보냈는지 시트에서 확인 (재시작해도 유지 → 중복 방지)
+                    notified_days = cycle_client.get_notified_days()
+                    if cycle_day not in notified_days:
+                        cycle_client.mark_notified(cycle_day)
+                        label = alert_days[cycle_day]
                         phase_info = cycle_client.format_status(status)
-                        msg = f"{label} 시작!\n\n{phase_info}"
-                        if trigger_day == 21:
-                            msg = f"⚠️ **PMS 구간 진입** (황체기 {cycle_day}일차)\n에프람/뉴프람/인데놀 챙기세요!\n\n{phase_info}"
+                        if cycle_day == 21:
+                            msg = (f"⚠️ **PMS 구간 진입** (황체기 {cycle_day}일차)\n"
+                                   f"에프람/뉴프람/인데놀 챙기세요!\n\n{phase_info}")
+                        else:
+                            msg = f"{label} 시작!\n\n{phase_info}"
                         await context.bot.send_message(
                             chat_id=int(user_id),
                             text=msg,

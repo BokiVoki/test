@@ -18,6 +18,73 @@ logger = logging.getLogger(__name__)
 _URL_RE = re.compile(r"https?://[^\s]+")
 _client = None
 
+# 쇼핑/구매 의도 키워드 → 위시리스트로 분류
+SHOPPING_KEYWORDS = (
+    "사고싶", "사고 싶", "살까", "사야", "구매", "지름", "지를", "질러",
+    "갖고싶", "갖고 싶", "가지고싶", "위시", "장바구니", "얼마", "할인", "세일",
+    "쿠폰", "최저가", "가격", "직구", "주문", "품절",
+)
+
+
+def is_shopping(text: str) -> bool:
+    t = (text or "").lower()
+    return any(k in t for k in SHOPPING_KEYWORDS)
+
+
+def derive_tags(thought: str) -> dict:
+    """사용자가 직접 쓴 '내 생각'에서 태그/허브를 뽑는다. 반환 {"tags":[...], "hub": "..."}"""
+    if not thought or not thought.strip():
+        return {"tags": [], "hub": ""}
+    prompt = (
+        "다음은 사용자가 직접 남긴 생각/메모야. 이 사람의 관점에서 핵심을 태그로 뽑아줘. JSON만:\n"
+        '{ "tags": ["구체적 태그 2~4개 (한국어, #없이, 내용의 핵심 개념)"],'
+        ' "hub": "이 생각이 속할 큰 주제 하나 (예: 트렌드, F&B, 브랜딩)" }\n\n'
+        f"메모: {thought.strip()}"
+    )
+    model = os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5")
+    for m_name in (model, "claude-haiku-4-5"):
+        try:
+            resp = _get_client().messages.create(
+                model=m_name, max_tokens=300,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            mm = re.search(r"\{.*\}", resp.content[0].text.strip(), re.DOTALL)
+            if mm:
+                data = json.loads(mm.group())
+                data.setdefault("tags", [])
+                data.setdefault("hub", "")
+                return data
+        except Exception as e:
+            logger.warning(f"derive_tags 실패 (model={m_name}): {e}")
+    return {"tags": [], "hub": ""}
+
+
+def merge_tags_into_note(content: str, new_tags: list, new_hub: str = "") -> str:
+    """기존 노트 frontmatter의 tags에 new_tags를 합치고, hub가 비어있으면 채운다."""
+    # tags 병합
+    m = re.search(r"^tags: \[(.*)\]\s*$", content, re.MULTILINE)
+    existing = []
+    if m:
+        existing = [t.strip() for t in m.group(1).split(",") if t.strip()]
+    merged = existing[:]
+    for t in (new_tags or []):
+        t = (t or "").strip()
+        if t and t not in merged:
+            merged.append(t)
+    tags_line = "tags: [" + ", ".join(merged) + "]"
+    if m:
+        content = content[:m.start()] + tags_line + content[m.end():]
+
+    # hub 채우기 (기존에 없을 때만)
+    if new_hub and not re.search(r"^hub:", content, re.MULTILINE):
+        # tags 라인 뒤에 hub 삽입
+        content = re.sub(r"(^tags: \[.*\]\s*$)", r'\1\nhub: "' + new_hub + '"',
+                         content, count=1, flags=re.MULTILINE)
+        # 그래프 연결용 위키링크도 본문 끝에 추가
+        if f"[[{new_hub}]]" not in content:
+            content = content.rstrip() + f"\n\n관련: [[{new_hub}]]\n"
+    return content
+
 
 def _now_kst() -> datetime:
     return datetime.now(timezone(timedelta(hours=9))).replace(tzinfo=None)
@@ -169,6 +236,118 @@ def summarize(source_type: str, url: str, raw: dict, user_text: str) -> dict:
         "tags": [],
         "hub": "",
     }
+
+
+# ── 쇼핑/위시리스트 ─────────────────────────────────────────
+def parse_shopping(text: str, raw: dict, image_bytes: bytes = None) -> dict:
+    """
+    상품 정보 추출. 사진이 있으면 Claude 비전으로 화면 속 상품/가격까지 읽는다.
+    반환: {"item","price","where","reason","tags"}
+    """
+    import base64 as _b64
+
+    material = (
+        f"사용자 메모/캡션: {text or '(없음)'}\n"
+        f"링크: {raw.get('url','') if raw else ''}\n"
+        f"페이지 제목: {raw.get('title','') if raw else ''}\n"
+        f"페이지 설명: {raw.get('description','') if raw else ''}"
+    )
+    ask = (
+        "이건 사용자가 '사고 싶어서' 저장한 거야. 상품 정보를 뽑아서 JSON만 반환:\n"
+        "{\n"
+        '  "item": "상품명 (한국어, 간결히)",\n'
+        '  "price": "가격 (숫자+원, 모르면 빈 문자열)",\n'
+        '  "where": "판매처/브랜드/사이트 (모르면 빈 문자열)",\n'
+        '  "reason": "왜 사고 싶어 보이는지 한 줄 (한국어)",\n'
+        '  "tags": ["카테고리 태그 2~3개 (예: 패션, 가전, 뷰티)"]\n'
+        "}\n"
+        "사진이 있으면 사진 속 글자(상품명·가격)를 최대한 읽어줘.\n\n"
+        f"{material}"
+    )
+
+    content = []
+    if image_bytes:
+        content.append({
+            "type": "image",
+            "source": {"type": "base64", "media_type": "image/jpeg",
+                       "data": _b64.b64encode(image_bytes).decode("ascii")},
+        })
+    content.append({"type": "text", "text": ask})
+
+    model = os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5")
+    for m_name in (model, "claude-haiku-4-5"):
+        try:
+            resp = _get_client().messages.create(
+                model=m_name,
+                max_tokens=500,
+                messages=[{"role": "user", "content": content}],
+            )
+            raw_txt = resp.content[0].text.strip()
+            mm = re.search(r"\{.*\}", raw_txt, re.DOTALL)
+            if mm:
+                data = json.loads(mm.group())
+                data.setdefault("tags", [])
+                return data
+        except Exception as e:
+            logger.warning(f"parse_shopping 실패 (model={m_name}): {e}")
+
+    return {"item": (text or "사고 싶은 것")[:30], "price": "", "where": "",
+            "reason": "", "tags": ["쇼핑"]}
+
+
+def build_shopping_note(parsed: dict, url: str = "", user_text: str = "",
+                        image_embed: str = "") -> tuple[str, str]:
+    """쇼핑 위시리스트 노트 생성 → Shopping/ 폴더에 저장."""
+    now = _now_kst()
+    stamp_file = now.strftime("%Y-%m-%d_%H%M")
+    stamp_human = now.strftime("%Y-%m-%d %H:%M")
+    item = (parsed.get("item") or "사고 싶은 것").strip()
+    path = f"Shopping/{stamp_file}_{_slugify(item)}.md"
+
+    tags = parsed.get("tags") or []
+    if "쇼핑" not in tags:
+        tags = ["쇼핑"] + tags
+    tags_yaml = "[" + ", ".join(tags) + "]"
+    price = (parsed.get("price") or "").strip()
+    where = (parsed.get("where") or "").strip()
+    reason = (parsed.get("reason") or "").strip()
+
+    lines = [
+        "---",
+        "type: shopping",
+        f"created: {stamp_human}",
+        "status: 고민중",
+        f'price: "{price}"',
+        f"tags: {tags_yaml}",
+        "---",
+        "",
+        f"# 🛒 {item}",
+        "",
+        "- [ ] 살까 말까?",
+        "",
+        f"💰 가격: {price or '?'}",
+        f"🏬 어디서: {where or (url or '?')}",
+        "",
+    ]
+
+    if image_embed:
+        lines.append(f"![[{image_embed}]]")
+        lines.append("")
+
+    lines.append("## ✍️ 왜 갖고 싶어?")
+    if user_text and user_text.strip():
+        lines.append(user_text.strip())
+    elif reason:
+        lines.append(f"_{reason}_ (자동 추측)")
+    else:
+        lines.append("_(나중에 한 줄)_")
+    lines.append("")
+
+    if url:
+        lines.append(f"🔗 [상품 링크]({url})")
+        lines.append("")
+
+    return path, "\n".join(lines)
 
 
 # ── 마크다운 노트 생성 ──────────────────────────────────────

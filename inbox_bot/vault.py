@@ -99,20 +99,47 @@ def write_binary(path: str, data: bytes, commit_msg: str = "") -> str:
     return resp.json().get("content", {}).get("html_url", "")
 
 
-def list_inbox(prefix: str = "") -> list[str]:
-    """Inbox 폴더의 파일명 목록. prefix로 필터 (파일명에 포함되면 매칭)."""
+def delete_note(path: str, commit_msg: str = "") -> bool:
+    """볼트에서 파일 삭제 (위시리스트로 이동할 때 원본 인박스 노트 제거용)."""
     repo = _repo()
     branch = _branch()
-    url = f"{_API}/repos/{repo}/contents/Inbox"
+    url = f"{_API}/repos/{repo}/contents/{path}"
+    try:
+        r = requests.get(url, headers=_headers(), params={"ref": branch}, timeout=15)
+        if r.status_code != 200:
+            return False
+        sha = r.json().get("sha")
+        resp = requests.delete(
+            url, headers=_headers(),
+            json={"message": commit_msg or f"remove {path}", "sha": sha, "branch": branch},
+            timeout=20,
+        )
+        return resp.status_code == 200
+    except Exception as e:
+        logger.warning(f"노트 삭제 실패: {e}")
+        return False
+
+
+def list_folder(folder: str, prefix: str = "") -> list[str]:
+    """폴더의 .md 파일명 목록. prefix로 필터 (파일명에 포함되면 매칭)."""
+    repo = _repo()
+    branch = _branch()
+    url = f"{_API}/repos/{repo}/contents/{folder}"
     try:
         r = requests.get(url, headers=_headers(), params={"ref": branch}, timeout=15)
         if r.status_code != 200:
             return []
-        names = [item["name"] for item in r.json() if item.get("type") == "file"]
+        names = [item["name"] for item in r.json()
+                 if item.get("type") == "file" and item["name"].endswith(".md")]
     except Exception as e:
-        logger.warning(f"Inbox 목록 조회 실패: {e}")
+        logger.warning(f"{folder} 목록 조회 실패: {e}")
         return []
     if prefix:
         needle = prefix.lower()
         names = [n for n in names if needle in n.lower()]
     return sorted(names, reverse=True)
+
+
+def list_inbox(prefix: str = "") -> list[str]:
+    """Inbox 폴더의 파일명 목록. prefix로 필터."""
+    return list_folder("Inbox", prefix)

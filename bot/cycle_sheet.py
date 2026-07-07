@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import uuid
 from datetime import date, datetime, timezone, timedelta
 from typing import Optional
@@ -154,6 +155,32 @@ class CycleClient:
         )
         self._get_sheet().append_row(record.to_row())
         return True
+
+    def get_notified_days(self) -> set:
+        """이번 주기(최신 행)에서 이미 알림 보낸 단계 day 목록. note 필드에 [notified:...] 마커로 저장."""
+        latest = self.get_latest()
+        if not latest:
+            return set()
+        m = re.search(r"\[notified:([\d,]*)\]", latest.note or "")
+        if m:
+            return {int(x) for x in m.group(1).split(",") if x.strip().isdigit()}
+        return set()
+
+    def mark_notified(self, day: int) -> None:
+        """이번 주기 note 필드에 알림 발송 표시(day) 추가 — 재시작해도 유지."""
+        sheet = self._get_sheet()
+        latest = self.get_latest()
+        if not latest:
+            return
+        days = self.get_notified_days()
+        days.add(day)
+        marker = "[notified:" + ",".join(str(d) for d in sorted(days)) + "]"
+        base = re.sub(r"\s*\[notified:[\d,]*\]", "", latest.note or "").strip()
+        new_note = (base + " " + marker).strip()
+        for i, row in enumerate(sheet.get_all_values()[1:], start=2):
+            if row and row[0] == latest.id:
+                sheet.update_cell(i, 5, new_note)  # note 는 5번째 열
+                return
 
     def _estimate_cycle_length(self) -> int:
         records = self.get_all()
