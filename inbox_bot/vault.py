@@ -71,6 +71,34 @@ def write_note(path: str, content: str, commit_msg: str = "") -> str:
     return resp.json().get("content", {}).get("html_url", "")
 
 
+def write_binary(path: str, data: bytes, commit_msg: str = "") -> str:
+    """볼트 저장소에 바이너리 파일(이미지 등)을 커밋한다."""
+    repo = _repo()
+    branch = _branch()
+    url = f"{_API}/repos/{repo}/contents/{path}"
+
+    sha = None
+    try:
+        r = requests.get(url, headers=_headers(), params={"ref": branch}, timeout=15)
+        if r.status_code == 200:
+            sha = r.json().get("sha")
+    except Exception:
+        pass
+
+    body = {
+        "message": commit_msg or f"inbox: {path}",
+        "content": base64.b64encode(data).decode("ascii"),
+        "branch": branch,
+    }
+    if sha:
+        body["sha"] = sha
+
+    resp = requests.put(url, headers=_headers(), json=body, timeout=30)
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(f"이미지 저장 실패 ({resp.status_code}): {resp.text[:200]}")
+    return resp.json().get("content", {}).get("html_url", "")
+
+
 def list_inbox(prefix: str = "") -> list[str]:
     """Inbox 폴더의 파일명 목록. prefix로 필터 (파일명에 포함되면 매칭)."""
     repo = _repo()

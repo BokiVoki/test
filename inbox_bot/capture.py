@@ -173,7 +173,7 @@ def summarize(source_type: str, url: str, raw: dict, user_text: str) -> dict:
 
 # ── 마크다운 노트 생성 ──────────────────────────────────────
 def build_note(source_type: str, parsed: dict, url: str = "", user_text: str = "",
-               image_url: str = "") -> tuple[str, str]:
+               image_url: str = "", image_embed: str = "") -> tuple[str, str]:
     """
     반환: (파일경로, 마크다운 내용)
     파일경로: Inbox/2026-07-07_1430_제목.md
@@ -214,7 +214,11 @@ def build_note(source_type: str, parsed: dict, url: str = "", user_text: str = "
         lines.append("_(무엇이 나를 건드렸나? 나중에 한 줄)_")
         lines.append("")
 
-    if image_url:
+    if image_embed:
+        # 볼트에 직접 넣은 이미지 → 옵시디언 위키링크 임베드 (확실히 보임)
+        lines.append(f"![[{image_embed}]]")
+        lines.append("")
+    elif image_url:
         lines.append(f"![]({image_url})")
         lines.append("")
 

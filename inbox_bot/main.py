@@ -206,25 +206,36 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption = (update.message.caption or "").strip()
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
-    image_url = ""
+    # 사진을 볼트에 직접 넣기 (옵시디언에서 확실히 보임)
+    image_embed = ""
     try:
-        from bot import drive_client  # 기존 드라이브 업로더 재사용
-        if drive_client.is_configured():
-            photo = update.message.photo[-1]
-            tg_file = await photo.get_file()
-            buf = await tg_file.download_as_bytearray()
-            fname = f"inbox_{_now_kst().strftime('%Y%m%d_%H%M%S')}.jpg"
-            image_url = drive_client.upload_photo(bytes(buf), fname)
+        photo = update.message.photo[-1]
+        tg_file = await photo.get_file()
+        buf = await tg_file.download_as_bytearray()
+        img_name = f"inbox_{_now_kst().strftime('%Y%m%d_%H%M%S')}.jpg"
+        vault.write_binary(f"Inbox/attachments/{img_name}", bytes(buf),
+                           commit_msg=f"inbox image: {img_name}")
+        image_embed = img_name
     except Exception as e:
-        logger.warning(f"사진 업로드 실패(계속 진행): {e}")
+        logger.warning(f"사진 볼트 업로드 실패(계속 진행): {e}")
 
     try:
+        # 캡션이 있으면 제목/태그만 뽑고, 요약은 만들지 않음 (캡션 중복 방지)
         if caption:
-            parsed = capture.summarize("idea", "", {}, caption)
+            light = capture.summarize("idea", "", {}, caption)
+            parsed = {
+                "title": light.get("title") or caption[:20],
+                "summary": "",   # 캡션이 곧 '내 생각' — 중복 요약 안 함
+                "why": "",
+                "tags": light.get("tags") or ["사진"],
+                "hub": light.get("hub", ""),
+            }
         else:
             parsed = {"title": f"사진 {_now_kst().strftime('%m/%d %H:%M')}",
                       "summary": "", "why": "", "tags": ["사진"], "hub": ""}
-        path, content = capture.build_note("image", parsed, user_text=caption, image_url=image_url)
+        path, content = capture.build_note(
+            "image", parsed, user_text=caption, image_embed=image_embed,
+        )
         vault.write_note(path, content, commit_msg=f"inbox: {parsed.get('title','사진')}")
     except Exception as e:
         logger.exception("사진 캡처 실패")
@@ -235,8 +246,8 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "path": path, "content": content, "title": parsed.get("title", "사진"),
     }
     reply = "✅ 사진 저장했어요"
-    if not image_url:
-        reply += "\n(드라이브 미설정 — 이미지 링크 없이 메모만)"
+    if not image_embed:
+        reply += "\n(⚠️ 이미지 업로드는 실패 — 메모만 저장됨)"
     reply += "\n\n_이 사진에서 뭐가 눈에 들어왔어? 한 줄 남겨봐요._"
     markup = InlineKeyboardMarkup([[
         InlineKeyboardButton("✍️ 내 생각 한 줄 남기기", callback_data="annotate")
