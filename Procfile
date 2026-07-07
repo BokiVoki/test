@@ -1,2 +1,1 @@
-worker: python -m bot.main
-inbox: python -m inbox_bot.main
+worker: python start.py
