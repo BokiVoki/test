@@ -68,11 +68,13 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• 링크 → 요약 + '왜 저장했나' 한 줄\n"
         "• 생각/아이디어 → 노트로\n"
         "• 사진 → 저장 + 정리\n"
-        "• 사고싶은 거 ('살까'/'얼마' 등) → 🛒 위시리스트로\n\n"
+        "• 사고싶은 거 ('살까'/'얼마' 등) → 🛒 위시리스트로\n"
+        "• 읽고싶은 책 ('읽어볼까'/'책추천' 등) → 📚 독서 목록으로\n\n"
         "**명령어**\n"
         "• `/today` — 오늘 모은 것 보기\n"
         "• `/find 키워드` — 인박스에서 찾기\n"
-        "• `/shopping` — 사고 싶은 것 목록",
+        "• `/shopping` — 사고 싶은 것 목록\n"
+        "• `/books` — 읽고 싶은 책 목록",
         parse_mode="Markdown",
     )
 
@@ -168,6 +170,23 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     url = capture.find_url(text)
     try:
+        # 읽고싶은 책 → 독서 목록으로 (책 의도를 쇼핑보다 먼저 판정)
+        if capture.is_book(text):
+            raw = capture.fetch_link(url) if url else {}
+            if url:
+                raw["url"] = url
+            bk = capture.parse_book(text, raw)
+            path, content = capture.build_book_note(bk, url=url or "", user_text=text)
+            title = bk.get("title", "읽고 싶은 책")
+            vault.write_note(path, content, commit_msg=f"book: {title}")
+            _last_note[chat_id] = {"path": path, "content": content, "title": title}
+            author = bk.get("author", "")
+            reply = f"📚 **{title}** 읽고싶은 책에 넣었어요"
+            if author:
+                reply += f"\n✍️ {author}"
+            await update.message.reply_text(reply, parse_mode="Markdown")
+            return
+
         # 사고싶은 것 → 쇼핑 위시리스트로
         if capture.is_shopping(text):
             raw = capture.fetch_link(url) if url else {}
@@ -233,6 +252,23 @@ async def shopping_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
+async def books_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _authorized(update):
+        return
+    names = vault.list_folder("Books")
+    if not names:
+        await update.message.reply_text("아직 읽고싶은 책 목록이 비어있어요 📚")
+        return
+    lines = [f"📚 **읽고 싶은 책** ({len(names)}개)\n"]
+    for n in names[:25]:
+        title = n.replace(".md", "")
+        parts = title.split("_", 2)
+        item = parts[2].replace("_", " ") if len(parts) > 2 else title
+        date = parts[0] if parts else ""
+        lines.append(f"• {item}  _{date}_")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
 async def annotate_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update):
         return
@@ -274,6 +310,24 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         image_embed = img_name
     except Exception as e:
         logger.warning(f"사진 볼트 업로드 실패(계속 진행): {e}")
+
+    # 캡션에 책 의도가 있으면 → 바로 읽고싶은 책으로 (표지/제목/저자 읽음)
+    if caption and capture.is_book(caption):
+        try:
+            bk = capture.parse_book(caption, {}, image_bytes=buf or None)
+            path, content = capture.build_book_note(bk, user_text=caption, image_embed=image_embed)
+            title = bk.get("title", "읽고 싶은 책")
+            vault.write_note(path, content, commit_msg=f"book: {title}")
+            _last_note[chat_id] = {"path": path, "content": content, "title": title}
+            author = bk.get("author", "")
+            reply = f"📚 **{title}** 읽고싶은 책에 넣었어요"
+            if author:
+                reply += f"\n✍️ {author}"
+            await update.message.reply_text(reply, parse_mode="Markdown")
+        except Exception as e:
+            logger.exception("책 사진 저장 실패")
+            await update.message.reply_text(f"❌ 저장 실패: {e}")
+        return
 
     # 캡션에 쇼핑 의도가 있으면 → 바로 위시리스트로 (사진 속 상품/가격도 읽음)
     if caption and capture.is_shopping(caption):
@@ -323,11 +377,12 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = "✅ 사진 저장했어요"
     if not image_embed:
         reply += "\n(⚠️ 이미지 업로드는 실패 — 메모만 저장됨)"
-    reply += "\n\n_한 줄 남기거나, 사고싶은 거면 아래 버튼을 눌러요._"
-    markup = InlineKeyboardMarkup([[
-        InlineKeyboardButton("✍️ 내 생각", callback_data="annotate"),
-        InlineKeyboardButton("🛒 사고싶은 거야", callback_data="toshop"),
-    ]])
+    reply += "\n\n_한 줄 남기거나, 종류에 맞는 버튼을 눌러요._"
+    markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
+        [InlineKeyboardButton("🛒 사고싶은 거", callback_data="toshop"),
+         InlineKeyboardButton("📚 읽고싶은 책", callback_data="toread")],
+    ])
     await update.message.reply_text(reply, parse_mode="Markdown", reply_markup=markup)
 
 
@@ -370,6 +425,41 @@ async def toshop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(f"❌ 전환 실패: {e}")
 
 
+async def toread_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """일반 사진 노트를 읽고싶은 책으로 전환 (표지/제목/저자를 비전으로 읽음)."""
+    if not _authorized(update):
+        return
+    query = update.callback_query
+    await query.answer()
+    chat_id = query.message.chat_id
+    photo = _last_photo.get(chat_id)
+    if not photo:
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text("앗, 그 사진을 잊어버렸어요. 다시 보내줘요!")
+        return
+    await query.edit_message_reply_markup(reply_markup=None)
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    try:
+        bk = capture.parse_book(photo.get("caption", ""), {}, image_bytes=photo.get("bytes") or None)
+        path, content = capture.build_book_note(
+            bk, user_text=photo.get("caption", ""), image_embed=photo.get("embed", ""),
+        )
+        title = bk.get("title", "읽고 싶은 책")
+        vault.write_note(path, content, commit_msg=f"book: {title}")
+        if photo.get("inbox_path"):
+            vault.delete_note(photo["inbox_path"], commit_msg=f"move to books: {title}")
+        _last_note[chat_id] = {"path": path, "content": content, "title": title}
+        _last_photo.pop(chat_id, None)
+        author = bk.get("author", "")
+        reply = f"📚 **{title}** 읽고싶은 책으로 옮겼어요"
+        if author:
+            reply += f"\n✍️ {author}"
+        await query.message.reply_text(reply, parse_mode="Markdown")
+    except Exception as e:
+        logger.exception("책 전환 실패")
+        await query.message.reply_text(f"❌ 전환 실패: {e}")
+
+
 def main():
     token = os.getenv("INBOX_BOT_TOKEN")
     if not token:
@@ -382,9 +472,11 @@ def main():
     app.add_handler(CommandHandler("today", today_handler))
     app.add_handler(CommandHandler("find", find_handler))
     app.add_handler(CommandHandler("shopping", shopping_handler))
+    app.add_handler(CommandHandler("books", books_handler))
 
     app.add_handler(CallbackQueryHandler(annotate_callback, pattern=r"^annotate$"))
     app.add_handler(CallbackQueryHandler(toshop_callback, pattern=r"^toshop$"))
+    app.add_handler(CallbackQueryHandler(toread_callback, pattern=r"^toread$"))
     app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
 

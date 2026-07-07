@@ -31,6 +31,115 @@ def is_shopping(text: str) -> bool:
     return any(k in t for k in SHOPPING_KEYWORDS)
 
 
+# 책/독서 의도 키워드 → 읽고싶은 책 목록으로 분류
+BOOK_KEYWORDS = (
+    "읽고싶", "읽고 싶", "읽어보", "읽어볼", "읽을", "독서", "완독",
+    "책추천", "책 추천", "도서", "베스트셀러", "저자", "소설", "에세이", "북토크",
+)
+
+
+def is_book(text: str) -> bool:
+    t = (text or "").lower()
+    return any(k in t for k in BOOK_KEYWORDS)
+
+
+def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
+    """책 정보 추출. 사진이 있으면 표지/제목/저자를 비전으로 읽는다.
+    반환: {"title","author","why","tags"}"""
+    import base64 as _b64
+
+    material = (
+        f"사용자 메모/캡션: {text or '(없음)'}\n"
+        f"링크: {raw.get('url','') if raw else ''}\n"
+        f"페이지 제목: {raw.get('title','') if raw else ''}\n"
+        f"페이지 설명: {raw.get('description','') if raw else ''}"
+    )
+    ask = (
+        "이건 사용자가 '읽고 싶어서' 저장한 책 추천이야. JSON만 반환:\n"
+        "{\n"
+        '  "title": "책 제목 (한국어)",\n'
+        '  "author": "저자 (모르면 빈 문자열)",\n'
+        '  "why": "왜 읽고 싶어 보이는지/어떤 책인지 한 줄 (한국어)",\n'
+        '  "tags": ["주제 태그 2~3개 (예: 소설, 에세이, 자기계발, 브랜딩)"]\n'
+        "}\n"
+        "사진이 있으면 표지의 제목·저자 글자를 최대한 읽어줘.\n\n"
+        f"{material}"
+    )
+    content = []
+    if image_bytes:
+        content.append({
+            "type": "image",
+            "source": {"type": "base64", "media_type": "image/jpeg",
+                       "data": _b64.b64encode(image_bytes).decode("ascii")},
+        })
+    content.append({"type": "text", "text": ask})
+
+    model = os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5")
+    for m_name in (model, "claude-haiku-4-5"):
+        try:
+            resp = _get_client().messages.create(
+                model=m_name, max_tokens=500,
+                messages=[{"role": "user", "content": content}],
+            )
+            mm = re.search(r"\{.*\}", resp.content[0].text.strip(), re.DOTALL)
+            if mm:
+                data = json.loads(mm.group())
+                data.setdefault("tags", [])
+                return data
+        except Exception as e:
+            logger.warning(f"parse_book 실패 (model={m_name}): {e}")
+    return {"title": (text or "읽고 싶은 책")[:40], "author": "", "why": "", "tags": ["독서"]}
+
+
+def build_book_note(parsed: dict, url: str = "", user_text: str = "",
+                    image_embed: str = "") -> tuple[str, str]:
+    """읽고싶은 책 노트 생성 → Books/ 폴더에 저장."""
+    now = _now_kst()
+    stamp_file = now.strftime("%Y-%m-%d_%H%M")
+    stamp_human = now.strftime("%Y-%m-%d %H:%M")
+    title = (parsed.get("title") or "읽고 싶은 책").strip()
+    path = f"Books/{stamp_file}_{_slugify(title)}.md"
+
+    tags = parsed.get("tags") or []
+    if "독서" not in tags:
+        tags = ["독서"] + tags
+    tags_yaml = "[" + ", ".join(tags) + "]"
+    author = (parsed.get("author") or "").strip()
+    why = (parsed.get("why") or "").strip()
+
+    lines = [
+        "---",
+        "type: to-read",
+        f"created: {stamp_human}",
+        "status: 읽고싶음",
+        f'author: "{author}"',
+        f"tags: {tags_yaml}",
+        "---",
+        "",
+        f"# 📚 {title}",
+        "",
+        "- [ ] 읽기",
+        "",
+        f"✍️ 저자: {author or '?'}",
+        "",
+    ]
+    if image_embed:
+        lines.append(f"![[{image_embed}]]")
+        lines.append("")
+    lines.append("## 왜 읽고 싶어?")
+    if user_text and user_text.strip():
+        lines.append(user_text.strip())
+    elif why:
+        lines.append(f"_{why}_ (자동)")
+    else:
+        lines.append("_(나중에 한 줄)_")
+    lines.append("")
+    if url:
+        lines.append(f"🔗 [링크]({url})")
+        lines.append("")
+    return path, "\n".join(lines)
+
+
 def derive_tags(thought: str) -> dict:
     """사용자가 직접 쓴 '내 생각'에서 태그/허브를 뽑는다. 반환 {"tags":[...], "hub": "..."}"""
     if not thought or not thought.strip():
