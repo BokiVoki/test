@@ -63,7 +63,9 @@ def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
         '  "why": "어떤 추천인지/왜 읽고 싶은지 한 줄 (한국어)",\n'
         '  "tags": ["주제 태그 2~3개 (예: 순정만화, 에세이, 자기계발)"]\n'
         "}\n"
-        "사진 속 개별 책·만화 제목 글자를 최대한 읽어서 items에 담아줘.\n\n"
+        "사진에 여러 만화·책 표지가 격자(grid)로 있으면, 표지 하나하나를 순서대로 훑으며 "
+        "각 제목을 최대한 읽어 items에 담아. 일본어 제목이면 원제 그대로 또는 한국어 번역으로. "
+        "작거나 흐릿해도 읽히는 만큼 적고, 정말 못 읽는 것만 건너뛰어.\n\n"
         f"{material}"
     )
     content = []
@@ -75,11 +77,10 @@ def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
         })
     content.append({"type": "text", "text": ask})
 
-    model = os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5")
-    for m_name in (model, "claude-haiku-4-5"):
+    for m_name in _model_chain(bool(image_bytes)):
         try:
             resp = _get_client().messages.create(
-                model=m_name, max_tokens=500,
+                model=m_name, max_tokens=700,
                 messages=[{"role": "user", "content": content}],
             )
             mm = re.search(r"\{.*\}", resp.content[0].text.strip(), re.DOTALL)
@@ -226,6 +227,13 @@ def _get_client() -> anthropic.Anthropic:
 def find_url(text: str):
     m = _URL_RE.search(text or "")
     return m.group(0) if m else None
+
+
+def _model_chain(has_image: bool) -> list:
+    """사진이 있으면 OCR에 강한 비전 모델 우선, 없으면 요약 모델."""
+    if has_image:
+        return [os.getenv("INBOX_VISION_MODEL", "claude-opus-4-8"), "claude-sonnet-5"]
+    return [os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5"), "claude-haiku-4-5"]
 
 
 def _slugify(title: str) -> str:
@@ -400,8 +408,7 @@ def parse_shopping(text: str, raw: dict, image_bytes: bytes = None) -> dict:
         })
     content.append({"type": "text", "text": ask})
 
-    model = os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5")
-    for m_name in (model, "claude-haiku-4-5"):
+    for m_name in _model_chain(bool(image_bytes)):
         try:
             resp = _get_client().messages.create(
                 model=m_name,
