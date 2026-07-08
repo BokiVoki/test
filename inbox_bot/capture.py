@@ -232,7 +232,7 @@ def find_url(text: str):
 def _model_chain(has_image: bool) -> list:
     """사진이 있으면 OCR에 강한 비전 모델 우선, 없으면 요약 모델."""
     if has_image:
-        return [os.getenv("INBOX_VISION_MODEL", "claude-opus-4-8"), "claude-sonnet-5"]
+        return [os.getenv("INBOX_VISION_MODEL", "claude-sonnet-5"), "claude-haiku-4-5"]
     return [os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5"), "claude-haiku-4-5"]
 
 
