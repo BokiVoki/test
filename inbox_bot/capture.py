@@ -55,14 +55,15 @@ def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
         f"페이지 설명: {raw.get('description','') if raw else ''}"
     )
     ask = (
-        "이건 사용자가 '읽고 싶어서' 저장한 책 추천이야. JSON만 반환:\n"
+        "이건 사용자가 저장한 책/만화 추천이야. **사용자 캡션이 이 저장의 의도**니 그걸 최우선으로 반영해. JSON만 반환:\n"
         "{\n"
-        '  "title": "책 제목 (한국어)",\n'
-        '  "author": "저자 (모르면 빈 문자열)",\n'
-        '  "why": "왜 읽고 싶어 보이는지/어떤 책인지 한 줄 (한국어)",\n'
-        '  "tags": ["주제 태그 2~3개 (예: 소설, 에세이, 자기계발, 브랜딩)"]\n'
+        '  "title": "노트 제목 — 사용자 캡션을 핵심으로. 사진 속 프로그램명/시리즈명/코너명(예: 9コマ)은 제목으로 쓰지 마.",\n'
+        '  "author": "저자 또는 추천인 (예: 이해인 편집장). 모르면 빈 문자열",\n'
+        '  "items": ["사진/내용에 여러 책·만화가 있으면 각 제목을 배열로. 한 권이면 그 하나. 없으면 빈 배열 []"],\n'
+        '  "why": "어떤 추천인지/왜 읽고 싶은지 한 줄 (한국어)",\n'
+        '  "tags": ["주제 태그 2~3개 (예: 순정만화, 에세이, 자기계발)"]\n'
         "}\n"
-        "사진이 있으면 표지의 제목·저자 글자를 최대한 읽어줘.\n\n"
+        "사진 속 개별 책·만화 제목 글자를 최대한 읽어서 items에 담아줘.\n\n"
         f"{material}"
     )
     content = []
@@ -85,10 +86,14 @@ def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
             if mm:
                 data = json.loads(mm.group())
                 data.setdefault("tags", [])
+                data.setdefault("items", [])
+                # 캡션이 있으면 제목이 화면 시리즈명으로 새지 않게 보정
+                if text and text.strip() and not (data.get("title") or "").strip():
+                    data["title"] = text.strip()
                 return data
         except Exception as e:
             logger.warning(f"parse_book 실패 (model={m_name}): {e}")
-    return {"title": (text or "읽고 싶은 책")[:40], "author": "", "why": "", "tags": ["독서"]}
+    return {"title": (text or "읽고 싶은 책")[:40], "author": "", "why": "", "items": [], "tags": ["독서"]}
 
 
 def build_book_note(parsed: dict, url: str = "", user_text: str = "",
@@ -106,6 +111,7 @@ def build_book_note(parsed: dict, url: str = "", user_text: str = "",
     tags_yaml = "[" + ", ".join(tags) + "]"
     author = (parsed.get("author") or "").strip()
     why = (parsed.get("why") or "").strip()
+    items = [i.strip() for i in (parsed.get("items") or []) if i and i.strip()]
 
     lines = [
         "---",
@@ -118,11 +124,22 @@ def build_book_note(parsed: dict, url: str = "", user_text: str = "",
         "",
         f"# 📚 {title}",
         "",
-        "- [ ] 읽기",
-        "",
-        f"✍️ 저자: {author or '?'}",
-        "",
     ]
+    if author:
+        lines.append(f"✍️ {author}")
+        lines.append("")
+
+    # 여러 권 추천이면 각각 체크박스, 한 권이면 단일 체크
+    if len(items) > 1:
+        lines.append("## 추천 목록")
+        for it in items:
+            lines.append(f"- [ ] {it}")
+        lines.append("")
+    else:
+        single = items[0] if items else title
+        lines.append(f"- [ ] {single}")
+        lines.append("")
+
     if image_embed:
         lines.append(f"![[{image_embed}]]")
         lines.append("")
@@ -362,9 +379,9 @@ def parse_shopping(text: str, raw: dict, image_bytes: bytes = None) -> dict:
         f"페이지 설명: {raw.get('description','') if raw else ''}"
     )
     ask = (
-        "이건 사용자가 '사고 싶어서' 저장한 거야. 상품 정보를 뽑아서 JSON만 반환:\n"
+        "이건 사용자가 '사고 싶어서' 저장한 거야. **사용자 캡션이 저장 의도**니 상품명은 캡션을 최우선으로 반영해. JSON만 반환:\n"
         "{\n"
-        '  "item": "상품명 (한국어, 간결히)",\n'
+        '  "item": "상품명 (한국어, 간결히). 사진 속 앱/사이트 UI 문구나 광고 문구는 상품명으로 쓰지 마.",\n'
         '  "price": "가격 (숫자+원, 모르면 빈 문자열)",\n'
         '  "where": "판매처/브랜드/사이트 (모르면 빈 문자열)",\n'
         '  "reason": "왜 사고 싶어 보이는지 한 줄 (한국어)",\n'
@@ -396,6 +413,9 @@ def parse_shopping(text: str, raw: dict, image_bytes: bytes = None) -> dict:
             if mm:
                 data = json.loads(mm.group())
                 data.setdefault("tags", [])
+                # 캡션이 있는데 상품명이 비면 캡션으로 보정
+                if text and text.strip() and not (data.get("item") or "").strip():
+                    data["item"] = text.strip()
                 return data
         except Exception as e:
             logger.warning(f"parse_shopping 실패 (model={m_name}): {e}")
