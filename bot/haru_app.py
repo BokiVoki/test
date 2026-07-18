@@ -14,7 +14,20 @@ import uuid
 
 import requests
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+def _base_url(raw: str) -> str:
+    """SUPABASE_URL 을 정규화한다.
+
+    실수로 뒤에 '/rest/v1' 또는 '/rest/v1/' 를 붙여 넣어도 떼어내서
+    프로젝트 루트 URL(https://xxxx.supabase.co)만 남긴다.
+    """
+    u = (raw or "").strip().rstrip("/")
+    for suffix in ("/rest/v1", "/rest"):
+        if u.endswith(suffix):
+            u = u[: -len(suffix)].rstrip("/")
+    return u
+
+
+SUPABASE_URL = _base_url(os.getenv("SUPABASE_URL", ""))
 SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 OWNER_ID = os.getenv("HARU_OWNER_ID", "")
 WORKSPACE = os.getenv("HARU_WORKSPACE", "일")
