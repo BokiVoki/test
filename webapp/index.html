@@ -98,6 +98,10 @@
   .subitem .sdel{margin-left:auto;color:var(--faint);cursor:pointer;font-size:11px;opacity:0}.subitem:hover .sdel{opacity:1}
   .subnew{margin-top:5px;width:100%;max-width:320px;font:inherit;font-size:12.5px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);padding:4px 0;outline:none}
   .subnew:focus{border-bottom-color:var(--accent)}
+  .nest{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;padding-left:8px;border:0;background:none;font-family:inherit}tr:hover .nest{opacity:.7}.nest:hover{color:var(--accent)}
+  .nestbar{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:9px 14px;border-radius:5px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;gap:10px}
+  .nestbar button{margin-left:auto;font:inherit;font-size:12px;background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:4px;padding:4px 11px;cursor:pointer}
+  body.nesting #todayBody tr:not(.subrow):not(.grp):hover,body.nesting #projAll .pjbody tbody tr:not(.subrow):hover{outline:2px solid var(--accent);outline-offset:-2px;cursor:pointer}
   .calnav{display:flex;align-items:center;gap:12px;margin-bottom:12px}
   .calnav h3{margin:0;font-size:16px}.calnav button{font:inherit;background:none;border:1px solid var(--line-2);border-radius:4px;color:var(--muted);cursor:pointer;padding:3px 9px}
   .calnav span{font-size:12px;color:var(--faint)}
@@ -184,6 +188,7 @@
       <button class="logout" id="logout">로그아웃</button>
     </div>
   </header>
+  <div id="nestBar" class="nestbar hidden"></div>
   <div id="dash">
     <div class="capture"><input id="capIn" placeholder="머릿속에 있는 거, 일단 여기 다 던져…" aria-label="빠른 캡처"><button id="capBtn">담기</button></div>
     <p class="caphint">뭐든 던지면 <a class="goPocket" id="goPocket">주머니(<span id="capCount">0</span>)</a>에 쌓여요 · 대시보드엔 진짜 할일만</p>
@@ -235,6 +240,7 @@
   var hasArchive=false;  // DB에 doneat/archived 컬럼이 있으면 true (마이그레이션 후)
   var hasSubs=false;     // DB에 subs 컬럼이 있으면 true
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
+  var nestSource=null;   // '하위로 이동' 중인 할일 id
   var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null};
 
   // prefs (local only)
@@ -333,7 +339,7 @@
     return '<tr class="subrow" data-id="'+t.id+'"><td colspan="'+cols+'"><div class="subwrap">'+items+'<input class="subnew" data-act="subnew" placeholder="+ 하위 항목 추가 후 Enter" aria-label="하위 항목 추가"></div></td></tr>';}
   function taskRow(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
     return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td>'+
-      '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'')+(t.memoId?'<a class="memolink" data-act="memo">📝</a>':'')+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'')+'<span class="rowdel" data-act="del">✕</span></td>'+
+      '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'')+(t.memoId?'<a class="memolink" data-act="memo">📝</a>':'')+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td>'+
       '<td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td>'+
       '<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,6);}
   function renderToday(){
@@ -370,7 +376,7 @@
     if(!names.length){wrap.innerHTML='<p class="empty">프로젝트가 아직 없어요 · 주머니에서 항목을 프로젝트로 분류해보세요</p>';return;}
     wrap.innerHTML=names.map(function(name){var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox';});
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
-        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'')+'<span class="rowdel" data-act="del">✕</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,5);}).join('');
+        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,5);}).join('');
       return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+items.length+'</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';}).join('');}
   function renderDone(){var wrap=document.getElementById('doneList');var list=wsArchived().slice().sort(function(a,b){return (b.doneAt||'')<(a.doneAt||'')?-1:((b.doneAt||'')>(a.doneAt||'')?1:0);});
     document.getElementById('doneCount').textContent=list.length+'개';
@@ -411,7 +417,17 @@
   document.getElementById('capIn2').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this);});
 
   function rowId(el){var tr=el.closest('tr[data-id]');return tr?tr.dataset.id:null;}
-  document.addEventListener('click',function(e){var el=e.target.closest('[data-act]');if(!el||!appEl.contains(el))return;var act=el.dataset.act,id=rowId(el),t=id?tById(id):null;
+  function startNest(id){var t=tById(id);if(!t)return;nestSource=id;document.body.classList.add('nesting');var bar=document.getElementById('nestBar');bar.innerHTML='<span><b>「'+esc(t.title)+'」</b> 을(를) 하위로 넣을 <b>대상 할일</b>을 탭하세요</span><button id="nestCancel">취소</button>';bar.classList.remove('hidden');}
+  function cancelNest(){nestSource=null;document.body.classList.remove('nesting');document.getElementById('nestBar').classList.add('hidden');}
+  function doNest(childId,parentId){var child=tById(childId),parent=tById(parentId);if(!child||!parent||childId===parentId){cancelNest();return;}
+    parent.subs=parent.subs||[];var add=[{t:child.title,d:!!child.done}];if(child.subs&&child.subs.length)child.subs.forEach(function(x){add.push({t:x.t,d:!!x.d});});
+    var baseLen=parent.subs.length;add.forEach(function(x){parent.subs.push(x);});expanded[parent.id]=true;putTodo(parent);
+    var idx=state.todos.indexOf(child);if(idx>=0)state.todos.splice(idx,1);delTodoDB(child.id);
+    cancelNest();renderAll();
+    showToast('「'+child.title+'」을(를) 「'+parent.title+'」 하위로 넣었어요',function(){parent.subs.length=baseLen;putTodo(parent);state.todos.push(child);putTodo(child);renderAll();});}
+  document.addEventListener('click',function(e){
+    if(nestSource){var cx=e.target.closest('#nestCancel');if(cx){cancelNest();return;}var tr=e.target.closest('tr[data-id]');if(tr&&!tr.classList.contains('subrow')){if(tr.dataset.id===nestSource){cancelNest();}else{doNest(nestSource,tr.dataset.id);}return;}return;}
+    var el=e.target.closest('[data-act]');if(!el||!appEl.contains(el))return;var act=el.dataset.act,id=rowId(el),t=id?tById(id):null;
     if(act==='done'&&t){if(t.repeat!=='none'){t.lastDone=todayISO();}else{t.done=!t.done;t.doneAt=t.done?new Date().toISOString():'';}putTodo(t);renderAll();}
     else if(act==='archive'&&t){t.archived=true;putTodo(t);renderAll();showToast('완료함으로 옮겼어요',function(){t.archived=false;putTodo(t);renderAll();});}
     else if(act==='unarchive'&&t){t.archived=false;t.done=false;t.doneAt='';t.bucket=t.project?'active':'inbox';putTodo(t);renderAll();showToast('되돌렸어요 · 체크 해제된 상태로 돌아가요');}
@@ -419,6 +435,7 @@
     else if(act==='subtog'&&t){expanded[t.id]=!expanded[t.id];renderToday();renderProjects();}
     else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();}}
     else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();}}
+    else if(act==='nest'&&t){startNest(t.id);}
     else if(act==='proj-del'){e.stopPropagation();delProject(el.dataset.proj);return;}
     else if(act==='del'&&t){removeTodo(t,'삭제했어요');}
     else if(act==='cad'&&t){var seq=['daily','weekly','monthly','none'];t.repeat=seq[(seq.indexOf(t.repeat)+1)%4];if(t.repeat==='weekly'&&!t.repDay)t.repDay='1';if(t.repeat==='monthly')t.repDay='last';putTodo(t);renderToday();showToast(t.repeat==='none'?'반복 해제':'반복: '+repLabel(t));}
