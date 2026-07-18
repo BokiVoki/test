@@ -241,7 +241,7 @@
   function showApp(){authEl.classList.add('hidden');appEl.classList.remove('hidden');loadData();}
   function showAuth(){appEl.classList.add('hidden');authEl.classList.remove('hidden');}
   document.getElementById('loginBtn').addEventListener('click',doLogin);
-  document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+  document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)doLogin();});
   document.getElementById('signupBtn').addEventListener('click',doSignup);
   document.getElementById('logout').addEventListener('click',function(){try{localStorage.removeItem('haru_creds');}catch(e){}sb.auth.signOut().then(function(){location.reload();});});
   function creds(){return {email:document.getElementById('email').value.trim(),password:document.getElementById('pw').value};}
@@ -356,9 +356,9 @@
 
   function capture(inp){var v=inp.value.trim();if(!v)return;var t={id:uid(),title:v,ws:state.ws,project:'',due:'',today:false,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:'inbox',lastDone:'',memoId:null,sort:0};state.todos.unshift(t);putTodo(t);inp.value='';renderInbox();showToast('주머니에 담았어요');}
   document.getElementById('capBtn').addEventListener('click',function(){capture(document.getElementById('capIn'));});
-  document.getElementById('capIn').addEventListener('keydown',function(e){if(e.key==='Enter')capture(this);});
+  document.getElementById('capIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this);});
   document.getElementById('capBtn2').addEventListener('click',function(){capture(document.getElementById('capIn2'));});
-  document.getElementById('capIn2').addEventListener('keydown',function(e){if(e.key==='Enter')capture(this);});
+  document.getElementById('capIn2').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this);});
 
   function rowId(el){var tr=el.closest('tr[data-id]');return tr?tr.dataset.id:null;}
   document.addEventListener('click',function(e){var el=e.target.closest('[data-act]');if(!el||!appEl.contains(el))return;var act=el.dataset.act,id=rowId(el),t=id?tById(id):null;
