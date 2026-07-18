@@ -8,7 +8,7 @@
 | 시스템 | 무엇 | 어디 사는가 | 상태 |
 |---|---|---|---|
 | **일정 비서봇** | 텔레그램 봇. 할일/알람/리마인더/영양제 재고/생리주기/브리핑 | Railway (BOT_ROLE 미설정) + Google Sheets | ✅ 운영 중 |
-| **인박스봇** | 텔레그램 봇. 링크/생각/사진/쇼핑/책을 옵시디언 볼트로 자동 정리 | Railway (BOT_ROLE=inbox) + GitHub 볼트 | ⚠️ 코드 완성, 볼트/환경변수 연결 아직 안 함 |
+| **인박스봇** | 텔레그램 봇. 링크/생각/사진/쇼핑/책을 옵시디언 볼트로 자동 정리 | Railway (BOT_ROLE=inbox) + GitHub 볼트 `BokiVoki/obsidian-vault`(Private) | ✅ 운영 중 (Books/Inbox/Shopping 폴더에 커밋 중). 남은 건 옵시디언 앱에서 볼트 열기(Obsidian Git) |
 | **하루(Haru) 웹앱** | 개인 업무 할일 대시보드 (미니멀·딥그린) | Netlify + Supabase | ✅ 운영 중 (`webapp/index.html`) |
 
 ---
@@ -45,11 +45,8 @@
   - `✍️ 내 생각` 버튼 → 사용자 말에서 태그 재추출, 캡션 우선
   - 명령어: `/today` `/find` `/shopping` `/books`
   - 비전 모델: `INBOX_VISION_MODEL` (기본 sonnet, opus로 올릴 수 있음)
-- **⚠️ 연결 남은 것 (TODO)**
-  - 옵시디언 볼트용 **새 GitHub repo** 생성
-  - GitHub **Personal Access Token** (Contents: Read/write)
-  - Railway에 두 번째 서비스 + 환경변수: `INBOX_BOT_TOKEN`, `VAULT_REPO`, `GITHUB_TOKEN`, `BOT_ROLE=inbox`, (공유: `ANTHROPIC_API_KEY`, `TELEGRAM_USER_ID`)
-  - 옵시디언 앱에 **Obsidian Git** 플러그인으로 볼트 연결
+- **연결 상태**: ✅ 이미 연결됨. 볼트 = `BokiVoki/obsidian-vault`(Private), Railway 두 번째 서비스(`BOT_ROLE=inbox`)에서 커밋 중. env: `INBOX_BOT_TOKEN`, `VAULT_REPO`, `GITHUB_TOKEN`, `BOT_ROLE=inbox`, (공유: `ANTHROPIC_API_KEY`, `TELEGRAM_USER_ID`)
+  - **남은 것**: 옵시디언 앱에서 그 볼트를 열어 보기 (GitHub Desktop으로 clone → 폴더를 볼트로 열기 → 자동 업데이트는 **Obsidian Git** 플러그인)
 
 ## 3. 하루(Haru) 웹앱 (`webapp/index.html`)
 
