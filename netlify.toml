@@ -1,4 +1,7 @@
-# 하루 웹앱 배포 설정 (Netlify가 이 repo를 볼 때 webapp 폴더를 사이트로 서빙)
+# 하루 웹앱 배포 설정
+# base를 webapp으로 두어 Netlify가 저장소 루트의 파이썬 파일(requirements.txt 등)을
+# 건드리지 않게 함. webapp 안엔 index.html만 있어서 빌드/설치 없이 그대로 서빙.
 [build]
-  publish = "webapp"
+  base = "webapp"
+  publish = "."
   command = ""
