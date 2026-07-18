@@ -17,6 +17,7 @@ from .intake_sheet import IntakeLogClient
 from .cycle_sheet import CycleClient, PHASE_INFO
 from . import claude_client
 from . import figma_client
+from . import haru_app
 from .mode_prompts import MODE_NAMES
 from .instagram_prompts import INSTAGRAM_AGENT_NAMES
 
@@ -1598,6 +1599,20 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
     chat_id = update.message.chat_id
+
+    # ── "앱 ..." → 하루 웹앱 주머니로 바로 던지기 ──
+    # "앱" 뒤 공백(또는 줄바꿈) 다음의 모든 내용을 주머니(inbox)에 넣는다.
+    if text[:1] == "앱" and len(text) > 1 and text[1] in (" ", "\n", "\t"):
+        pocket_text = text[1:].strip()
+        if not pocket_text:
+            await update.message.reply_text("📥 주머니에 넣을 내용을 '앱' 뒤에 적어주세요. (예: 앱 사과 사기)")
+            return
+        try:
+            haru_app.add_to_pocket(pocket_text)
+            await update.message.reply_text(f"📥 주머니에 담았어요\n· {pocket_text}")
+        except Exception as e:
+            await update.message.reply_text(f"❌ 주머니 저장 실패: {e}")
+        return
 
     # ── 재알람 직접 입력 대기 중 ──
     if chat_id in _pending_snooze:
