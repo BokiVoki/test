@@ -1,0 +1,4 @@
+# 하루 웹앱 배포 설정 (Netlify가 이 repo를 볼 때 webapp 폴더를 사이트로 서빙)
+[build]
+  publish = "webapp"
+  command = ""

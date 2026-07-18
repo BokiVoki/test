@@ -1,0 +1,93 @@
+# 프로젝트 메모리 — 희은의 개인 시스템
+
+> 이 문서는 "항상 기억하는 뇌"예요. 새 Claude 세션은 이 파일을 자동으로 읽어요.
+> 무언가 바뀌면 이 문서도 같이 업데이트해요.
+
+## 한눈에 — 지금 뭐가 돌아가고 있나
+
+| 시스템 | 무엇 | 어디 사는가 | 상태 |
+|---|---|---|---|
+| **일정 비서봇** | 텔레그램 봇. 할일/알람/리마인더/영양제 재고/생리주기/브리핑 | Railway (BOT_ROLE 미설정) + Google Sheets | ✅ 운영 중 |
+| **인박스봇** | 텔레그램 봇. 링크/생각/사진/쇼핑/책을 옵시디언 볼트로 자동 정리 | Railway (BOT_ROLE=inbox) + GitHub 볼트 | ⚠️ 코드 완성, 볼트/환경변수 연결 아직 안 함 |
+| **하루(Haru) 웹앱** | 개인 업무 할일 대시보드 (미니멀·딥그린) | Netlify + Supabase | ✅ 운영 중 (`webapp/index.html`) |
+
+---
+
+## 1. 일정 비서봇 (`bot/`)
+
+- **엔트리**: `python start.py` → `BOT_ROLE` 미설정이면 `bot.main` 실행
+- **저장소**: Google Sheets (`SPREADSHEET_ID`) — Archive / Todos / Reminders / Memos / Inventory / IntakeLog / Cycle 워크시트
+- **LLM**: Anthropic API (`ANTHROPIC_API_KEY`) — Haiku로 자연어 파싱
+- **주요 기능**
+  - 투두/알람: 자연어로 추가, 반복(daily/weekly/monthly/after:N분), 재알람, 완료
+  - 아카이브: 책/웹툰/영화 등 기록, `/검색` 인라인 버튼, 사진 메모(Drive)
+  - 영양제 재고 + 복용 기록, 생리주기 추적 + 단계별 알림(PMS 등)
+  - 브리핑: 아침/저녁/밤 (매일 고정 알림은 브리핑에서 제외됨)
+- **최근 수정/버그픽스**
+  - `cancel_alarms` 오발동 방지 (프롬프트 강화)
+  - "모든 알람 취소"에 되돌리기 버튼 추가
+  - 체크인 기능 **삭제됨**
+  - 날짜/요일 파싱 정확도 개선 (요일 문자열 전달)
+  - 브리핑에서 `repeat=daily` 고정 항목 숨김
+  - PMS 단계 알림 중복 발송 버그 → Cycle 시트 note에 `[notified:...]` 영구 기록으로 해결
+
+## 2. 인박스봇 (`inbox_bot/`)
+
+- **엔트리**: `python start.py` + `BOT_ROLE=inbox` → `inbox_bot.main`
+- **개념**: 명령어 없이 뭐든 던지면 자동으로 옵시디언 볼트(GitHub repo)에 `.md` 노트로 정리. 명령어일 때만 다른 처리.
+- **동작**
+  - 링크 → 본문 fetch + Claude(Sonnet) 요약 + "왜 저장" 한 줄. 인스타 등 못 읽는 사이트는 안내 문구
+  - 생각/텍스트 → 아이디어 노트
+  - 사진 → 볼트 `Inbox/attachments/`에 직접 커밋 + `![[...]]` 임베드
+  - 쇼핑("살까/얼마") → `Shopping/` 위시리스트 (비전으로 상품/가격 읽음)
+  - 책("읽어볼까/책추천") → `Books/` 읽고싶은 책 (표지 제목/저자 읽음, 여러 권이면 목록)
+  - `✍️ 내 생각` 버튼 → 사용자 말에서 태그 재추출, 캡션 우선
+  - 명령어: `/today` `/find` `/shopping` `/books`
+  - 비전 모델: `INBOX_VISION_MODEL` (기본 sonnet, opus로 올릴 수 있음)
+- **⚠️ 연결 남은 것 (TODO)**
+  - 옵시디언 볼트용 **새 GitHub repo** 생성
+  - GitHub **Personal Access Token** (Contents: Read/write)
+  - Railway에 두 번째 서비스 + 환경변수: `INBOX_BOT_TOKEN`, `VAULT_REPO`, `GITHUB_TOKEN`, `BOT_ROLE=inbox`, (공유: `ANTHROPIC_API_KEY`, `TELEGRAM_USER_ID`)
+  - 옵시디언 앱에 **Obsidian Git** 플러그인으로 볼트 연결
+
+## 3. 하루(Haru) 웹앱 (`webapp/index.html`)
+
+- **스택**: 단일 HTML 파일 + Supabase (DB+Auth) + Netlify 호스팅. 빌드 없음.
+- **디자인**: 미니멀·샤프, 딥 포레스트 그린 단일 포인트(`#2C6A46`/dark `#5FB088`), 엑셀st 표, 라이트/다크.
+- **탭**: 대시보드 / 주머니·프로젝트 / 캘린더 / 메모
+  - **대시보드**: 빠른 담기 + 오늘의 집중(자동 우선순위 + 가용시간) + 마감 임박. 진짜 할일만.
+  - **주머니·프로젝트**: 주머니(inbox) 분류(오늘/프로젝트/나중/메모/버림) + 프로젝트 아코디언
+  - **캘린더**: 월 그리드, 드래그로 마감일 변경
+  - **메모**: 애플 메모st, 폴더, 할일 연결(📝)
+- **우선순위 점수**: `중요도*25 + 마감임박도(지남100/오늘·내일60/3일내30) + 빠른완수(≤20분)10`
+- **Supabase**
+  - Project URL: `https://mfgiesampazjzgfliuje.supabase.co`
+  - Publishable key(공개용, 앱에 하드코딩 OK): `sb_publishable_QBlLIrJ8coqH3I-Ij-Q7SA_OUB7KVwV`
+  - ⚠️ secret key는 절대 코드/문서에 넣지 말 것
+  - 테이블: `todos`, `memos` (RLS `owner=auth.uid()`)
+  - Auth: email+password (Confirm email 꺼둠)
+- **호스팅**: Netlify. 자동배포는 이 repo `webapp/` 폴더 연결 (아래 참고).
+- **데이터**: 현재 빈 상태로 시작. 예전 러버블 CSV(todos 300개)는 원하면 Supabase Table Editor로 Import 가능.
+
+---
+
+## 배포 / 인프라 메모
+
+- **Railway**: 봇 2개(일정봇 / 인박스봇). Procfile `worker: python start.py`, `BOT_ROLE`로 구분.
+- **Netlify**: 하루 웹앱. `webapp/index.html`을 publish. GitHub 연결 시 push→자동배포.
+- **Google**: `GOOGLE_CREDENTIALS_JSON`(서비스계정), `GOOGLE_DRIVE_FOLDER_ID`(사진), `SPREADSHEET_ID`.
+- **개발 브랜치**: `claude/content-archive-bot-xv3nx` (봇 개발용).
+
+## 자주 하는 작업 (how-to)
+
+- **웹앱 고치기**: `webapp/index.html` 수정 → push → Netlife 자동 반영 (GitHub 연결 후)
+- **봇 고치기**: `bot/` 또는 `inbox_bot/` 수정 → push → Railway 자동 재배포
+- **메모리 갱신**: 뭔가 구조가 바뀌면 이 `CLAUDE.md`도 같이 고칠 것
+
+## 다음 할 일 (백로그)
+
+1. 하루 웹앱 GitHub↔Netlify 자동배포 연결 (진행 중)
+2. 인박스봇 볼트/Railway 연결
+3. 텔레그램 → 하루 웹앱 주머니로 던지기 연동
+4. 예전 CSV 300개 Supabase로 옮기기 (원할 때)
+5. 메모 → 옵시디언 실제 내보내기
