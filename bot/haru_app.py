@@ -82,3 +82,37 @@ def add_to_pocket(title: str, ws: str | None = None) -> None:
     )
     if resp.status_code >= 300:
         raise RuntimeError(f"주머니 저장 실패 ({resp.status_code}): {resp.text[:200]}")
+
+
+def list_due(cutoff_iso: str) -> list[dict]:
+    """마감일이 cutoff_iso(YYYY-MM-DD) 이하인, 안 끝난·완료함 아닌 할일 목록.
+
+    브리핑용. 실패해도 예외 없이 빈 리스트를 돌려준다(브리핑을 깨지 않기 위해).
+    반환: [{'title','due','project','ws'} ...] due 오름차순.
+    """
+    if not is_configured():
+        return []
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/todos",
+            headers={
+                "apikey": SERVICE_KEY,
+                "Authorization": f"Bearer {SERVICE_KEY}",
+            },
+            params=[
+                ("select", "title,due,project,ws"),
+                ("owner", f"eq.{OWNER_ID}"),
+                ("done", "eq.false"),
+                ("archived", "eq.false"),
+                ("due", "not.is.null"),
+                ("due", f"lte.{cutoff_iso}"),
+                ("order", "due.asc"),
+            ],
+            timeout=15,
+        )
+        if resp.status_code >= 300:
+            return []
+        data = resp.json()
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []

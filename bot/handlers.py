@@ -1614,6 +1614,11 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ 주머니 저장 실패: {e}")
         return
 
+    # ── "마감" → 하루앱 마감 임박 할일 즉시 확인 ──
+    if text in ("마감", "마감?", "하루마감", "마감임박", "마감확인"):
+        await _send_haru_deadlines(update)
+        return
+
     # ── 재알람 직접 입력 대기 중 ──
     if chat_id in _pending_snooze:
         reminder_id = _pending_snooze.pop(chat_id)
@@ -2585,6 +2590,48 @@ async def _handle_breakdown(update: Update, text: str):
 
 
 
+async def _send_haru_deadlines(update):
+    """하루앱(Supabase) 마감 임박(밀림/오늘/내일) 할일을 즉시 보여준다."""
+    if not haru_app.is_configured():
+        await update.message.reply_text(
+            "하루앱 연결이 안 돼 있어요. Railway에 SUPABASE_URL / "
+            "SUPABASE_SERVICE_KEY / HARU_OWNER_ID 를 넣어주세요."
+        )
+        return
+    today = _now_kst().date()
+    tomorrow = today + timedelta(days=1)
+    ts, tos = today.isoformat(), tomorrow.isoformat()
+    items = haru_app.list_due(tos)
+    over = [d for d in items if (d.get("due") or "")[:10] < ts]
+    td = [d for d in items if (d.get("due") or "")[:10] == ts]
+    tm = [d for d in items if (d.get("due") or "")[:10] == tos]
+
+    def fmt(x):
+        out = []
+        for d in x[:15]:
+            pj = f" · {d.get('project')}" if d.get("project") else ""
+            out.append(f"• {d.get('title','')}{pj} (~{(d.get('due') or '')[5:10]})")
+        return "\n".join(out)
+
+    if not (over or td or tm):
+        await update.message.reply_text("🗓 마감 임박 할일이 없어요 🎉")
+        return
+    parts = ["🗓 **하루앱 마감**"]
+    if over:
+        parts.append(f"⚠️ 밀림 ({len(over)})\n" + fmt(over))
+    if td:
+        parts.append(f"오늘 ({len(td)})\n" + fmt(td))
+    if tm:
+        parts.append(f"내일 ({len(tm)})\n" + fmt(tm))
+    await update.message.reply_text("\n\n".join(parts), parse_mode="Markdown")
+
+
+async def deadlines_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _auth(update):
+        return
+    await _send_haru_deadlines(update)
+
+
 async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None):
     """브리핑 발송: morning / evening / night"""
     from .scheduler import _fetch_weather
@@ -2616,6 +2663,45 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
 
     all_todos = todos_client.get_all() if todos_client else []
     undone = [t for t in all_todos if not t.done]
+
+    # ── 하루앱(Supabase) 마감 임박 할일 — 설정돼 있으면 브리핑에 덧붙임 ──
+    def _fmt_h(items):
+        lines = []
+        for d in items[:10]:
+            pj = f" · {d.get('project')}" if d.get("project") else ""
+            due = d.get("due") or ""
+            lines.append(f"• {d.get('title','')}{pj} (~{due[5:10]})")
+        extra = len(items) - 10
+        if extra > 0:
+            lines.append(f"  … 외 {extra}개")
+        return "\n".join(lines)
+
+    haru_over, haru_today, haru_tom = [], [], []
+    try:
+        if haru_app.is_configured():
+            ts, tos = today.isoformat(), tomorrow.isoformat()
+            for d in haru_app.list_due(tos):
+                dd = (d.get("due") or "")[:10]
+                if dd < ts:
+                    haru_over.append(d)
+                elif dd == ts:
+                    haru_today.append(d)
+                elif dd == tos:
+                    haru_tom.append(d)
+    except Exception:
+        pass
+
+    def _haru_block(include_tomorrow=False):
+        if not (haru_over or haru_today or (include_tomorrow and haru_tom)):
+            return ""
+        b = "\n\n🗓 **하루앱 마감**"
+        if haru_over:
+            b += f"\n⚠️ 밀림 ({len(haru_over)})\n" + _fmt_h(haru_over)
+        if haru_today:
+            b += f"\n오늘 ({len(haru_today)})\n" + _fmt_h(haru_today)
+        if include_tomorrow and haru_tom:
+            b += f"\n내일 ({len(haru_tom)})\n" + _fmt_h(haru_tom)
+        return b
 
     def _is_fixed_daily(t) -> bool:
         """매일 반복 고정 알림 — 브리핑에서 제외"""
@@ -2691,5 +2777,7 @@ async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None
             f"📋 **내일 할 일** ({len(tomorrow_todos)}개)\n"
             f"{_fmt_todos(tomorrow_todos)}"
         )
+
+    text += _haru_block(include_tomorrow=(briefing_type == "night"))
 
     await bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")

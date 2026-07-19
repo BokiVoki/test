@@ -111,6 +111,7 @@ def main():
     app.add_handler(CommandHandler("migrate_reminders", handlers.migrate_reminders_handler))
 
     # 투두리스트
+    app.add_handler(CommandHandler("deadlines", handlers.deadlines_handler))
     app.add_handler(CommandHandler("todos", handlers.todos_handler))
     app.add_handler(CommandHandler("todo_done", handlers.todo_done_handler))
     app.add_handler(CommandHandler("todo_del", handlers.todo_del_handler))
