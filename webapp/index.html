@@ -112,6 +112,7 @@
   .fcdue{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:6px}
   .flowcard.next .fcdue{color:var(--accent)}.flowcard.done .fcdue{opacity:.85}
   .pjflow{cursor:pointer;font-size:12px;padding:0 5px;opacity:0}.pjsec:hover .pjflow{opacity:.9}
+  .pjren{cursor:pointer;font-size:12px;padding:0 4px;opacity:0}.pjsec:hover .pjren{opacity:.9}
   .projflow{padding:6px 2px 12px;overflow-x:auto}
   .flowstage{min-width:148px;border:1px solid var(--line-2);border-radius:8px;display:flex;flex-direction:column}
   .flowstage.isnew{border-style:dashed;opacity:.9}
@@ -304,10 +305,11 @@
   function saveCreds(c){try{localStorage.setItem('haru_creds',JSON.stringify(c));}catch(e){}}
   function loadCreds(){try{return JSON.parse(localStorage.getItem('haru_creds')||'null');}catch(e){return null;}}
   var DAY=['일','월','화','수','목','금','토'], FOLDERS=['전체','업무','아이디어','한강','개인'];
-  var undoStack=null;
+  var undoHist=[];
   var hasArchive=false;  // DB에 doneat/archived 컬럼이 있으면 true (마이그레이션 후)
   var hasSubs=false;     // DB에 subs 컬럼이 있으면 true
   var hasDep=false;      // DB에 dep 컬럼이 있으면 true (프로젝트 순서도 의존성)
+  var hasMemoUpd=false;  // memos에 updated 컬럼이 있으면 true (정렬용)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var flowShownProj={};  // 프로젝트별 인라인 순서도 표시 여부 (세션 한정)
   var flowShownTodo={};  // 할일별(하위항목 순서도) 인라인 표시 여부 (세션 한정)
@@ -333,17 +335,19 @@
   function normSubs(arr){return (Array.isArray(arr)?arr:[]).map(function(s){return {t:s.t||'',d:!!s.d,id:s.id||sid(),due:s.due||'',stage:(typeof s.stage==='number'?s.stage:0)};});}
   function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}if(hasDep){r.dep=(typeof t.stage==='number'?t.stage:0);}return r;}
   function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),stage:(typeof r.dep==='number'?r.dep:0)};}
-  function rowM(m){return {id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};}
-  function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||''};}
+  function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;return r;}
+  function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',updated:r.updated||''};}
   function putTodo(t){sb.from('todos').upsert(rowT(t)).then(function(r){if(r.error)console.warn('todo',r.error.message);});}
   function delTodoDB(id){sb.from('todos').delete().eq('id',id).then(function(){});}
-  function putMemo(m){sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
+  function putMemo(m){m.updated=new Date().toISOString();sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
   function putSettings(){if(!state.uid)return;sb.from('settings').upsert({owner:state.uid,data:state.settings},{onConflict:'owner'}).then(function(r){if(r.error)console.warn('settings',r.error.message);});}
 
   // toast
   var toast=document.getElementById('toast'),toastMsg=document.getElementById('toastMsg'),toastUndo=document.getElementById('toastUndo'),tHide;
-  function showToast(msg,undo){toastMsg.textContent=msg;toastUndo.classList.toggle('hidden',!undo);undoStack=undo||null;toast.classList.add('show');clearTimeout(tHide);tHide=setTimeout(function(){toast.classList.remove('show');},undo?4000:1500);}
-  toastUndo.addEventListener('click',function(){if(undoStack){undoStack();undoStack=null;toast.classList.remove('show');renderAll();}});
+  function showToast(msg,undo){toastMsg.textContent=msg;if(undo)undoHist.push(undo);toastUndo.classList.toggle('hidden',!undo);toast.classList.add('show');clearTimeout(tHide);tHide=setTimeout(function(){toast.classList.remove('show');},undo?4000:1500);}
+  function doUndo(){if(!undoHist.length){showToast('되돌릴 게 없어요');return;}var fn=undoHist.pop();try{fn();}catch(e){}toast.classList.remove('show');renderAll();showToast('되돌렸어요');}
+  toastUndo.addEventListener('click',doUndo);
+  document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&(e.key==='z'||e.key==='Z')&&!e.shiftKey&&!e.altKey){var t=e.target,tag=(t.tagName||'').toLowerCase();if(t.isContentEditable||tag==='input'||tag==='textarea')return;e.preventDefault();doUndo();}});
   function svg(){return '<svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
 
   // ===== AUTH =====
@@ -374,11 +378,12 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
       hasDep=!(res[5]&&res[5].error);      // dep 컬럼이 있으면 프로젝트 순서도 저장 켜짐
+      hasMemoUpd=!(res[6]&&res[6].error);  // memos.updated 있으면 최신순 정렬 저장 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -452,7 +457,7 @@
     wrap.innerHTML=names.map(function(name){var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox';}).sort(function(a,b){var sa=(a.stage||0)||1e9,sb=(b.stage||0)||1e9;return sa!==sb?sa-sb:(a.sort||0)-(b.sort||0);});
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
         return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span>'+((t.stage||0)>0?'<span class="stbadge" title="순서도 단계">'+t.stage+'</span>':'')+'<span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+subTogHtml(t)+(((t.subs||[]).length>0)?'<button class="rowbtn" data-act="row-flow" data-node="'+t.id+'" title="하위 순서도 보기">🔀</button>':'')+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로">🔁</button>')+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,5)+(((t.subs||[]).length>0&&flowShownTodo[t.id])?'<tr class="flowsubrow" data-id="'+t.id+'"><td colspan="5"><div class="rowflow" data-id="'+t.id+'"></div></td></tr>':'');}).join('');
-      return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+items.length+'</span><span class="pjflow" data-act="proj-flow" data-proj="'+esc(name)+'" title="순서도 보기">🔀</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+rows+'</tbody></table><div class="projflow'+(flowShownProj[name]?'':' hidden')+'" data-proj="'+esc(name)+'"></div></div></div>';}).join('');
+      return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+items.length+'</span><span class="pjflow" data-act="proj-flow" data-proj="'+esc(name)+'" title="순서도 보기">🔀</span><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+rows+'</tbody></table><div class="projflow'+(flowShownProj[name]?'':' hidden')+'" data-proj="'+esc(name)+'"></div></div></div>';}).join('');
     [].forEach.call(wrap.querySelectorAll('.projflow'),function(div){var nm=div.dataset.proj;if(!flowShownProj[nm])return;var pm=projectFlowModel(nm);if(!pm.nodes.length){div.innerHTML='<p class="empty" style="padding:6px">할일이 없어요</p>';return;}renderFlowBoard(pm,flowStatus(pm.nodes),div,true);});
     [].forEach.call(wrap.querySelectorAll('.rowflow'),function(div){var id=div.dataset.id;var pm=todoFlowModel(id);if(!pm||!pm.nodes.length){div.innerHTML='<p class="empty" style="padding:6px">하위 항목이 없어요</p>';return;}renderFlowBoard(pm,flowStatus(pm.nodes),div,true);});}
   function renderDone(){var wrap=document.getElementById('doneList');var list=wsArchived().slice().sort(function(a,b){return (b.doneAt||'')<(a.doneAt||'')?-1:((b.doneAt||'')>(a.doneAt||'')?1:0);});
@@ -468,7 +473,7 @@
       c.innerHTML=h;cg.appendChild(c);}}
   function renderMemos(){var mf=document.getElementById('mfolders');
     mf.innerHTML=FOLDERS.map(function(f){var cnt=f==='전체'?state.memos.length:state.memos.filter(function(m){return m.folder===f;}).length;return '<button data-f="'+f+'"'+(f===state.curFolder?' aria-selected="true"':'')+'>'+f+(f==='전체'?'':' '+cnt)+'</button>';}).join('');
-    var list=state.memos.filter(function(m){return state.curFolder==='전체'||m.folder===state.curFolder;});
+    var list=state.memos.filter(function(m){return state.curFolder==='전체'||m.folder===state.curFolder;}).sort(function(a,b){return (b.updated||'').localeCompare(a.updated||'');});
     document.getElementById('mlist').innerHTML=list.map(function(m){return '<div class="mitem" data-id="'+m.id+'"'+(state.curMemo===m.id?' aria-selected="true"':'')+'><div class="mt">'+esc(m.title||'제목 없음')+'</div><div class="mp">'+esc((m.body||'').replace(/\n/g,' ').slice(0,42)||'내용 없음')+'</div>'+(m.link?'<div class="ml">🔗 '+esc(m.link)+'</div>':'')+'</div>';}).join('')||'<div class="empty">메모 없음</div>';
     document.getElementById('mfolsel').innerHTML=FOLDERS.slice(1).map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
@@ -665,6 +670,12 @@
     else if(act==='nest'&&t){startNest(t.id);}
     else if(act==='flow-dist'){flowDistribute();return;}
     else if(act==='proj-flow'){e.stopPropagation();var pfn=el.dataset.proj;flowShownProj[pfn]=!flowShownProj[pfn];renderProjects();return;}
+    else if(act==='proj-rename'){e.stopPropagation();var oldn=el.dataset.proj,nn=(prompt('프로젝트 이름 변경',oldn)||'').trim();if(!nn||nn===oldn)return;
+      state.todos.filter(function(x){return x.ws===state.ws&&x.project===oldn;}).forEach(function(x){x.project=nn;putTodo(x);});
+      if(state.settings.projOrder&&state.settings.projOrder[state.ws]){state.settings.projOrder[state.ws]=state.settings.projOrder[state.ws].map(function(n){return n===oldn?nn:n;});putSettings();}
+      if(flowShownProj[oldn]){flowShownProj[nn]=true;delete flowShownProj[oldn];}
+      if(state.flowSel&&state.flowSel.type==='project'&&state.flowSel.key===oldn)state.flowSel.key=nn;
+      renderAll();showToast('프로젝트 이름을 바꿨어요');return;}
     else if(act==='row-flow'){var rfid=el.dataset.node;flowShownTodo[rfid]=!flowShownTodo[rfid];renderProjects();return;}
     else if(act==='proj-del'){e.stopPropagation();delProject(el.dataset.proj);return;}
     else if(act==='del'&&t){removeTodo(t,'삭제했어요');}
