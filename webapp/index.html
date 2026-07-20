@@ -98,6 +98,7 @@
   .subitem .sdel{margin-left:auto;color:var(--faint);cursor:pointer;font-size:11px;opacity:0}.subitem:hover .sdel{opacity:1}
   .subnew{margin-top:5px;width:100%;max-width:320px;font:inherit;font-size:12.5px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);padding:4px 0;outline:none}
   .subnew:focus{border-bottom-color:var(--accent)}
+  .subitem.flash{background:var(--accent-wash);outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px;transition:background .2s}
   .nest{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;padding-left:8px;border:0;background:none;font-family:inherit}tr:hover .nest{opacity:.7}.nest:hover{color:var(--accent)}
   .nestbar{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:9px 14px;border-radius:5px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;gap:10px}
   .nestbar button{margin-left:auto;font:inherit;font-size:12px;background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:4px;padding:4px 11px;cursor:pointer}
@@ -428,7 +429,7 @@
     if(tHits.length){html+='<div class="sgrp">할일 '+tHits.length+'</div>'+tHits.slice(0,80).map(function(t){
       var subm=(t.subs||[]).filter(function(x){return norm(x.t).indexOf(q)>=0;}).map(function(x){return x.t;});
       var sub=subm.length?'<span class="ssub">↳ '+esc(subm.join(', '))+'</span>':'';
-      return '<div class="sitem" data-kind="todo" data-id="'+t.id+'"><span class="stt2'+(t.done?' done':'')+'">'+esc(t.title)+'</span>'+sub+'<span class="stag">'+esc(t.ws)+' · '+esc(locLabel(t))+'</span>'+(t.due?'<span class="sdue">~'+mmdd(t.due)+'</span>':'')+'</div>';}).join('');}
+      return '<div class="sitem" data-kind="todo" data-id="'+t.id+'"'+(subm.length?' data-sub="1"':'')+'><span class="stt2'+(t.done?' done':'')+'">'+esc(t.title)+'</span>'+sub+'<span class="stag">'+esc(t.ws)+' · '+esc(locLabel(t))+'</span>'+(t.due?'<span class="sdue">~'+mmdd(t.due)+'</span>':'')+'</div>';}).join('');}
     if(mHits.length){html+='<div class="sgrp">메모 '+mHits.length+'</div>'+mHits.slice(0,80).map(function(m){
       return '<div class="sitem" data-kind="memo" data-id="'+m.id+'"><span class="stt2">'+esc(m.title||'제목 없음')+'</span><span class="stag">📝 '+esc(m.folder||'')+'</span></div>';}).join('');}
     if(!tHits.length&&!mHits.length)html='<p class="empty">검색 결과 없음</p>';
@@ -445,10 +446,19 @@
   document.getElementById('searchView').addEventListener('click',function(e){var it=e.target.closest('.sitem');if(!it)return;var kind=it.dataset.kind,id=it.dataset.id;
     if(kind==='memo'){state.curMemo=id;switchTab('memo');renderMemos();return;}
     var t=tById(id);if(!t)return;
+    var viaSub=it.dataset.sub==='1',qn=norm(state.q);
     if(t.ws!==state.ws){state.ws=t.ws;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});savePrefs();}
-    var target=t.archived?'done':((t.bucket==='inbox'||t.bucket==='later'||t.project)?'proj':'dash');
+    // 하위 항목이 보이는 뷰(오늘/프로젝트)로 보내고 부모를 펼침
+    var target;
+    if(viaSub){expanded[t.id]=true;target=(t.today||isRepeatDueToday(t))?'dash':(t.project?'proj':'dash');}
+    else{target=t.archived?'done':((t.bucket==='inbox'||t.bucket==='later'||t.project)?'proj':'dash');}
     renderAll();switchTab(target);
-    if(target==='proj'&&t.project){var sec=document.querySelector('.pjsec[data-proj="'+String(t.project).replace(/"/g,'\\"')+'"]');if(sec)sec.scrollIntoView({block:'center'});}});
+    if(target==='proj'&&t.project){var sec=document.querySelector('.pjsec[data-proj="'+String(t.project).replace(/"/g,'\\"')+'"]');if(sec)sec.scrollIntoView({block:'center'});}
+    if(viaSub){var cont=document.getElementById(target==='proj'?'projAll':'todayBody');
+      setTimeout(function(){var sr=cont.querySelector('.subrow[data-id="'+id+'"]');if(!sr){renderAll();sr=cont.querySelector('.subrow[data-id="'+id+'"]');}if(!sr)return;
+        var hit=null;sr.querySelectorAll('.subitem').forEach(function(el){if(!hit&&norm(el.textContent).indexOf(qn)>=0)hit=el;});
+        (hit||sr).scrollIntoView({block:'center'});
+        if(hit){hit.classList.add('flash');setTimeout(function(){hit.classList.remove('flash');},1700);}},60);}});
   document.getElementById('goPocket').addEventListener('click',function(){switchTab('proj');});
   document.getElementById('hours').addEventListener('input',function(){state.hours=+this.value||0;savePrefs();renderToday();});
 
