@@ -120,6 +120,8 @@
   .flowrowline{display:flex;align-items:center;gap:4px;flex-wrap:wrap;overflow-x:auto}
   .flowrowline .flowcard{cursor:default;white-space:nowrap}
   #todayFlow{margin:4px 0 8px}
+  .rowbtn{font:inherit;font-size:11px;color:var(--faint);background:none;border:0;cursor:pointer;opacity:0;padding-left:7px}tr:hover .rowbtn{opacity:.7}.rowbtn:hover{color:var(--accent)}
+  .sdue2{font-family:var(--mono);font-size:10.5px;color:var(--faint);cursor:pointer;margin-left:auto;opacity:0;padding:0 4px}.subitem:hover .sdue2{opacity:1}.sdue2.has{opacity:.9;color:var(--accent)}
   .nest{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;padding-left:8px;border:0;background:none;font-family:inherit}tr:hover .nest{opacity:.7}.nest:hover{color:var(--accent)}
   .nestbar{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:9px 14px;border-radius:5px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;gap:10px}
   .nestbar button{margin-left:auto;font:inherit;font-size:12px;background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:4px;padding:4px 11px;cursor:pointer}
@@ -226,7 +228,7 @@
   <div id="nestBar" class="nestbar hidden"></div>
   <div id="searchView" class="hidden"></div>
   <div id="dash">
-    <div class="capture"><input id="capIn" placeholder="머릿속에 있는 거, 일단 여기 다 던져…" aria-label="빠른 캡처"><button id="capBtn">담기</button></div>
+    <div class="capture"><input id="capIn" placeholder="머릿속에 있는 거, 일단 여기 다 던져…" aria-label="빠른 캡처"><button id="capBtn">담기</button><button id="capToday" class="btn-s" title="오늘의 집중으로 바로">오늘</button></div>
     <p class="caphint">뭐든 던지면 <a class="goPocket" id="goPocket">주머니(<span id="capCount">0</span>)</a>에 쌓여요 · 대시보드엔 진짜 할일만</p>
     <section class="blk">
       <div class="bhead"><h2>오늘의 집중</h2><div class="r">오늘 <input class="hours" id="hours" type="number" min="0" max="16" value="4">시간 <span class="budget" id="budget"></span> <button class="btn-s" id="flowToggle" style="margin-left:8px">🔀 흐름</button> <button class="btn-s hidden" id="archAll" data-act="archive-all"></button></div></div>
@@ -377,7 +379,7 @@
     if(t.repeat==='weekly')return String(d.getDay())===String(t.repDay||'1');
     if(t.repeat==='monthly'){var last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return (t.repDay==='last')?d.getDate()===last:d.getDate()===(+t.repDay||1);}
     return false;}
-  function repLabel(t){return {daily:'매일',weekly:'매주',monthly:'월말'}[t.repeat]||'';}
+  function repLabel(t){if(t.repeat==='daily')return '매일';if(t.repeat==='weekly')return '매주 '+(DAY[+t.repDay]||'')+'요일';if(t.repeat==='monthly')return t.repDay==='last'?'매월 말일':'매월 '+t.repDay+'일';return '';}
   function priority(t){var s=t.imp*25,d=daysTo(t.due);if(d!==null){if(d<0)s+=100;else if(d<=1)s+=60;else if(d<=3)s+=30;}if(t.est&&t.est<=20)s+=10;return s;}
   function dots(n){return '●●●'.slice(0,n);}
 
@@ -385,11 +387,11 @@
     if(s.length){var dn=s.filter(function(x){return x.d;}).length;return '<button class="subtog" data-act="subtog">'+(open?'▾':'▸')+' '+dn+'/'+s.length+'</button>';}
     return '<button class="subtog subadd0" data-act="subtog" title="하위 항목 추가">＋하위</button>';}
   function subRowHtml(t,cols){if(!expanded[t.id])return '';var s=t.subs||[];
-    var items=s.map(function(x,i){return '<div class="subitem'+(x.d?' d':'')+'"><span class="sck" data-act="subck" data-i="'+i+'" role="checkbox" tabindex="0">'+svg()+'</span><span class="stt" data-act="subedit" data-i="'+i+'">'+esc(x.t)+'</span><span class="sdel" data-act="subdel" data-i="'+i+'">✕</span></div>';}).join('');
+    var items=s.map(function(x,i){return '<div class="subitem'+(x.d?' d':'')+'"><span class="sck" data-act="subck" data-i="'+i+'" role="checkbox" tabindex="0">'+svg()+'</span><span class="stt" data-act="subedit" data-i="'+i+'">'+esc(x.t)+'</span><span class="sdue2'+(x.due?' has':'')+'" data-act="subdue" data-i="'+i+'">'+(x.due?'~'+mmdd(x.due):'＋날짜')+'</span><span class="sdel" data-act="subdel" data-i="'+i+'">✕</span></div>';}).join('');
     return '<tr class="subrow" data-id="'+t.id+'"><td colspan="'+cols+'"><div class="subwrap">'+items+'<input class="subnew" data-act="subnew" placeholder="+ 하위 항목 추가 후 Enter" aria-label="하위 항목 추가"></div></td></tr>';}
   function taskRow(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
     return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td>'+
-      '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'')+(t.memoId?'<a class="memolink" data-act="memo">📝</a>':'')+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td>'+
+      '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로 설정">🔁</button>')+(t.memoId?'<a class="memolink" data-act="memo">📝</a>':'')+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td>'+
       '<td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td>'+
       '<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,6);}
   function renderToday(){
@@ -427,7 +429,7 @@
     if(!names.length){wrap.innerHTML='<p class="empty">프로젝트가 아직 없어요 · 주머니에서 항목을 프로젝트로 분류해보세요</p>';return;}
     wrap.innerHTML=names.map(function(name){var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox';});
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
-        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,5);}).join('');
+        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로">🔁</button>')+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,5);}).join('');
       return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+items.length+'</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';}).join('');}
   function renderDone(){var wrap=document.getElementById('doneList');var list=wsArchived().slice().sort(function(a,b){return (b.doneAt||'')<(a.doneAt||'')?-1:((b.doneAt||'')>(a.doneAt||'')?1:0);});
     document.getElementById('doneCount').textContent=list.length+'개';
@@ -571,9 +573,10 @@
   document.getElementById('hours').addEventListener('input',function(){state.hours=+this.value||0;savePrefs();renderToday();});
   document.getElementById('flowToggle').addEventListener('click',function(){state.showTodayFlow=!state.showTodayFlow;this.setAttribute('aria-pressed',state.showTodayFlow);savePrefs();renderToday();});
 
-  function capture(inp){var v=inp.value.trim();if(!v)return;var t={id:uid(),title:v,ws:state.ws,project:'',due:'',today:false,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:'inbox',lastDone:'',memoId:null,sort:0};state.todos.unshift(t);putTodo(t);inp.value='';renderInbox();showToast('주머니에 담았어요');}
+  function capture(inp,toToday){var v=inp.value.trim();if(!v)return;var t={id:uid(),title:v,ws:state.ws,project:'',due:'',today:!!toToday,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:toToday?'active':'inbox',lastDone:'',memoId:null,sort:0,subs:[],stage:0,doneAt:'',archived:false};state.todos.unshift(t);putTodo(t);inp.value='';if(toToday){renderAll();showToast('오늘의 집중에 담았어요');}else{renderInbox();showToast('주머니에 담았어요');}}
   document.getElementById('capBtn').addEventListener('click',function(){capture(document.getElementById('capIn'));});
-  document.getElementById('capIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this);});
+  document.getElementById('capToday').addEventListener('click',function(){capture(document.getElementById('capIn'),true);});
+  document.getElementById('capIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this,e.shiftKey);});
   document.getElementById('capBtn2').addEventListener('click',function(){capture(document.getElementById('capIn2'));});
   document.getElementById('capIn2').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this);});
 
@@ -599,7 +602,12 @@
     else if(act==='nest'&&t){startNest(t.id);}
     else if(act==='proj-del'){e.stopPropagation();delProject(el.dataset.proj);return;}
     else if(act==='del'&&t){removeTodo(t,'삭제했어요');}
-    else if(act==='cad'&&t){var seq=['daily','weekly','monthly','none'];t.repeat=seq[(seq.indexOf(t.repeat)+1)%4];if(t.repeat==='weekly'&&!t.repDay)t.repDay='1';if(t.repeat==='monthly')t.repDay='last';putTodo(t);renderToday();showToast(t.repeat==='none'?'반복 해제':'반복: '+repLabel(t));}
+    else if(act==='cad'&&t){var seq=['daily','weekly','monthly','none'];t.repeat=seq[(seq.indexOf(t.repeat)+1)%4];
+      if(t.repeat==='weekly'){var wd=prompt('매주 무슨 요일? (0=일 · 1=월 · … · 6=토)',t.repDay||'1');if(wd!==null&&/^[0-6]$/.test((wd||'').trim()))t.repDay=(wd).trim();else if(!t.repDay)t.repDay='1';}
+      if(t.repeat==='monthly'){var md=prompt('매월 며칠? (1~31, 또는 last=말일)',t.repDay||'last');if(md!==null&&(md||'').trim())t.repDay=(md).trim();else if(!t.repDay)t.repDay='last';}
+      putTodo(t);renderAll();showToast(t.repeat==='none'?'반복 해제':'고정업무: '+repLabel(t));}
+    else if(act==='toggle-today'&&t){t.today=!t.today;if(t.today)t.bucket='active';putTodo(t);renderAll();showToast(t.today?'오늘의 집중에 넣었어요':'오늘에서 뺐어요');}
+    else if(act==='subdue'&&t){var di=+el.dataset.i;if(t.subs&&t.subs[di]){var cur=t.subs[di].due?mmdd(t.subs[di].due):'';var v=prompt('하위 항목 날짜 (예: 8/5, 비우면 없음)',cur);if(v!==null){t.subs[di].due=parseDue(v);putTodo(t);renderToday();renderProjects();}}return;}
     else if(act==='imp'&&t){t.imp=(t.imp%3)+1;putTodo(t);renderAll();}
     else if(act==='memo'&&t&&t.memoId){state.curMemo=t.memoId;switchTab('memo');renderMemos();}
     else if(act==='t-today'&&t){t.bucket='active';t.today=true;putTodo(t);renderInbox();renderToday();showToast('오늘의 집중에 넣었어요');}
