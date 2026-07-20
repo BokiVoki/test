@@ -102,6 +102,17 @@
   .nestbar{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:9px 14px;border-radius:5px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;gap:10px}
   .nestbar button{margin-left:auto;font:inherit;font-size:12px;background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:4px;padding:4px 11px;cursor:pointer}
   body.nesting #todayBody tr:not(.subrow):not(.grp):hover,body.nesting #projAll .pjbody tbody tr:not(.subrow):hover{outline:2px solid var(--accent);outline-offset:-2px;cursor:pointer}
+  .searchbar{display:flex;gap:8px;align-items:center;margin-bottom:16px}
+  .searchbar input{flex:1;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line-2);border-radius:5px;background:none;color:var(--text);outline:none}
+  .searchbar input:focus{border-color:var(--accent)}
+  .searchbar #qClear{font:inherit;font-size:13px;color:var(--faint);background:none;border:1px solid var(--line-2);border-radius:5px;padding:8px 11px;cursor:pointer}
+  .sgrp{font-size:10.5px;color:var(--faint);font-weight:600;letter-spacing:.03em;padding:16px 4px 6px;border-bottom:1px solid var(--line)}
+  .sitem{display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid var(--line);cursor:pointer}
+  .sitem:hover{background:var(--accent-wash)}
+  .sitem .stt2{font-size:14px}.sitem .stt2.done{text-decoration:line-through;color:var(--faint)}
+  .sitem .ssub{font-size:11px;color:var(--faint)}
+  .sitem .stag{font-size:11px;color:var(--faint);margin-left:auto;white-space:nowrap}
+  .sitem .sdue{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
   .calnav{display:flex;align-items:center;gap:12px;margin-bottom:12px}
   .calnav h3{margin:0;font-size:16px}.calnav button{font:inherit;background:none;border:1px solid var(--line-2);border-radius:4px;color:var(--muted);cursor:pointer;padding:3px 9px}
   .calnav span{font-size:12px;color:var(--faint)}
@@ -188,7 +199,9 @@
       <button class="logout" id="logout">로그아웃</button>
     </div>
   </header>
+  <div class="searchbar"><input id="q" placeholder="🔍 전체 검색 — 할일·하위·프로젝트·메모 (띄어쓰기 무시)" aria-label="전체 검색"><button id="qClear" class="hidden" title="지우기">✕</button></div>
   <div id="nestBar" class="nestbar hidden"></div>
+  <div id="searchView" class="hidden"></div>
   <div id="dash">
     <div class="capture"><input id="capIn" placeholder="머릿속에 있는 거, 일단 여기 다 던져…" aria-label="빠른 캡처"><button id="capBtn">담기</button></div>
     <p class="caphint">뭐든 던지면 <a class="goPocket" id="goPocket">주머니(<span id="capCount">0</span>)</a>에 쌓여요 · 대시보드엔 진짜 할일만</p>
@@ -241,7 +254,7 @@
   var hasSubs=false;     // DB에 subs 컬럼이 있으면 true
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var nestSource=null;   // '하위로 이동' 중인 할일 id
-  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null};
+  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'dash',q:''};
 
   // prefs (local only)
   function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
@@ -399,14 +412,43 @@
       document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';}
     else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';}}
   function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}});}
-  function renderAll(){syncLinks();renderToday();renderDue();renderInbox();renderProjects();renderCal();renderMemos();renderDone();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderInbox();renderProjects();renderCal();renderMemos();renderDone();if(state.q)runSearch();}
+  // ===== 전체 검색 (띄어쓰기 무시) =====
+  function norm(s){return (s||'').replace(/\s+/g,'').toLowerCase();}
+  function locLabel(t){if(t.archived)return '완료함';if(t.bucket==='inbox')return '주머니';if(t.bucket==='later')return '나중';if(t.today||isRepeatDueToday(t))return '오늘';if(t.project)return t.project;return '할일';}
+  function runSearch(){
+    var q=norm(state.q),sv=document.getElementById('searchView');
+    document.getElementById('qClear').classList.toggle('hidden',!state.q);
+    if(!q){sv.classList.add('hidden');for(var k in panels)panels[k].classList.toggle('hidden',k!==state.tab);return;}
+    for(var k2 in panels)panels[k2].classList.add('hidden');
+    sv.classList.remove('hidden');
+    var tHits=state.todos.filter(function(t){var subhit=(t.subs||[]).map(function(x){return x.t;}).join(' ');return norm(t.title+' '+subhit+' '+(t.project||'')).indexOf(q)>=0;});
+    var mHits=state.memos.filter(function(m){return norm((m.title||'')+' '+(m.body||'')).indexOf(q)>=0;});
+    var html='';
+    if(tHits.length){html+='<div class="sgrp">할일 '+tHits.length+'</div>'+tHits.slice(0,80).map(function(t){
+      var subm=(t.subs||[]).filter(function(x){return norm(x.t).indexOf(q)>=0;}).map(function(x){return x.t;});
+      var sub=subm.length?'<span class="ssub">↳ '+esc(subm.join(', '))+'</span>':'';
+      return '<div class="sitem" data-kind="todo" data-id="'+t.id+'"><span class="stt2'+(t.done?' done':'')+'">'+esc(t.title)+'</span>'+sub+'<span class="stag">'+esc(t.ws)+' · '+esc(locLabel(t))+'</span>'+(t.due?'<span class="sdue">~'+mmdd(t.due)+'</span>':'')+'</div>';}).join('');}
+    if(mHits.length){html+='<div class="sgrp">메모 '+mHits.length+'</div>'+mHits.slice(0,80).map(function(m){
+      return '<div class="sitem" data-kind="memo" data-id="'+m.id+'"><span class="stt2">'+esc(m.title||'제목 없음')+'</span><span class="stag">📝 '+esc(m.folder||'')+'</span></div>';}).join('');}
+    if(!tHits.length&&!mHits.length)html='<p class="empty">검색 결과 없음</p>';
+    sv.innerHTML='<div class="bhead"><h2>검색 결과</h2><div class="r">"'+esc(state.q)+'"</div></div>'+html;}
 
   // ===== events =====
   document.getElementById('theme').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';c=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);state.theme=c;savePrefs();});
   document.getElementById('wsSeg').addEventListener('click',function(e){var b=e.target.closest('button[data-ws]');if(!b)return;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x===b);});state.ws=b.dataset.ws;savePrefs();renderAll();});
   var panels={dash:document.getElementById('dash'),proj:document.getElementById('proj'),cal:document.getElementById('cal'),memo:document.getElementById('memo'),done:document.getElementById('done')};
-  function switchTab(name){document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);}
+  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);}
   document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){switchTab(b.dataset.tab);});});
+  document.getElementById('q').addEventListener('input',function(){state.q=this.value;runSearch();});
+  document.getElementById('qClear').addEventListener('click',function(){state.q='';document.getElementById('q').value='';runSearch();document.getElementById('q').focus();});
+  document.getElementById('searchView').addEventListener('click',function(e){var it=e.target.closest('.sitem');if(!it)return;var kind=it.dataset.kind,id=it.dataset.id;
+    if(kind==='memo'){state.curMemo=id;switchTab('memo');renderMemos();return;}
+    var t=tById(id);if(!t)return;
+    if(t.ws!==state.ws){state.ws=t.ws;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});savePrefs();}
+    var target=t.archived?'done':((t.bucket==='inbox'||t.bucket==='later'||t.project)?'proj':'dash');
+    renderAll();switchTab(target);
+    if(target==='proj'&&t.project){var sec=document.querySelector('.pjsec[data-proj="'+String(t.project).replace(/"/g,'\\"')+'"]');if(sec)sec.scrollIntoView({block:'center'});}});
   document.getElementById('goPocket').addEventListener('click',function(){switchTab('proj');});
   document.getElementById('hours').addEventListener('input',function(){state.hours=+this.value||0;savePrefs();renderToday();});
 
