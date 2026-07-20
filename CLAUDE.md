@@ -65,6 +65,7 @@
   - **순서도(flow) — 단계 보드**: 대상(프로젝트 or 하위항목 있는 할일) 선택 → 카드를 **단계 칼럼(미배치·1·2…·＋새단계)으로 드래그앤드롭**. 같은 칼럼=같은 순서(병렬 가능), 미배치=잡일. 상태색 done/next(다음=앞 단계 다 끝남)/blocked, 상위 마감일 표시, "다음 할 일" 하이라이트. **의존성 화살표 방식은 폐기**(탭-탭 불편+순환 이슈 → 단계 방식으로 교체, mermaid도 제거). 하위 단계=`subs[].stage`, 프로젝트 단계=`todos.dep`(숫자 재활용). 대시보드 오늘 흐름=`#todayFlow`(토글 `#flowToggle`, pref `showTodayFlow`). `renderFlow`/`renderFlowBoard`/`renderTodayFlow`.
     - **순서도 → 프로젝트 리스트 반영**: 프로젝트 할일 정렬 = 단계 우선(미배치=뒤) → 그다음 `sort`. 행에 단계 배지(`.stbadge`).
     - **상위 마감 → 하위 자동 분배**(`flowDistribute`, 순서도 헤더 `📅 하위 마감 자동 분배` 버튼, todo-source+상위 due 있을 때): 오늘~상위마감을 단계 수로 나눠 각 단계 하위 항목에 마감 배정(마지막 단계=상위마감, 미배치는 제외).
+    - **보드 개선**: 카드에 마감 표시(`.fcdue`), 단계 사이를 **SVG 곡선으로 연결**(`drawFlowLines`, `.flowlines`). 프로젝트 섹션 헤더 **🔀**(`proj-flow`)로 그 프로젝트 순서도를 **인라인 읽기전용 보드**(`.projflow`, `flowShownProj`)로 표시. 프로젝트 행은 제목 옆에 하위토글이 먼저 오도록 순서 조정.
   - **DB 추가**: `todos.doneat text`, `todos.archived bool`, `todos.subs jsonb`(각 sub `{t,d,id,due,stage}`), `todos.dep jsonb`(프로젝트 순서도 단계 숫자), `settings(owner uuid pk, data jsonb)` 테이블(RLS `owner=auth.uid()`). 코드는 `hasArchive`/`hasSubs`/`hasDep` 플래그로 컬럼 없어도 안 깨지게 방어.
 - **우선순위 점수**: `중요도*25 + 마감임박도(지남100/오늘·내일60/3일내30) + 빠른완수(≤20분)10`
 - **Supabase**
