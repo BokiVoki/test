@@ -24,6 +24,7 @@
   .tabs{display:flex;gap:18px}
   .tabs button{font:inherit;font-size:14px;color:var(--faint);background:none;border:0;cursor:pointer;padding:2px 0 8px;border-bottom:2px solid transparent;margin-top:6px}
   .tabs button[aria-selected="true"]{color:var(--text);font-weight:600;border-bottom-color:var(--accent)}
+  .tabs button.tabdragging{opacity:.4}
   .right{margin-left:auto;display:flex;align-items:center;gap:12px}
   .seg{display:flex;gap:14px}
   .seg button{font:inherit;font-size:13px;color:var(--faint);background:none;border:0;cursor:pointer;padding:0}
@@ -305,8 +306,8 @@
   var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'dash',q:'',flowSel:null};
 
   // prefs (local only)
-  function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder','showTodayFlow'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
-  function savePrefs(){try{localStorage.setItem('haru_prefs',JSON.stringify({ws:state.ws,hours:state.hours,theme:state.theme,calMonth:state.calMonth,calYear:state.calYear,curFolder:state.curFolder,showTodayFlow:state.showTodayFlow}));}catch(e){}}
+  function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder','showTodayFlow','tabOrder'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
+  function savePrefs(){try{localStorage.setItem('haru_prefs',JSON.stringify({ws:state.ws,hours:state.hours,theme:state.theme,calMonth:state.calMonth,calYear:state.calYear,curFolder:state.curFolder,showTodayFlow:state.showTodayFlow,tabOrder:state.tabOrder}));}catch(e){}}
   loadPrefs();
   if(state.theme)document.documentElement.setAttribute('data-theme',state.theme);
 
@@ -591,6 +592,16 @@
   function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);if(name==='flow')renderFlow();}
   document.getElementById('flowSel').addEventListener('change',function(){var v=this.value;if(!v){state.flowSel=null;}else{state.flowSel={type:v.charAt(0)==='p'?'project':'todo',key:v.slice(2)};}renderFlow();});
   document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){switchTab(b.dataset.tab);});});
+  // 탭 드래그로 순서 변경 (localStorage에 저장)
+  (function(){var navEl=document.querySelector('.tabs');var tabDrag=null;
+    navEl.querySelectorAll('button[data-tab]').forEach(function(b){b.draggable=true;});
+    function applyTabOrder(){if(!state.tabOrder)return;var m={};navEl.querySelectorAll('button[data-tab]').forEach(function(b){m[b.dataset.tab]=b;});state.tabOrder.forEach(function(t){if(m[t])navEl.appendChild(m[t]);});}
+    navEl.addEventListener('dragstart',function(e){var b=e.target.closest('button[data-tab]');if(!b){e.preventDefault();return;}tabDrag=b;b.classList.add('tabdragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',b.dataset.tab);}catch(x){}}});
+    navEl.addEventListener('dragover',function(e){if(!tabDrag)return;var b=e.target.closest('button[data-tab]');if(!b||b===tabDrag)return;e.preventDefault();var r=b.getBoundingClientRect();navEl.insertBefore(tabDrag,(e.clientX<r.left+r.width/2)?b:b.nextSibling);});
+    navEl.addEventListener('drop',function(e){if(tabDrag)e.preventDefault();});
+    navEl.addEventListener('dragend',function(){if(tabDrag)tabDrag.classList.remove('tabdragging');tabDrag=null;state.tabOrder=[].map.call(navEl.querySelectorAll('button[data-tab]'),function(b){return b.dataset.tab;});savePrefs();});
+    applyTabOrder();
+  })();
   document.getElementById('q').addEventListener('input',function(){state.q=this.value;runSearch();});
   document.getElementById('qClear').addEventListener('click',function(){state.q='';document.getElementById('q').value='';runSearch();document.getElementById('q').focus();});
   document.getElementById('searchView').addEventListener('click',function(e){var it=e.target.closest('.sitem');if(!it)return;var kind=it.dataset.kind,id=it.dataset.id;
