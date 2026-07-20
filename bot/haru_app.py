@@ -116,3 +116,33 @@ def list_due(cutoff_iso: str) -> list[dict]:
         return data if isinstance(data, list) else []
     except Exception:
         return []
+
+
+def list_open() -> list[dict]:
+    """안 끝난·완료함 아닌 할일 전체(추천용). 실패 시 빈 리스트.
+
+    반환: [{'title','due','project','ws','imp','est','bucket','today'} ...]
+    """
+    if not is_configured():
+        return []
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/todos",
+            headers={
+                "apikey": SERVICE_KEY,
+                "Authorization": f"Bearer {SERVICE_KEY}",
+            },
+            params=[
+                ("select", "title,due,project,ws,imp,est,bucket,today"),
+                ("owner", f"eq.{OWNER_ID}"),
+                ("done", "eq.false"),
+                ("archived", "eq.false"),
+            ],
+            timeout=15,
+        )
+        if resp.status_code >= 300:
+            return []
+        data = resp.json()
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []

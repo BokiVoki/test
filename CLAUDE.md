@@ -24,7 +24,7 @@
   - 영양제 재고 + 복용 기록, 생리주기 추적 + 단계별 알림(PMS 등)
   - 브리핑: 아침/저녁/밤 (매일 고정 알림은 브리핑에서 제외됨)
   - **하루앱 주머니 던지기**: `앱 <내용>` → 하루 웹앱 주머니(Supabase todos, `bucket='inbox'`)로 바로 저장 (`bot/haru_app.py`). 환경변수: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `HARU_OWNER_ID`, (선택 `HARU_WORKSPACE`, 기본 '일')
-  - **하루앱 마감 리마인더**: 브리핑(아침/저녁=밀림+오늘, 밤=+내일)에 하루앱 마감 임박 할일 자동 추가. `마감` 텍스트 또는 `/deadlines` 로 즉시 확인 (`haru_app.list_due`)
+  - **하루앱 11시 체크인**: 매일 11:00(KST) 전용 메시지로 오늘 추천(우선순위순 `haru_app.list_open`)+마감(`list_due`)을 쏨 (`send_haru_daily`, `scheduler.send_haru_daily_job`, main.py UTC 02:00). 즉시 확인: `추천`/`체크인` 텍스트. 마감만: `마감` 텍스트 또는 `/deadlines`. (브리핑엔 합치지 않음)
 - **최근 수정/버그픽스**
   - `cancel_alarms` 오발동 방지 (프롬프트 강화)
   - "모든 알람 취소"에 되돌리기 버튼 추가

@@ -109,6 +109,18 @@ async def send_briefing_job(context: CallbackContext):
         logger.error(f"Briefing job error: {e}")
 
 
+async def send_haru_daily_job(context: CallbackContext):
+    """매일 11시 하루앱 체크인(오늘 추천 + 마감)."""
+    from . import handlers as _handlers
+    user_id = context.bot_data.get("user_id")
+    if not user_id:
+        return
+    try:
+        await _handlers.send_haru_daily(context.bot, int(user_id))
+    except Exception as e:
+        logger.error(f"Haru daily job error: {e}")
+
+
 def _next_trigger(trigger: datetime, repeat: str, now: datetime = None) -> datetime:
     if repeat == "daily":
         return trigger + timedelta(days=1)

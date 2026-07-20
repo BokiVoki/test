@@ -17,7 +17,7 @@ from .memos_sheet import MemosClient
 from .inventory_sheet import InventoryClient
 from .intake_sheet import IntakeLogClient
 from .cycle_sheet import CycleClient
-from .scheduler import check_reminders_job, send_briefing_job
+from .scheduler import check_reminders_job, send_briefing_job, send_haru_daily_job
 from . import handlers
 
 load_dotenv()
@@ -142,6 +142,10 @@ def main():
     app.job_queue.run_daily(
         send_briefing_job, time=_dt.time(14, 0, tzinfo=_dt.timezone.utc), # KST 23:00
         data={"type": "night"},
+    )
+    # 하루앱 전용: 매일 11시 오늘 추천 + 마감
+    app.job_queue.run_daily(
+        send_haru_daily_job, time=_dt.time(2, 0, tzinfo=_dt.timezone.utc),  # KST 11:00
     )
 
     # 인라인 버튼 콜백 (되돌리기/취소)
