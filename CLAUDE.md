@@ -60,7 +60,7 @@
   - **캘린더**: 월 그리드, 드래그로 마감일 변경
   - **메모**: 애플 메모st, 폴더, 할일 연결(📝)
   - **완료함**: 체크=완료(찍 긋고 그 자리 유지 + 완료시점 `doneat` 기록) → "완료함으로" 버튼/일괄정리로 `archived=true` → 완료함 탭에서 완료시점 표시 + 되돌리기. 반복 항목은 예외(lastdone).
-  - **프로젝트**: 헤더 ⠿ 핸들 드래그로 순서 변경(→ `settings.projOrder[ws]`), ✕로 삭제(할일은 주머니로 이동, 삭제 아님)
+  - **프로젝트**: 헤더 ⠿ 핸들 드래그로 순서 변경(→ `settings.projOrder[ws]`), ✕로 삭제(할일은 주머니로 이동, 삭제 아님). 프로젝트 안 **할일 행 ⠿ 드래그로 순서 변경**(→ `todos.sort`, `reorderTodo`), **하위 항목 ⠿ 드래그로 순서 변경**(subs 배열 재정렬, `reorderSub`).
   - **하위 항목(서브태스크)**: 할일 제목 옆 `▸ n/m` 칩(또는 hover 시 `＋하위`) → 토글로 체크리스트 펼침. 오늘의 집중·프로젝트 뷰에서만. `todos.subs jsonb`(`[{t,d}]`)에 저장. 기존 할일은 hover `⤵하위로` → 대상 할일 탭하면 그 밑으로 이동(원본 삭제, 자식의 subs도 함께 흡수, 되돌리기 지원).
   - **순서도(flow) — 단계 보드**: 대상(프로젝트 or 하위항목 있는 할일) 선택 → 카드를 **단계 칼럼(미배치·1·2…·＋새단계)으로 드래그앤드롭**. 같은 칼럼=같은 순서(병렬 가능), 미배치=잡일. 상태색 done/next(다음=앞 단계 다 끝남)/blocked, 상위 마감일 표시, "다음 할 일" 하이라이트. **의존성 화살표 방식은 폐기**(탭-탭 불편+순환 이슈 → 단계 방식으로 교체, mermaid도 제거). 하위 단계=`subs[].stage`, 프로젝트 단계=`todos.dep`(숫자 재활용). 대시보드 오늘 흐름=`#todayFlow`(토글 `#flowToggle`, pref `showTodayFlow`). `renderFlow`/`renderFlowBoard`/`renderTodayFlow`. (대시보드/프로젝트 순서 자동반영은 2차 예정)
   - **DB 추가**: `todos.doneat text`, `todos.archived bool`, `todos.subs jsonb`(각 sub `{t,d,id,due,stage}`), `todos.dep jsonb`(프로젝트 순서도 단계 숫자), `settings(owner uuid pk, data jsonb)` 테이블(RLS `owner=auth.uid()`). 코드는 `hasArchive`/`hasSubs`/`hasDep` 플래그로 컬럼 없어도 안 깨지게 방어.
