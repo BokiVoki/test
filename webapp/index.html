@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>하루 · 할일</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <style>
   :root{
     --bg:#FFFFFF; --panel:#FFFFFF; --sunk:#FAFAFB; --line:#EBEBED; --line-2:#DBDCDF;
@@ -99,6 +100,30 @@
   .subnew{margin-top:5px;width:100%;max-width:320px;font:inherit;font-size:12.5px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);padding:4px 0;outline:none}
   .subnew:focus{border-bottom-color:var(--accent)}
   .subitem.flash{background:var(--accent-wash);outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px;transition:background .2s}
+  #flowSel{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line-2);border-radius:5px;background:none;color:var(--text);max-width:60vw}
+  .flowmeta{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:2px 0 14px}
+  .flowdue{font-family:var(--mono);font-size:12px;color:var(--text)}
+  .flownext{font-size:13px;color:var(--accent);font-weight:600}
+  .flowdiagram{overflow-x:auto;border:1px solid var(--line);border-radius:6px;padding:14px;margin-bottom:18px;min-height:60px}
+  .flowdiagram svg{max-width:none}
+  .flowcols{display:flex;align-items:center;gap:4px;min-width:min-content}
+  .flowcol{display:flex;flex-direction:column;gap:10px}
+  .flowarrow{color:var(--faint);font-size:18px;padding:0 4px}
+  .flownode{border:1px solid var(--line-2);border-radius:5px;padding:8px 12px;font-size:13px;white-space:nowrap;background:none}
+  .flownode.done{background:#dff0e6;border-color:var(--accent);color:var(--accent)}
+  .flownode.next{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .flownode.blocked{color:var(--faint)}
+  .flowrow{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .flowlbl{font:inherit;font-size:14px;color:var(--text);background:none;border:0;cursor:pointer;text-align:left;padding:2px 6px;border-radius:4px}
+  .flowlbl:hover{background:var(--accent-wash)}
+  .flowrow.connecting .flowlbl{outline:2px solid var(--accent);outline-offset:0;background:var(--accent-wash)}
+  .flowrow.done .flowlbl{color:var(--faint);text-decoration:line-through}
+  .flowstat{font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600}
+  .flowstat.s-next{background:var(--accent);color:#fff}.flowstat.s-done{background:#dff0e6;color:var(--accent)}.flowstat.s-blocked{background:var(--line);color:var(--faint)}
+  .flowdeps{font-size:12px;color:var(--faint);margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .deplbl{color:var(--faint)}.nodep{color:var(--faint);font-style:italic}
+  .depchip{display:inline-flex;align-items:center;gap:3px;background:var(--accent-wash);color:var(--text);border-radius:10px;padding:2px 4px 2px 9px;font-size:11.5px}
+  .depx{border:0;background:none;color:var(--faint);cursor:pointer;font-size:11px;padding:0 2px}.depx:hover{color:#c0392b}
   .nest{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;padding-left:8px;border:0;background:none;font-family:inherit}tr:hover .nest{opacity:.7}.nest:hover{color:var(--accent)}
   .nestbar{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:9px 14px;border-radius:5px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;gap:10px}
   .nestbar button{margin-left:auto;font:inherit;font-size:12px;background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:4px;padding:4px 11px;cursor:pointer}
@@ -190,6 +215,7 @@
       <button role="tab" aria-selected="false" data-tab="cal">캘린더</button>
       <button role="tab" aria-selected="false" data-tab="memo">메모</button>
       <button role="tab" aria-selected="false" data-tab="done">완료함</button>
+      <button role="tab" aria-selected="false" data-tab="flow">순서도</button>
     </nav>
     <div class="right">
       <div class="seg" id="wsSeg" role="tablist" aria-label="워크스페이스">
@@ -236,6 +262,15 @@
     <p class="caphint">완료한 할일이 여기 쌓여요 · 완료 시점도 함께 기록돼요 · 되돌리기 가능</p>
     <div id="doneList"></div>
   </div>
+  <div id="flow" class="hidden">
+    <div class="bhead"><h2>순서도</h2><div class="r">
+      <select id="flowSel" aria-label="순서도 대상"></select>
+    </div></div>
+    <p class="caphint" id="flowHint">프로젝트나 하위 항목이 있는 할일을 골라 일의 순서를 도형으로 짜보세요 · 노드를 <b>탭 → 다른 노드 탭</b>으로 "먼저 → 나중" 연결</p>
+    <div id="flowDeadline"></div>
+    <div id="flowDiagram" class="flowdiagram"></div>
+    <div id="flowEditor"></div>
+  </div>
   <p class="foot">Supabase에 저장돼요 · 로그인한 기기 어디서든 동기화</p>
 </div>
 
@@ -253,9 +288,11 @@
   var undoStack=null;
   var hasArchive=false;  // DB에 doneat/archived 컬럼이 있으면 true (마이그레이션 후)
   var hasSubs=false;     // DB에 subs 컬럼이 있으면 true
+  var hasDep=false;      // DB에 dep 컬럼이 있으면 true (프로젝트 순서도 의존성)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
+  var flowConnect=null;  // 순서도 연결 중인 노드 id
   var nestSource=null;   // '하위로 이동' 중인 할일 id
-  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'dash',q:''};
+  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'dash',q:'',flowSel:null};
 
   // prefs (local only)
   function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
@@ -272,8 +309,10 @@
   function mById(id){return state.memos.filter(function(m){return m.id===id;})[0];}
 
   // DB mapping
-  function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}return r;}
-  function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:Array.isArray(r.subs)?r.subs:[]};}
+  function sid(){return 's'+Math.random().toString(36).slice(2,8);}
+  function normSubs(arr){return (Array.isArray(arr)?arr:[]).map(function(s){return {t:s.t||'',d:!!s.d,id:s.id||sid(),dep:Array.isArray(s.dep)?s.dep:[]};});}
+  function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}if(hasDep){r.dep=t.dep||[];}return r;}
+  function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),dep:Array.isArray(r.dep)?r.dep:[]};}
   function rowM(m){return {id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};}
   function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||''};}
   function putTodo(t){sb.from('todos').upsert(rowT(t)).then(function(r){if(r.error)console.warn('todo',r.error.message);});}
@@ -315,10 +354,11 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
+      hasDep=!(res[5]&&res[5].error);      // dep 컬럼이 있으면 프로젝트 순서도 저장 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -413,7 +453,86 @@
       document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';}
     else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';}}
   function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}});}
-  function renderAll(){syncLinks();renderToday();renderDue();renderInbox();renderProjects();renderCal();renderMemos();renderDone();if(state.q)runSearch();}
+  // ===== 순서도 (flow) =====
+  function flowSources(){return {projs:orderedProjects(),todos:wsTodos().filter(function(t){return (t.subs||[]).length>0;})};}
+  function flowModel(){
+    var sel=state.flowSel;if(!sel)return null;
+    if(sel.type==='project'){
+      var items=wsTodos().filter(function(t){return t.project===sel.key&&t.bucket!=='inbox';});
+      var idset={};items.forEach(function(t){idset[t.id]=1;});
+      return {kind:'project',title:sel.key,due:null,
+        nodes:items.map(function(t){return {id:t.id,label:t.title,done:!!t.done,dep:(t.dep||[]).filter(function(d){return idset[d];})};}),
+        setDep:function(id,deps){var t=tById(id);if(t){t.dep=deps;putTodo(t);}}};
+    }
+    var pt=tById(sel.key);if(!pt)return null;
+    var subs=pt.subs||[];var sset={};subs.forEach(function(s){sset[s.id]=1;});
+    return {kind:'todo',title:pt.title,due:pt.due,
+      nodes:subs.map(function(s){return {id:s.id,label:s.t,done:!!s.d,dep:(s.dep||[]).filter(function(d){return sset[d];})};}),
+      setDep:function(id,deps){var s=(pt.subs||[]).filter(function(x){return x.id===id;})[0];if(s){s.dep=deps;putTodo(pt);}}};
+  }
+  function flowStatus(nodes){var dm={};nodes.forEach(function(n){dm[n.id]=n.done;});
+    return nodes.map(function(n){var blocked=n.dep.some(function(d){return !dm[d];});return {n:n,status:n.done?'done':(blocked?'blocked':'next')};});}
+  function flowReach(nodes,from,target){var by={};nodes.forEach(function(n){by[n.id]=n;});var seen={},st=[from];
+    while(st.length){var c=st.pop();if(c===target)return true;if(seen[c])continue;seen[c]=1;var nd=by[c];if(nd)nd.dep.forEach(function(d){st.push(d);});}return false;}
+  function flowLevel(nodes){var by={};nodes.forEach(function(n){by[n.id]=n;});var memo={};
+    function L(id,seen){if(memo[id]!=null)return memo[id];seen=seen||{};if(seen[id])return 0;seen[id]=1;var n=by[id];if(!n||!n.dep.length){memo[id]=0;return 0;}var m=0;n.dep.forEach(function(d){m=Math.max(m,L(d,seen)+1);});memo[id]=m;return m;}
+    var out={};nodes.forEach(function(n){out[n.id]=L(n.id);});return out;}
+  function mermaidDef(model,statuses){
+    var idmap={};model.nodes.forEach(function(n,i){idmap[n.id]='n'+i;});
+    var lines=['flowchart LR'];
+    statuses.forEach(function(st){var lbl=(st.n.label||'제목없음').replace(/["\[\]{}()<>|;]/g,' ').slice(0,26);lines.push('  '+idmap[st.n.id]+'["'+lbl+'"]:::'+st.status);});
+    model.nodes.forEach(function(n){n.dep.forEach(function(d){if(idmap[d])lines.push('  '+idmap[d]+' --> '+idmap[n.id]);});});
+    lines.push('classDef done fill:#dff0e6,stroke:#2C6A46,color:#2C6A46;');
+    lines.push('classDef next fill:#2C6A46,stroke:#2C6A46,color:#ffffff;');
+    lines.push('classDef blocked fill:#efefef,stroke:#c8c8c8,color:#8a8a8a;');
+    return lines.join('\n');
+  }
+  function fallbackDiagram(model,statuses){
+    var lv=flowLevel(model.nodes),cols={},stMap={};statuses.forEach(function(s){stMap[s.n.id]=s.status;});
+    model.nodes.forEach(function(n){(cols[lv[n.id]]=cols[lv[n.id]]||[]).push(n);});
+    var keys=Object.keys(cols).sort(function(a,b){return a-b;});
+    return '<div class="flowcols">'+keys.map(function(k){return '<div class="flowcol">'+cols[k].map(function(n){return '<div class="flownode '+stMap[n.id]+'">'+esc(n.label||'제목없음')+'</div>';}).join('')+'</div>';}).join('<div class="flowarrow">→</div>')+'</div>';
+  }
+  function renderFlowDiagram(model,statuses,dia){
+    if(window.mermaid&&window.mermaid.render){
+      try{
+        if(!window.__mmInit){var dark=(document.documentElement.getAttribute('data-theme')==='dark')||(!document.documentElement.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme:dark)').matches);window.mermaid.initialize({startOnLoad:false,theme:dark?'dark':'default',securityLevel:'strict'});window.__mmInit=1;}
+        window.mermaid.render('mmd'+Date.now(),mermaidDef(model,statuses)).then(function(res){dia.innerHTML=res.svg;}).catch(function(){dia.innerHTML=fallbackDiagram(model,statuses);});
+        return;
+      }catch(e){}
+    }
+    dia.innerHTML=fallbackDiagram(model,statuses);
+  }
+  function flowEditorHtml(model,statuses){
+    var stMap={},lab={};statuses.forEach(function(s){stMap[s.n.id]=s.status;});model.nodes.forEach(function(n){lab[n.id]=n.label;});
+    var STAT={done:'완료',next:'다음',blocked:'대기'};
+    return model.nodes.map(function(n){
+      var chips=n.dep.map(function(d){return '<span class="depchip">'+esc(lab[d]||'?')+'<button class="depx" data-act="flow-undep" data-node="'+n.id+'" data-dep="'+d+'">✕</button></span>';}).join('');
+      var connecting=(flowConnect===n.id)?' connecting':'';
+      return '<div class="flowrow '+stMap[n.id]+connecting+'"><button class="flowlbl" data-act="flow-node" data-node="'+n.id+'">'+esc(n.label||'제목없음')+'</button><span class="flowstat s-'+stMap[n.id]+'">'+STAT[stMap[n.id]]+'</span><div class="flowdeps">'+(n.dep.length?'<span class="deplbl">먼저:</span> '+chips:'<span class="nodep">선행 없음 · 잡일</span>')+'</div></div>';
+    }).join('');
+  }
+  function renderFlow(){
+    var selEl=document.getElementById('flowSel');if(!selEl)return;
+    var src=flowSources();
+    var opts='<option value="">— 대상 선택 —</option>';
+    if(src.projs.length)opts+='<optgroup label="프로젝트">'+src.projs.map(function(p){return '<option value="p:'+esc(p)+'">'+esc(p)+'</option>';}).join('')+'</optgroup>';
+    if(src.todos.length)opts+='<optgroup label="하위 항목 있는 할일">'+src.todos.map(function(t){return '<option value="t:'+esc(t.id)+'">'+esc(t.title)+' ('+(t.subs||[]).length+')</option>';}).join('')+'</optgroup>';
+    selEl.innerHTML=opts;
+    if(state.flowSel)selEl.value=(state.flowSel.type==='project'?'p:'+state.flowSel.key:'t:'+state.flowSel.key);
+    var dead=document.getElementById('flowDeadline'),dia=document.getElementById('flowDiagram'),ed=document.getElementById('flowEditor');
+    var model=flowModel();
+    if(!model){dead.innerHTML='';dia.innerHTML='<p class="empty">위에서 프로젝트나 할일을 골라주세요</p>';ed.innerHTML='';return;}
+    if(!model.nodes.length){dead.innerHTML='';dia.innerHTML='<p class="empty">'+(model.kind==='todo'?'하위 항목이 없어요 · 할일에 하위 항목을 먼저 추가해보세요':'이 프로젝트에 할일이 없어요')+'</p>';ed.innerHTML='';return;}
+    var statuses=flowStatus(model.nodes);
+    var nexts=statuses.filter(function(s){return s.status==='next';}).map(function(s){return s.n.label;});
+    var allDone=statuses.every(function(s){return s.status==='done';});
+    dead.innerHTML='<div class="flowmeta">'+(model.due?'<span class="flowdue">🎯 마감 '+mmdd(model.due)+'</span>':'')+(allDone?'<span class="flownext">모두 완료 🎉</span>':(nexts.length?'<span class="flownext">▶ 다음 할 일: '+esc(nexts.slice(0,4).join(', '))+(nexts.length>4?' 외':'')+'</span>':''))+'</div>';
+    renderFlowDiagram(model,statuses,dia);
+    ed.innerHTML=flowEditorHtml(model,statuses);
+  }
+
+  function renderAll(){syncLinks();renderToday();renderDue();renderInbox();renderProjects();renderCal();renderMemos();renderDone();if(state.q)runSearch();if(state.tab==='flow')renderFlow();}
   // ===== 전체 검색 (띄어쓰기 무시) =====
   function norm(s){return (s||'').replace(/\s+/g,'').toLowerCase();}
   function locLabel(t){if(t.archived)return '완료함';if(t.bucket==='inbox')return '주머니';if(t.bucket==='later')return '나중';if(t.today||isRepeatDueToday(t))return '오늘';if(t.project)return t.project;return '할일';}
@@ -438,8 +557,9 @@
   // ===== events =====
   document.getElementById('theme').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';c=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);state.theme=c;savePrefs();});
   document.getElementById('wsSeg').addEventListener('click',function(e){var b=e.target.closest('button[data-ws]');if(!b)return;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x===b);});state.ws=b.dataset.ws;savePrefs();renderAll();});
-  var panels={dash:document.getElementById('dash'),proj:document.getElementById('proj'),cal:document.getElementById('cal'),memo:document.getElementById('memo'),done:document.getElementById('done')};
-  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);}
+  var panels={dash:document.getElementById('dash'),proj:document.getElementById('proj'),cal:document.getElementById('cal'),memo:document.getElementById('memo'),done:document.getElementById('done'),flow:document.getElementById('flow')};
+  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);if(name!=='flow')flowConnect=null;if(name==='flow')renderFlow();}
+  document.getElementById('flowSel').addEventListener('change',function(){var v=this.value;flowConnect=null;if(!v){state.flowSel=null;}else{state.flowSel={type:v.charAt(0)==='p'?'project':'todo',key:v.slice(2)};}renderFlow();});
   document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){switchTab(b.dataset.tab);});});
   document.getElementById('q').addEventListener('input',function(){state.q=this.value;runSearch();});
   document.getElementById('qClear').addEventListener('click',function(){state.q='';document.getElementById('q').value='';runSearch();document.getElementById('q').focus();});
@@ -488,6 +608,15 @@
     else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();}}
     else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();}}
     else if(act==='nest'&&t){startNest(t.id);}
+    else if(act==='flow-node'){var nid=el.dataset.node;
+      if(!flowConnect){flowConnect=nid;renderFlow();showToast('이 다음에 할 노드를 탭하세요 (취소하려면 같은 노드 다시 탭)');}
+      else if(flowConnect===nid){flowConnect=null;renderFlow();}
+      else{var m=flowModel();var n=m&&m.nodes.filter(function(x){return x.id===nid;})[0];var srcId=flowConnect;flowConnect=null;
+        if(n&&n.dep.indexOf(srcId)<0&&!flowReach(m.nodes,srcId,nid)){m.setDep(nid,n.dep.concat([srcId]));showToast('연결했어요 · 먼저 → 나중');}
+        else{showToast('연결할 수 없어요 (순환이거나 이미 연결됨)');}
+        renderFlow();}
+      return;}
+    else if(act==='flow-undep'){var m2=flowModel();if(m2){var node=m2.nodes.filter(function(x){return x.id===el.dataset.node;})[0];if(node){m2.setDep(el.dataset.node,node.dep.filter(function(d){return d!==el.dataset.dep;}));renderFlow();}}return;}
     else if(act==='proj-del'){e.stopPropagation();delProject(el.dataset.proj);return;}
     else if(act==='del'&&t){removeTodo(t,'삭제했어요');}
     else if(act==='cad'&&t){var seq=['daily','weekly','monthly','none'];t.repeat=seq[(seq.indexOf(t.repeat)+1)%4];if(t.repeat==='weekly'&&!t.repDay)t.repDay='1';if(t.repeat==='monthly')t.repDay='last';putTodo(t);renderToday();showToast(t.repeat==='none'?'반복 해제':'반복: '+repLabel(t));}
