@@ -423,7 +423,8 @@
       '<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,6);}
   function renderToday(){
     var body=document.getElementById('todayBody');
-    var list=wsTodos().filter(function(t){return (t.today||isRepeatDueToday(t))&&!(t.repeat!=='none'&&t.lastDone===todayISO());});
+    var _ti=todayISO();
+    var list=wsTodos().filter(function(t){if(t.repeat!=='none')return isRepeatDueToday(t)&&t.lastDone!==_ti;return t.today||daysTo(t.due)===0;});
     var fixed=list.filter(function(t){return t.repeat!=='none';}).sort(function(a,b){return priority(b)-priority(a);});
     var pick=list.filter(function(t){return t.repeat==='none';}).sort(function(a,b){return (a.done-b.done)||(priority(b)-priority(a));});
     var html='';
