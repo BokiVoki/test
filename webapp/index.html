@@ -179,7 +179,9 @@
   .medit .mtitle{font:inherit;font-size:20px;font-weight:700;border:0;outline:none;background:transparent;color:var(--text);padding:0;margin-bottom:6px}
   .medit .mlinkbar{font-size:12px;color:var(--accent);min-height:18px;margin-bottom:10px}
   .mbodywrap{position:relative;flex:1;display:flex}
-  .mentionpop{position:absolute;left:8px;top:8px;width:min(300px,88%);max-height:210px;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.16);z-index:20}
+  .mentionpop{position:absolute;left:8px;top:26px;width:min(280px,82%);max-height:210px;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:20}
+  .mentionitem .mtt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mentionitem .mhit{font-size:11px;color:var(--faint)}
   .mentionitem{display:flex;align-items:center;gap:8px;padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--line);font-size:13px}
   .mentionitem:last-child{border-bottom:0}
   .mentionitem:hover{background:var(--accent-wash)}
@@ -755,13 +757,21 @@
   document.getElementById('mbody').addEventListener('keydown',function(e){if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;}});
   document.getElementById('mbody').addEventListener('blur',function(){setTimeout(function(){document.getElementById('mentionPop').classList.add('hidden');},160);});
   var _mentionStart=-1;
+  function caretXY(ta){var m=document.getElementById('_cmir');if(!m){m=document.createElement('div');m.id='_cmir';document.body.appendChild(m);}
+    var cs=getComputedStyle(ta),s=m.style;s.position='absolute';s.visibility='hidden';s.whiteSpace='pre-wrap';s.wordWrap='break-word';s.overflow='hidden';s.top='-9999px';s.left='0';
+    ['fontFamily','fontSize','fontWeight','fontStyle','letterSpacing','lineHeight','textTransform','wordSpacing','paddingTop','paddingRight','paddingBottom','paddingLeft','borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','boxSizing'].forEach(function(p){s[p]=cs[p];});
+    s.width=ta.clientWidth+'px';m.textContent=ta.value.slice(0,ta.selectionStart);
+    var sp=document.createElement('span');sp.textContent='​';m.appendChild(sp);
+    return {x:sp.offsetLeft,y:sp.offsetTop,lh:parseFloat(cs.lineHeight)||18};}
+  function positionMention(ta,pop){var c=caretXY(ta),left=Math.max(2,c.x-ta.scrollLeft),top=c.y-ta.scrollTop+c.lh+3;
+    var maxL=ta.clientWidth-190;if(left>maxL)left=Math.max(2,maxL);pop.style.left=left+'px';pop.style.top=top+'px';}
   function mentionCheck(ta){var pos=ta.selectionStart,before=ta.value.slice(0,pos),mm=before.match(/@([^\s@]{0,30})$/),pop=document.getElementById('mentionPop');
     if(!mm){_mentionStart=-1;pop.classList.add('hidden');return;}
     _mentionStart=pos-mm[0].length;var q=norm(mm[1]);
-    var list=state.todos.filter(function(t){return !t.archived&&norm(t.title).indexOf(q)>=0;}).slice(0,8);
-    if(!list.length){pop.innerHTML='<div class="mentionitem empty">일치하는 할일 없음</div>';pop.classList.remove('hidden');return;}
-    pop.innerHTML=list.map(function(t){return '<div class="mentionitem" data-id="'+t.id+'"><span class="mtt">'+esc(t.title)+'</span><span class="mtag">'+esc(t.ws)+(t.project?' · '+esc(t.project):'')+'</span></div>';}).join('');
-    pop.classList.remove('hidden');}
+    var list=state.todos.filter(function(t){return !t.archived&&norm(t.title+' '+((t.subs||[]).map(function(s){return s.t;}).join(' '))+' '+(t.project||'')).indexOf(q)>=0;}).slice(0,8);
+    if(!list.length){pop.innerHTML='<div class="mentionitem empty">일치하는 할일 없음</div>';}
+    else{pop.innerHTML=list.map(function(t){var sh=q&&(t.subs||[]).filter(function(s){return norm(s.t).indexOf(q)>=0;})[0];return '<div class="mentionitem" data-id="'+t.id+'"><span class="mtt">'+esc(t.title)+(sh?' <span class="mhit">↳'+esc(sh.t)+'</span>':'')+'</span><span class="mtag">'+esc(t.ws)+(t.project?' · '+esc(t.project):'')+'</span></div>';}).join('');}
+    pop.classList.remove('hidden');positionMention(ta,pop);}
   document.getElementById('mentionPop').addEventListener('mousedown',function(e){e.preventDefault();});
   document.getElementById('mentionPop').addEventListener('click',function(e){var it=e.target.closest('.mentionitem[data-id]');if(!it)return;var t=tById(it.dataset.id),m=mById(state.curMemo),ta=document.getElementById('mbody');if(!t||!m||_mentionStart<0)return;
     var pos=ta.selectionStart,ins='@'+t.title+' ',start=_mentionStart,newVal=ta.value.slice(0,start)+ins+ta.value.slice(pos);
