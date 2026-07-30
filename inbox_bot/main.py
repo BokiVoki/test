@@ -38,21 +38,23 @@ _pending_annotate: dict[int, str] = {}
 # chat_id → {"bytes","embed","caption","inbox_path"} : 방금 받은 사진 (쇼핑 전환용)
 _last_photo: dict[int, dict] = {}
 
-# 삭제 버튼용: 토큰 → {note 경로, img 경로}
+# 삭제 버튼용: 토큰 → {note 경로, imgs 경로들}
 _del_map: dict[str, dict] = {}
+# 앨범(여러 장) 버퍼: media_group_id → {chat_id, embeds[], caption}
+_album_buf: dict[str, dict] = {}
 
 
-def _reg_del(note_path: str, img_path: str | None = None) -> str:
+def _reg_del(note_path: str, imgs: list[str] | None = None) -> str:
     token = uuid.uuid4().hex[:8]
-    _del_map[token] = {"note": note_path, "img": img_path}
+    _del_map[token] = {"note": note_path, "imgs": imgs or []}
     if len(_del_map) > 400:
         for k in list(_del_map)[:200]:
             _del_map.pop(k, None)
     return token
 
 
-def _del_button(note_path: str, img_path: str | None = None) -> InlineKeyboardButton:
-    return InlineKeyboardButton("🗑 삭제", callback_data="del:" + _reg_del(note_path, img_path))
+def _del_button(note_path: str, imgs: list[str] | None = None) -> InlineKeyboardButton:
+    return InlineKeyboardButton("🗑 삭제", callback_data="del:" + _reg_del(note_path, imgs))
 
 _PLACEHOLDER = "_(무엇이 나를 건드렸나? 나중에 한 줄)_"
 
@@ -172,8 +174,8 @@ async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("앗, 이건 이미 지웠거나 잊어버렸어요.")
         return
     ok = vault.delete_note(info["note"], commit_msg=f"remove {info['note']}")
-    if info.get("img"):
-        vault.delete_note(info["img"], commit_msg=f"remove {info['img']}")
+    for img in info.get("imgs", []):
+        vault.delete_note(img, commit_msg=f"remove {img}")
     await query.edit_message_reply_markup(reply_markup=None)
     await query.message.reply_text("🗑 삭제했어요." if ok else "삭제 실패 (이미 없을 수도 있어요).")
 
@@ -350,6 +352,47 @@ async def annotate_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.message.reply_text("✍️ 뭐가 널 건드렸어? / 왜 남겼어? 한 줄이면 돼요.")
 
 
+async def _flush_album(context: ContextTypes.DEFAULT_TYPE):
+    """앨범(여러 장) 버퍼를 하나의 노트로 저장."""
+    gid = context.job.data
+    entry = _album_buf.pop(gid, None)
+    if not entry or not entry.get("embeds"):
+        return
+    chat_id = entry["chat_id"]
+    caption = entry.get("caption", "")
+    embeds = entry["embeds"]
+    try:
+        if caption:
+            light = capture.summarize("idea", "", {}, caption)
+            parsed = {
+                "title": light.get("title") or caption[:20],
+                "summary": "", "why": "",
+                "tags": light.get("tags") or ["사진"],
+                "hub": light.get("hub", ""),
+            }
+        else:
+            parsed = {"title": f"사진 {_now_kst().strftime('%m/%d %H:%M')} ({len(embeds)}장)",
+                      "summary": "", "why": "", "tags": ["사진"], "hub": ""}
+        path, content = capture.build_note("image", parsed, user_text=caption, image_embed=embeds[0])
+        if len(embeds) > 1:
+            extra = "\n".join(f"![[{e}]]" for e in embeds[1:])
+            content = content.replace(f"![[{embeds[0]}]]", f"![[{embeds[0]}]]\n{extra}", 1)
+        vault.write_note(path, content, commit_msg=f"inbox album: {parsed['title']} ({len(embeds)}장)")
+        _last_note[chat_id] = {"path": path, "content": content, "title": parsed["title"]}
+        markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
+            [_del_button(path, [f"Inbox/attachments/{e}" for e in embeds])],
+        ])
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"✅ 사진 {len(embeds)}장을 한 노트로 저장했어요\n\n_한 줄 남기면 그게 진짜 기록이 돼요._",
+            parse_mode="Markdown", reply_markup=markup,
+        )
+    except Exception as e:
+        logger.exception("앨범 저장 실패")
+        await context.bot.send_message(chat_id=chat_id, text=f"❌ 앨범 저장 실패: {e}")
+
+
 async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update):
         return
@@ -375,6 +418,20 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         image_embed = img_name
     except Exception as e:
         logger.warning(f"사진 볼트 업로드 실패(계속 진행): {e}")
+
+    # ── 앨범(여러 장 동시 전송) → 한 노트로 모으기 (job_queue 있을 때만) ──
+    gid = getattr(update.message, "media_group_id", None)
+    if gid and getattr(context, "job_queue", None):
+        entry = _album_buf.setdefault(str(gid), {"chat_id": chat_id, "embeds": [], "caption": ""})
+        if image_embed:
+            entry["embeds"].append(image_embed)
+        if caption and not entry["caption"]:
+            entry["caption"] = caption
+        name = f"album:{gid}"
+        for j in context.job_queue.get_jobs_by_name(name):
+            j.schedule_removal()
+        context.job_queue.run_once(_flush_album, when=3.0, data=str(gid), name=name)
+        return
 
     # 캡션에 책 의도가 있으면 → 바로 읽고싶은 책으로 (표지/제목/저자 읽음)
     if caption and capture.is_book(caption):
@@ -447,7 +504,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
         [InlineKeyboardButton("🛒 사고싶은 거", callback_data="toshop"),
          InlineKeyboardButton("📚 읽고싶은 책", callback_data="toread")],
-        [_del_button(path, f"Inbox/attachments/{image_embed}" if image_embed else None)],
+        [_del_button(path, [f"Inbox/attachments/{image_embed}"] if image_embed else None)],
     ])
     await update.message.reply_text(reply, parse_mode="Markdown", reply_markup=markup)
 
