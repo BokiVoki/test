@@ -45,8 +45,8 @@
   - 쇼핑("살까/얼마") → `Shopping/` 위시리스트 (비전으로 상품/가격 읽음)
   - 책("읽어볼까/책추천") → `Books/` 읽고싶은 책 (표지 제목/저자 읽음, 여러 권이면 목록)
   - `✍️ 내 생각` 버튼 → 사용자 말에서 태그 재추출, 캡션 우선
-  - **삭제**: 각 저장 메시지에 `🗑 삭제` 버튼(노트+첨부 이미지 삭제, `_del_map` 토큰→경로, `delete_callback`). 일괄: `삭제`/`삭제 N`/`최근삭제 N` 텍스트 → 인박스 최근 N개 삭제(`_delete_recent`, 노트의 `![[img]]` 첨부도 함께). `vault.read_note`/`delete_note`.
-  - **사진 여러 장(앨범)**: `media_group_id`로 버퍼링(`_album_buf`) → 3초 debounce 후 `_flush_album`이 **한 노트에 전부 임베드**(`![[img]]` 여러 줄, 첫 캡션 사용). 삭제 버튼은 노트+모든 첨부 삭제. job_queue 없으면 개별 저장로 폴백.
+  - **삭제**: 각 저장 메시지에 `🗑 삭제` 버튼 — **재시작에도 안전하게** callback_data에 `d:{폴더코드}:{타임스탬프}`를 담음(`_del_button`/`delete_callback`, `list_folder`로 stamp 매칭 → 노트+`![[img]]` 첨부 삭제). 일괄: `삭제`/`삭제 N`/`최근삭제 N` 텍스트 → 인박스 최근 N개 삭제(`_delete_recent`). `vault.read_note`/`list_folder`/`delete_note`.
+  - **사진 여러 장(앨범)**: `media_group_id`로 **file_id만 즉시 버퍼**(`_album_buf`, 핸들러는 업로드 안 함=빠름) → 4초 debounce 후 `_flush_album`이 다운로드+업로드하고 **한 노트에 전부 임베드**(`![[img]]` 여러 줄, 첫 캡션 사용). job_queue 없으면 개별 저장로 폴백. (예전에 핸들러에서 바로 업로드하다 느려서 앨범이 쪼개지던 것 → file_id 버퍼링으로 해결)
   - 명령어: `/today` `/find` `/shopping` `/books`
   - 비전 모델: `INBOX_VISION_MODEL` (기본 sonnet, opus로 올릴 수 있음)
 - **연결 상태**: ✅ 이미 연결됨. 볼트 = `BokiVoki/obsidian-vault`(Private), Railway 두 번째 서비스(`BOT_ROLE=inbox`)에서 커밋 중. env: `INBOX_BOT_TOKEN`, `VAULT_REPO`, `GITHUB_TOKEN`, `BOT_ROLE=inbox`, (공유: `ANTHROPIC_API_KEY`, `TELEGRAM_USER_ID`)

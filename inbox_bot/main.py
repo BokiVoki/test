@@ -15,7 +15,6 @@
 import logging
 import os
 import re
-import uuid
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
@@ -38,23 +37,21 @@ _pending_annotate: dict[int, str] = {}
 # chat_id → {"bytes","embed","caption","inbox_path"} : 방금 받은 사진 (쇼핑 전환용)
 _last_photo: dict[int, dict] = {}
 
-# 삭제 버튼용: 토큰 → {note 경로, imgs 경로들}
-_del_map: dict[str, dict] = {}
-# 앨범(여러 장) 버퍼: media_group_id → {chat_id, embeds[], caption}
+# 앨범(여러 장) 버퍼: media_group_id → {chat_id, file_ids[], caption}
 _album_buf: dict[str, dict] = {}
 
-
-def _reg_del(note_path: str, imgs: list[str] | None = None) -> str:
-    token = uuid.uuid4().hex[:8]
-    _del_map[token] = {"note": note_path, "imgs": imgs or []}
-    if len(_del_map) > 400:
-        for k in list(_del_map)[:200]:
-            _del_map.pop(k, None)
-    return token
+_FCODE = {"Inbox": "I", "Books": "B", "Shopping": "S"}
+_FOLDER = {"I": "Inbox", "B": "Books", "S": "Shopping"}
 
 
-def _del_button(note_path: str, imgs: list[str] | None = None) -> InlineKeyboardButton:
-    return InlineKeyboardButton("🗑 삭제", callback_data="del:" + _reg_del(note_path, imgs))
+def _del_button(note_path: str) -> InlineKeyboardButton:
+    """재시작에도 안전한 삭제 버튼: 폴더코드 + 파일 타임스탬프를 콜백에 담는다.
+    (첨부 이미지는 삭제 시 노트 내용의 ![[img]] 에서 찾아 함께 지움)"""
+    folder = note_path.split("/")[0]
+    fname = note_path.split("/")[-1]
+    m = re.match(r"(\d{4}-\d{2}-\d{2}_\d{4})", fname)
+    stamp = m.group(1) if m else fname[:15]
+    return InlineKeyboardButton("🗑 삭제", callback_data=f"d:{_FCODE.get(folder, 'I')}:{stamp}")
 
 _PLACEHOLDER = "_(무엇이 나를 건드렸나? 나중에 한 줄)_"
 
@@ -167,17 +164,26 @@ async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     query = update.callback_query
     await query.answer()
-    token = query.data.split(":", 1)[1]
-    info = _del_map.pop(token, None)
-    if not info:
-        await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text("앗, 이건 이미 지웠거나 잊어버렸어요.")
+    parts = query.data.split(":")
+    if len(parts) < 3:
         return
-    ok = vault.delete_note(info["note"], commit_msg=f"remove {info['note']}")
-    for img in info.get("imgs", []):
-        vault.delete_note(img, commit_msg=f"remove {img}")
+    folder = _FOLDER.get(parts[1], "Inbox")
+    stamp = parts[2]
+    names = [n for n in vault.list_folder(folder) if n.startswith(stamp + "_")]
+    if not names:
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text("앗, 이미 지웠거나 못 찾았어요.")
+        return
+    deleted = 0
+    for name in names:
+        path = f"{folder}/{name}"
+        content = vault.read_note(path) or ""
+        for img in re.findall(r"!\[\[([^\]]+)\]\]", content):
+            vault.delete_note(f"Inbox/attachments/{img}", commit_msg=f"remove {img}")
+        if vault.delete_note(path, commit_msg=f"remove {name}"):
+            deleted += 1
     await query.edit_message_reply_markup(reply_markup=None)
-    await query.message.reply_text("🗑 삭제했어요." if ok else "삭제 실패 (이미 없을 수도 있어요).")
+    await query.message.reply_text("🗑 삭제했어요 (사진 첨부도 함께)." if deleted else "삭제 실패 (이미 없을 수도).")
 
 
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -353,14 +359,27 @@ async def annotate_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _flush_album(context: ContextTypes.DEFAULT_TYPE):
-    """앨범(여러 장) 버퍼를 하나의 노트로 저장."""
+    """앨범(여러 장) 버퍼를 하나의 노트로 저장. 다운로드/업로드는 여기서 한 번에."""
     gid = context.job.data
     entry = _album_buf.pop(gid, None)
-    if not entry or not entry.get("embeds"):
+    if not entry or not entry.get("file_ids"):
         return
     chat_id = entry["chat_id"]
     caption = entry.get("caption", "")
-    embeds = entry["embeds"]
+    stamp = _now_kst().strftime("%Y%m%d_%H%M%S")
+    embeds = []
+    for i, fid in enumerate(entry["file_ids"]):
+        try:
+            tgf = await context.bot.get_file(fid)
+            data = bytes(await tgf.download_as_bytearray())
+            iname = f"inbox_{stamp}_{i + 1}.jpg"
+            vault.write_binary(f"Inbox/attachments/{iname}", data, commit_msg=f"inbox image: {iname}")
+            embeds.append(iname)
+        except Exception as e:
+            logger.warning(f"앨범 사진 업로드 실패({i}): {e}")
+    if not embeds:
+        await context.bot.send_message(chat_id=chat_id, text="❌ 앨범 사진 업로드에 실패했어요.")
+        return
     try:
         if caption:
             light = capture.summarize("idea", "", {}, caption)
@@ -381,7 +400,7 @@ async def _flush_album(context: ContextTypes.DEFAULT_TYPE):
         _last_note[chat_id] = {"path": path, "content": content, "title": parsed["title"]}
         markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
-            [_del_button(path, [f"Inbox/attachments/{e}" for e in embeds])],
+            [_del_button(path)],
         ])
         await context.bot.send_message(
             chat_id=chat_id,
@@ -405,6 +424,22 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_id = update.effective_chat.id
 
+    # ── 앨범(여러 장) → file_id만 잽싸게 버퍼, 실제 저장은 flush에서 한 번에 ──
+    gid = getattr(update.message, "media_group_id", None)
+    if gid and getattr(context, "job_queue", None):
+        entry = _album_buf.setdefault(str(gid), {"chat_id": chat_id, "file_ids": [], "caption": ""})
+        try:
+            entry["file_ids"].append(update.message.photo[-1].file_id)
+        except Exception:
+            pass
+        if caption and not entry["caption"]:
+            entry["caption"] = caption
+        name = f"album:{gid}"
+        for j in context.job_queue.get_jobs_by_name(name):
+            j.schedule_removal()
+        context.job_queue.run_once(_flush_album, when=4.0, data=str(gid), name=name)
+        return
+
     # 사진을 볼트에 직접 넣기 (옵시디언에서 확실히 보임)
     image_embed = ""
     buf = b""
@@ -418,20 +453,6 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         image_embed = img_name
     except Exception as e:
         logger.warning(f"사진 볼트 업로드 실패(계속 진행): {e}")
-
-    # ── 앨범(여러 장 동시 전송) → 한 노트로 모으기 (job_queue 있을 때만) ──
-    gid = getattr(update.message, "media_group_id", None)
-    if gid and getattr(context, "job_queue", None):
-        entry = _album_buf.setdefault(str(gid), {"chat_id": chat_id, "embeds": [], "caption": ""})
-        if image_embed:
-            entry["embeds"].append(image_embed)
-        if caption and not entry["caption"]:
-            entry["caption"] = caption
-        name = f"album:{gid}"
-        for j in context.job_queue.get_jobs_by_name(name):
-            j.schedule_removal()
-        context.job_queue.run_once(_flush_album, when=3.0, data=str(gid), name=name)
-        return
 
     # 캡션에 책 의도가 있으면 → 바로 읽고싶은 책으로 (표지/제목/저자 읽음)
     if caption and capture.is_book(caption):
@@ -504,7 +525,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
         [InlineKeyboardButton("🛒 사고싶은 거", callback_data="toshop"),
          InlineKeyboardButton("📚 읽고싶은 책", callback_data="toread")],
-        [_del_button(path, [f"Inbox/attachments/{image_embed}"] if image_embed else None)],
+        [_del_button(path)],
     ])
     await update.message.reply_text(reply, parse_mode="Markdown", reply_markup=markup)
 
@@ -597,7 +618,7 @@ def main():
     app.add_handler(CommandHandler("shopping", shopping_handler))
     app.add_handler(CommandHandler("books", books_handler))
 
-    app.add_handler(CallbackQueryHandler(delete_callback, pattern=r"^del:"))
+    app.add_handler(CallbackQueryHandler(delete_callback, pattern=r"^d:"))
     app.add_handler(CallbackQueryHandler(annotate_callback, pattern=r"^annotate$"))
     app.add_handler(CallbackQueryHandler(toshop_callback, pattern=r"^toshop$"))
     app.add_handler(CallbackQueryHandler(toread_callback, pattern=r"^toread$"))
