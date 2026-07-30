@@ -120,6 +120,22 @@ def delete_note(path: str, commit_msg: str = "") -> bool:
         return False
 
 
+def read_note(path: str) -> str | None:
+    """볼트 파일 내용을 텍스트로 읽는다. 실패 시 None."""
+    import base64
+    repo = _repo()
+    branch = _branch()
+    url = f"{_API}/repos/{repo}/contents/{path}"
+    try:
+        r = requests.get(url, headers=_headers(), params={"ref": branch}, timeout=15)
+        if r.status_code != 200:
+            return None
+        return base64.b64decode(r.json().get("content", "")).decode("utf-8", errors="replace")
+    except Exception as e:
+        logger.warning(f"노트 읽기 실패: {e}")
+        return None
+
+
 def list_folder(folder: str, prefix: str = "") -> list[str]:
     """폴더의 .md 파일명 목록. prefix로 필터 (파일명에 포함되면 매칭)."""
     repo = _repo()

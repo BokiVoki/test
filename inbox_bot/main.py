@@ -14,6 +14,8 @@
 """
 import logging
 import os
+import re
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
@@ -35,6 +37,22 @@ _last_note: dict[int, dict] = {}
 _pending_annotate: dict[int, str] = {}
 # chat_id → {"bytes","embed","caption","inbox_path"} : 방금 받은 사진 (쇼핑 전환용)
 _last_photo: dict[int, dict] = {}
+
+# 삭제 버튼용: 토큰 → {note 경로, img 경로}
+_del_map: dict[str, dict] = {}
+
+
+def _reg_del(note_path: str, img_path: str | None = None) -> str:
+    token = uuid.uuid4().hex[:8]
+    _del_map[token] = {"note": note_path, "img": img_path}
+    if len(_del_map) > 400:
+        for k in list(_del_map)[:200]:
+            _del_map.pop(k, None)
+    return token
+
+
+def _del_button(note_path: str, img_path: str | None = None) -> InlineKeyboardButton:
+    return InlineKeyboardButton("🗑 삭제", callback_data="del:" + _reg_del(note_path, img_path))
 
 _PLACEHOLDER = "_(무엇이 나를 건드렸나? 나중에 한 줄)_"
 
@@ -121,6 +139,45 @@ async def find_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ── 기본: 캡처 ──────────────────────────────────────────────
+async def _delete_recent(update, n: int):
+    """인박스 최근 노트 N개 삭제 (사진 첨부도 함께)."""
+    if not vault.is_configured():
+        await update.message.reply_text("⚠️ 볼트 연결이 안 됐어요.")
+        return
+    names = vault.list_inbox()[:n]  # 최신순
+    if not names:
+        await update.message.reply_text("인박스에 지울 게 없어요.")
+        return
+    deleted = 0
+    for name in names:
+        path = f"Inbox/{name}"
+        content = vault.read_note(path) or ""
+        m = re.search(r"!\[\[([^\]]+)\]\]", content)
+        if m:
+            vault.delete_note(f"Inbox/attachments/{m.group(1)}", commit_msg=f"remove attachment {m.group(1)}")
+        if vault.delete_note(path, commit_msg=f"remove {name}"):
+            deleted += 1
+    await update.message.reply_text(f"🗑 인박스 최근 {deleted}개 삭제했어요 (사진 첨부도 함께).")
+
+
+async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _authorized(update):
+        return
+    query = update.callback_query
+    await query.answer()
+    token = query.data.split(":", 1)[1]
+    info = _del_map.pop(token, None)
+    if not info:
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text("앗, 이건 이미 지웠거나 잊어버렸어요.")
+        return
+    ok = vault.delete_note(info["note"], commit_msg=f"remove {info['note']}")
+    if info.get("img"):
+        vault.delete_note(info["img"], commit_msg=f"remove {info['img']}")
+    await query.edit_message_reply_markup(reply_markup=None)
+    await query.message.reply_text("🗑 삭제했어요." if ok else "삭제 실패 (이미 없을 수도 있어요).")
+
+
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update):
         return
@@ -128,6 +185,13 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
     chat_id = update.effective_chat.id
+
+    # ── 삭제 명령: '삭제' / '삭제 3' / '최근삭제 3' → 인박스 최근 N개 삭제 ──
+    dm = re.match(r"^(?:삭제|최근삭제|인박스\s*삭제)\s*(\d+)?$", text)
+    if dm:
+        n = int(dm.group(1)) if dm.group(1) else 1
+        await _delete_recent(update, max(1, min(n, 30)))
+        return
 
     # ── '내 생각' 덧붙이기 대기 중이면 → 직전 노트에 추가 + 내 말에서 태그 재추출 ──
     if chat_id in _pending_annotate:
@@ -229,9 +293,10 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if tags:
         reply += f"\n🏷 {' '.join('#'+t for t in tags)}"
     reply += "\n\n_요약은 참고용이에요. 뭐가 널 건드렸는지 한 줄 남기면 그게 진짜 기록이 돼요._"
-    markup = InlineKeyboardMarkup([[
-        InlineKeyboardButton("✍️ 내 생각 한 줄 남기기", callback_data="annotate")
-    ]])
+    markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✍️ 내 생각 한 줄 남기기", callback_data="annotate")],
+        [_del_button(path)],
+    ])
     await update.message.reply_text(reply, parse_mode="Markdown", reply_markup=markup)
 
 
@@ -382,6 +447,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
         [InlineKeyboardButton("🛒 사고싶은 거", callback_data="toshop"),
          InlineKeyboardButton("📚 읽고싶은 책", callback_data="toread")],
+        [_del_button(path, f"Inbox/attachments/{image_embed}" if image_embed else None)],
     ])
     await update.message.reply_text(reply, parse_mode="Markdown", reply_markup=markup)
 
@@ -474,6 +540,7 @@ def main():
     app.add_handler(CommandHandler("shopping", shopping_handler))
     app.add_handler(CommandHandler("books", books_handler))
 
+    app.add_handler(CallbackQueryHandler(delete_callback, pattern=r"^del:"))
     app.add_handler(CallbackQueryHandler(annotate_callback, pattern=r"^annotate$"))
     app.add_handler(CallbackQueryHandler(toshop_callback, pattern=r"^toshop$"))
     app.add_handler(CallbackQueryHandler(toread_callback, pattern=r"^toread$"))

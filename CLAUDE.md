@@ -45,6 +45,8 @@
   - 쇼핑("살까/얼마") → `Shopping/` 위시리스트 (비전으로 상품/가격 읽음)
   - 책("읽어볼까/책추천") → `Books/` 읽고싶은 책 (표지 제목/저자 읽음, 여러 권이면 목록)
   - `✍️ 내 생각` 버튼 → 사용자 말에서 태그 재추출, 캡션 우선
+  - **삭제**: 각 저장 메시지에 `🗑 삭제` 버튼(노트+첨부 이미지 삭제, `_del_map` 토큰→경로, `delete_callback`). 일괄: `삭제`/`삭제 N`/`최근삭제 N` 텍스트 → 인박스 최근 N개 삭제(`_delete_recent`, 노트의 `![[img]]` 첨부도 함께). `vault.read_note`/`delete_note`.
+  - **사진 여러 장**: 텔레그램 앨범은 각 사진이 개별 메시지 → **각각 별도 노트**로 저장됨(한 노트로 묶으려면 media_group 버퍼링 필요, 미구현).
   - 명령어: `/today` `/find` `/shopping` `/books`
   - 비전 모델: `INBOX_VISION_MODEL` (기본 sonnet, opus로 올릴 수 있음)
 - **연결 상태**: ✅ 이미 연결됨. 볼트 = `BokiVoki/obsidian-vault`(Private), Railway 두 번째 서비스(`BOT_ROLE=inbox`)에서 커밋 중. env: `INBOX_BOT_TOKEN`, `VAULT_REPO`, `GITHUB_TOKEN`, `BOT_ROLE=inbox`, (공유: `ANTHROPIC_API_KEY`, `TELEGRAM_USER_ID`)
