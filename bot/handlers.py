@@ -1,5 +1,6 @@
 import copy
 import os
+import re
 import uuid as uuid_module
 from datetime import date, datetime, timezone, timedelta
 from typing import Optional
@@ -1607,9 +1608,13 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not pocket_text:
             await update.message.reply_text("📥 주머니에 넣을 내용을 '앱' 뒤에 적어주세요. (예: 앱 사과 사기)")
             return
+        title, due = parse_pocket_due(pocket_text, _now_kst().date())
         try:
-            haru_app.add_to_pocket(pocket_text)
-            await update.message.reply_text(f"📥 주머니에 담았어요\n· {pocket_text}")
+            haru_app.add_to_pocket(title, due=due)
+            msg = f"📥 주머니에 담았어요\n· {title}"
+            if due:
+                msg += f"\n📅 마감 {due[5:].replace('-', '/')}"
+            await update.message.reply_text(msg)
         except Exception as e:
             await update.message.reply_text(f"❌ 주머니 저장 실패: {e}")
         return
@@ -2619,6 +2624,64 @@ def _haru_deadline_buckets(today, tomorrow):
     td = [d for d in items if (d.get("due") or "")[:10] == ts]
     tm = [d for d in items if (d.get("due") or "")[:10] == tos]
     return over, td, tm
+
+
+_WDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
+
+
+def _resolve_md(today, mo, da):
+    """월/일 → 가장 가까운 미래(또는 오늘)의 ISO 날짜. 이미 지났으면 내년."""
+    if not (1 <= mo <= 12 and 1 <= da <= 31):
+        return None
+    for yr in (today.year, today.year + 1):
+        try:
+            cand = date(yr, mo, da)
+        except ValueError:
+            return None
+        if cand >= today:
+            return cand.isoformat()
+    return None
+
+
+def parse_pocket_due(text, today):
+    """'앱 <내용> <날짜>' 에서 끝에 붙은 날짜를 떼어낸다.
+
+    지원: 오늘/내일/모레/글피, 요일(월~일), M/D · M.D · M-D, M월 D일.
+    반환: (내용, due_iso 또는 None). 날짜 못 찾으면 (원문, None).
+    """
+    s = (text or "").strip()
+
+    kw = {"오늘": 0, "내일": 1, "모레": 2, "글피": 3}
+    for k, off in kw.items():
+        if s.endswith(k):
+            title = s[: -len(k)].strip()
+            if title:
+                return title, (today + timedelta(days=off)).isoformat()
+
+    m = re.search(r"(월|화|수|목|금|토|일)요일$", s)
+    if m:
+        title = s[: m.start()].strip()
+        if title:
+            target = _WDAY_KR.index(m.group(1))
+            delta = (target - today.weekday()) % 7
+            delta = delta or 7
+            return title, (today + timedelta(days=delta)).isoformat()
+
+    m = re.search(r"(\d{1,2})\s*월\s*(\d{1,2})\s*일?$", s)
+    if m:
+        title = s[: m.start()].strip()
+        iso = _resolve_md(today, int(m.group(1)), int(m.group(2)))
+        if title and iso:
+            return title, iso
+
+    m = re.search(r"(\d{1,2})[/.\-](\d{1,2})$", s)
+    if m:
+        title = s[: m.start()].strip()
+        iso = _resolve_md(today, int(m.group(1)), int(m.group(2)))
+        if title and iso:
+            return title, iso
+
+    return s, None
 
 
 async def _send_haru_deadlines(update):

@@ -37,9 +37,10 @@ def is_configured() -> bool:
     return bool(SUPABASE_URL and SERVICE_KEY and OWNER_ID)
 
 
-def add_to_pocket(title: str, ws: str | None = None) -> None:
+def add_to_pocket(title: str, ws: str | None = None, due: str | None = None) -> None:
     """할일 하나를 하루앱 주머니(bucket='inbox')에 넣는다.
 
+    due: 'YYYY-MM-DD' 마감일(선택).
     실패하면 예외를 던진다(호출부에서 사용자에게 알림).
     """
     if not is_configured():
@@ -56,7 +57,7 @@ def add_to_pocket(title: str, ws: str | None = None) -> None:
         "title": title,
         "ws": ws or WORKSPACE,
         "project": "",
-        "due": None,
+        "due": due or None,
         "today": False,
         "done": False,
         "imp": 1,
