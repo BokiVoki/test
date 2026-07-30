@@ -19,6 +19,7 @@ from .cycle_sheet import CycleClient, PHASE_INFO
 from . import claude_client
 from . import figma_client
 from . import haru_app
+from . import gcal
 from .mode_prompts import MODE_NAMES
 from .instagram_prompts import INSTAGRAM_AGENT_NAMES
 
@@ -1619,6 +1620,38 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ 주머니 저장 실패: {e}")
         return
 
+    # ── "일정 ..." → 구글 캘린더 이벤트 (기간/시간 지원) ──
+    if text[:2] == "일정" and len(text) > 2 and text[2] in (" ", "\n", "\t"):
+        body = text[2:].strip()
+        if not body:
+            await update.message.reply_text("📅 예: `일정 출장 8/6-8/8` · `일정 회의 8/6 14:00`", parse_mode="Markdown")
+            return
+        parsed = parse_schedule(body, _now_kst().date())
+        if not parsed:
+            await update.message.reply_text("📅 날짜를 못 읽었어요. 예: 일정 출장 8/6-8/8 / 일정 회의 8/6 14:00")
+            return
+        if not gcal.is_configured():
+            await update.message.reply_text("구글 캘린더 연결이 안 돼 있어요. (Calendar API 사용설정 + 캘린더를 서비스계정에 공유 + GOOGLE_CALENDAR_ID)")
+            return
+        try:
+            if parsed["kind"] == "allday":
+                ev = gcal.create_all_day(parsed["summary"], parsed["start"], parsed["end"])
+                a = parsed["start"][5:].replace("-", "/")
+                b = parsed["end"][5:].replace("-", "/")
+                rng = a if a == b else f"{a}~{b}"
+                msg = f"📅 캘린더에 넣었어요\n· {parsed['summary']} ({rng})"
+            else:
+                ev = gcal.create_timed(parsed["summary"], parsed["start_dt"], parsed["end_dt"])
+                when = parsed["start_dt"][5:16].replace("-", "/").replace("T", " ")
+                msg = f"📅 캘린더에 넣었어요\n· {parsed['summary']} ({when})"
+            link = ev.get("htmlLink")
+            if link:
+                msg += f"\n{link}"
+            await update.message.reply_text(msg)
+        except Exception as e:
+            await update.message.reply_text(f"❌ 캘린더 저장 실패: {e}\n(Calendar API 사용설정 + 캘린더 공유 확인)")
+        return
+
     # ── "마감" → 하루앱 마감 임박 할일 즉시 확인 ──
     if text in ("마감", "마감?", "하루마감", "마감임박", "마감확인"):
         await _send_haru_deadlines(update)
@@ -2682,6 +2715,63 @@ def parse_pocket_due(text, today):
             return title, iso
 
     return s, None
+
+
+def parse_schedule(text, today):
+    """'일정 <내용> <날짜/기간 [시간]>' 파싱. 못 읽으면 None.
+
+    반환 예:
+      {'summary','kind':'allday','start','end'}          # 종일/기간
+      {'summary','kind':'timed','start_dt','end_dt'}      # 시간 지정
+    """
+    s = (text or "").strip()
+
+    def _range(m):
+        summ = s[: m.start()].strip()
+        d1 = _resolve_md(today, int(m.group(1)), int(m.group(2)))
+        d2 = _resolve_md(today, int(m.group(3)), int(m.group(4)))
+        if summ and d1 and d2:
+            if d2 < d1:
+                d1, d2 = d2, d1
+            return {"summary": summ, "kind": "allday", "start": d1, "end": d2}
+        return None
+
+    m = re.search(r"(\d{1,2})\s*[/.]\s*(\d{1,2})\s*[-~]\s*(\d{1,2})\s*[/.]\s*(\d{1,2})\s*$", s)
+    if m:
+        r = _range(m)
+        if r:
+            return r
+    m = re.search(r"(\d{1,2})\s*월\s*(\d{1,2})\s*일?\s*[-~]\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?\s*$", s)
+    if m:
+        r = _range(m)
+        if r:
+            return r
+
+    m = re.search(r"(\d{1,2})\s*[/.]\s*(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?\s*$", s)
+    if not m:
+        m = re.search(r"(\d{1,2})\s*월\s*(\d{1,2})\s*일?(?:\s+(\d{1,2}):(\d{2}))?\s*$", s)
+    if m:
+        summ = s[: m.start()].strip()
+        d = _resolve_md(today, int(m.group(1)), int(m.group(2)))
+        if summ and d:
+            if m.group(3) is not None:
+                hh, mm = int(m.group(3)), int(m.group(4))
+                if 0 <= hh <= 23 and 0 <= mm <= 59:
+                    return {
+                        "summary": summ,
+                        "kind": "timed",
+                        "start_dt": f"{d}T{hh:02d}:{mm:02d}:00",
+                        "end_dt": f"{d}T{(hh + 1) % 24:02d}:{mm:02d}:00",
+                    }
+            return {"summary": summ, "kind": "allday", "start": d, "end": d}
+
+    for k, off in {"오늘": 0, "내일": 1, "모레": 2, "글피": 3}.items():
+        if s.endswith(k):
+            summ = s[: -len(k)].strip()
+            if summ:
+                d = (today + timedelta(days=off)).isoformat()
+                return {"summary": summ, "kind": "allday", "start": d, "end": d}
+    return None
 
 
 async def _send_haru_deadlines(update):
