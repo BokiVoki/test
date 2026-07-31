@@ -136,6 +136,30 @@ def read_note(path: str) -> str | None:
         return None
 
 
+def read_binary(path: str) -> bytes | None:
+    """볼트의 바이너리 파일(이미지 등)을 바이트로 읽는다. 실패 시 None."""
+    import base64
+    repo = _repo()
+    branch = _branch()
+    url = f"{_API}/repos/{repo}/contents/{path}"
+    try:
+        r = requests.get(url, headers=_headers(), params={"ref": branch}, timeout=20)
+        if r.status_code != 200:
+            return None
+        c = r.json().get("content", "")
+        if c:
+            return base64.b64decode(c)
+        # 큰 파일은 download_url로
+        dl = r.json().get("download_url")
+        if dl:
+            rr = requests.get(dl, timeout=20)
+            if rr.status_code == 200:
+                return rr.content
+    except Exception as e:
+        logger.warning(f"바이너리 읽기 실패: {e}")
+    return None
+
+
 def list_folder(folder: str, prefix: str = "") -> list[str]:
     """폴더의 .md 파일명 목록. prefix로 필터 (파일명에 포함되면 매칭)."""
     repo = _repo()

@@ -44,14 +44,26 @@ _FCODE = {"Inbox": "I", "Books": "B", "Shopping": "S"}
 _FOLDER = {"I": "Inbox", "B": "Books", "S": "Shopping"}
 
 
-def _del_button(note_path: str) -> InlineKeyboardButton:
-    """재시작에도 안전한 삭제 버튼: 폴더코드 + 파일 타임스탬프를 콜백에 담는다.
-    (첨부 이미지는 삭제 시 노트 내용의 ![[img]] 에서 찾아 함께 지움)"""
+def _stampcb(code: str, note_path: str) -> str:
+    """재시작에도 안전한 콜백: {code}:{폴더코드}:{파일 타임스탬프}."""
     folder = note_path.split("/")[0]
     fname = note_path.split("/")[-1]
     m = re.match(r"(\d{4}-\d{2}-\d{2}_\d{4})", fname)
     stamp = m.group(1) if m else fname[:15]
-    return InlineKeyboardButton("🗑 삭제", callback_data=f"d:{_FCODE.get(folder, 'I')}:{stamp}")
+    return f"{code}:{_FCODE.get(folder, 'I')}:{stamp}"
+
+
+def _find_note(folder_code: str, stamp: str) -> str | None:
+    """폴더코드+스탬프로 노트 경로를 찾는다."""
+    folder = _FOLDER.get(folder_code, "Inbox")
+    for n in vault.list_folder(folder):
+        if n.startswith(stamp + "_"):
+            return f"{folder}/{n}"
+    return None
+
+
+def _del_button(note_path: str) -> InlineKeyboardButton:
+    return InlineKeyboardButton("🗑 삭제", callback_data=_stampcb("d", note_path))
 
 _PLACEHOLDER = "_(무엇이 나를 건드렸나? 나중에 한 줄)_"
 
@@ -184,6 +196,48 @@ async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             deleted += 1
     await query.edit_message_reply_markup(reply_markup=None)
     await query.message.reply_text("🗑 삭제했어요 (사진 첨부도 함께)." if deleted else "삭제 실패 (이미 없을 수도).")
+
+
+async def ocr_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """📝 글 인식: 노트의 이미지를 비전으로 읽어 글을 노트에 넣고, 읽은 글을 확인용으로 보냄."""
+    if not _authorized(update):
+        return
+    query = update.callback_query
+    await query.answer("글 읽는 중…")
+    parts = query.data.split(":")
+    if len(parts) < 3:
+        return
+    path = _find_note(parts[1], parts[2])
+    if not path:
+        await query.message.reply_text("앗, 그 노트를 못 찾았어요 (지웠나요?).")
+        return
+    content = vault.read_note(path) or ""
+    m = re.search(r"!\[\[([^\]]+)\]\]", content)
+    if not m:
+        await query.message.reply_text("이 노트엔 이미지가 없어요.")
+        return
+    await context.bot.send_chat_action(chat_id=query.message.chat_id, action="typing")
+    img_bytes = vault.read_binary(f"Inbox/attachments/{m.group(1)}")
+    if not img_bytes:
+        await query.message.reply_text("이미지를 못 불러왔어요.")
+        return
+    ocr = capture.read_photo_text(img_bytes, "")
+    text = (ocr.get("text") or "").strip()
+    if not text:
+        await query.message.reply_text("글을 못 읽었어요 (글이 적거나 흐릿할 수 있어요).")
+        return
+    section = "\n## 📄 인식한 글\n" + text + "\n"
+    if "## 📄 인식한 글" in content:
+        content = re.sub(r"\n## 📄 인식한 글\n.*?(?=\n## |\Z)", section, content, flags=re.DOTALL)
+    else:
+        content = content.rstrip() + "\n" + section
+    try:
+        vault.write_note(path, content, commit_msg=f"ocr: {path.split('/')[-1]}")
+    except Exception as e:
+        await query.message.reply_text(f"❌ 메모 저장 실패: {e}")
+        return
+    preview = text if len(text) <= 3500 else text[:3500] + "\n…(너무 길어 여기선 잘림 — 노트엔 전체 저장됨)"
+    await query.message.reply_text("📝 글 읽어서 메모에 넣었어요. 확인해봐요:\n\n" + preview)
 
 
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -490,35 +544,24 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ 저장 실패: {e}")
         return
 
-    text_saved = False
     try:
-        # 텍스트 위주 사진(스크린샷 등)이면 글을 읽어 메모 본문으로
-        ocr = capture.read_photo_text(buf, caption) if buf else {"is_text": False}
-        if ocr.get("is_text") and ocr.get("text"):
-            title_ov = (caption.strip()[:30] if caption else "") or ocr.get("title") or "글 캡처"
-            parsed = {"title": title_ov, "text": ocr["text"],
-                      "tags": ocr.get("tags") or ["글", "캡처"], "hub": ocr.get("hub", "")}
-            path, content = capture.build_text_note(parsed, user_text=caption, image_embed=image_embed)
-            vault.write_note(path, content, commit_msg=f"text: {parsed['title']}")
-            text_saved = True
+        # 캡션이 있으면 제목/태그만 뽑고, 요약은 만들지 않음 (캡션 중복 방지)
+        if caption:
+            light = capture.summarize("idea", "", {}, caption)
+            parsed = {
+                "title": light.get("title") or caption[:20],
+                "summary": "",   # 캡션이 곧 '내 생각' — 중복 요약 안 함
+                "why": "",
+                "tags": light.get("tags") or ["사진"],
+                "hub": light.get("hub", ""),
+            }
         else:
-            # 캡션이 있으면 제목/태그만 뽑고, 요약은 만들지 않음 (캡션 중복 방지)
-            if caption:
-                light = capture.summarize("idea", "", {}, caption)
-                parsed = {
-                    "title": light.get("title") or caption[:20],
-                    "summary": "",   # 캡션이 곧 '내 생각' — 중복 요약 안 함
-                    "why": "",
-                    "tags": light.get("tags") or ["사진"],
-                    "hub": light.get("hub", ""),
-                }
-            else:
-                parsed = {"title": f"사진 {_now_kst().strftime('%m/%d %H:%M')}",
-                          "summary": "", "why": "", "tags": ["사진"], "hub": ""}
-            path, content = capture.build_note(
-                "image", parsed, user_text=caption, image_embed=image_embed,
-            )
-            vault.write_note(path, content, commit_msg=f"inbox: {parsed.get('title','사진')}")
+            parsed = {"title": f"사진 {_now_kst().strftime('%m/%d %H:%M')}",
+                      "summary": "", "why": "", "tags": ["사진"], "hub": ""}
+        path, content = capture.build_note(
+            "image", parsed, user_text=caption, image_embed=image_embed,
+        )
+        vault.write_note(path, content, commit_msg=f"inbox: {parsed.get('title','사진')}")
     except Exception as e:
         logger.exception("사진 캡처 실패")
         await update.message.reply_text(f"❌ 저장 실패: {e}")
@@ -528,12 +571,14 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 쇼핑 전환 버튼용으로 사진 정보 잠깐 보관
     _last_photo[chat_id] = {"bytes": buf, "embed": image_embed, "caption": caption, "inbox_path": path}
 
-    reply = "✅ 글 읽어서 메모로 저장했어요 📝" if text_saved else "✅ 사진 저장했어요"
+    reply = "✅ 사진 저장했어요"
     if not image_embed:
         reply += "\n(⚠️ 이미지 업로드는 실패 — 메모만 저장됨)"
     reply += "\n\n_한 줄 남기거나, 종류에 맞는 버튼을 눌러요._"
+    reply += "\n\n_글(스크린샷)이면 📝 글 인식을 눌러요._"
     markup = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
+        [InlineKeyboardButton("📝 글 인식", callback_data=_stampcb("o", path)),
+         InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
         [InlineKeyboardButton("🛒 사고싶은 거", callback_data="toshop"),
          InlineKeyboardButton("📚 읽고싶은 책", callback_data="toread")],
         [_del_button(path)],
@@ -630,6 +675,7 @@ def main():
     app.add_handler(CommandHandler("books", books_handler))
 
     app.add_handler(CallbackQueryHandler(delete_callback, pattern=r"^d:"))
+    app.add_handler(CallbackQueryHandler(ocr_callback, pattern=r"^o:"))
     app.add_handler(CallbackQueryHandler(annotate_callback, pattern=r"^annotate$"))
     app.add_handler(CallbackQueryHandler(toshop_callback, pattern=r"^toshop$"))
     app.add_handler(CallbackQueryHandler(toread_callback, pattern=r"^toread$"))
