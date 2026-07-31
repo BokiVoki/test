@@ -2779,6 +2779,19 @@ async def _create_schedule(update, body):
             ev = gcal.create_timed(parsed["summary"], parsed["start_dt"], parsed["end_dt"])
             when = parsed["start_dt"][5:16].replace("-", "/").replace("T", " ")
             msg = f"📅 캘린더에 넣었어요\n· {parsed['summary']} ({when})"
+        # 하루앱에도 같이 표시 (설정돼 있으면)
+        if haru_app.is_configured():
+            try:
+                if parsed["kind"] == "allday":
+                    s = parsed["start"][5:].replace("-", "/")
+                    e = parsed["end"][5:].replace("-", "/")
+                    apt = parsed["summary"] if parsed["start"] == parsed["end"] else f"{parsed['summary']} ({s}~{e})"
+                    haru_app.add_to_pocket(apt, due=parsed["start"], bucket="active")
+                else:
+                    haru_app.add_to_pocket(f"{parsed['summary']} ({parsed['start_dt'][11:16]})", due=parsed["start_dt"][:10], bucket="active")
+                msg += "\n🗂 하루앱에도 표시돼요"
+            except Exception:
+                pass
         link = ev.get("htmlLink")
         if link:
             msg += f"\n{link}"

@@ -373,6 +373,74 @@ def summarize(source_type: str, url: str, raw: dict, user_text: str) -> dict:
 
 
 # ── 쇼핑/위시리스트 ─────────────────────────────────────────
+def read_photo_text(image_bytes: bytes, caption: str = "") -> dict:
+    """텍스트 위주 사진(스크린샷/글 캡처)인지 판단하고, 맞으면 글을 그대로 읽는다.
+    반환: {"is_text": bool, "title": str, "text": str, "tags": [..], "hub": str}"""
+    import base64 as _b64
+    ask = (
+        "이 사진을 봐. 글(텍스트)이 화면 대부분을 차지하는 캡처인지 판단해 "
+        "(예: SNS 게시물·글·기사·메모 스크린샷). JSON만 반환:\n"
+        "{\n"
+        '  "is_text": true/false,\n'
+        '  "title": "내용을 대표하는 짧은 제목(한국어). 캡션 있으면 반영",\n'
+        '  "text": "사진 속 글을 최대한 그대로 옮겨적기. 줄바꿈/문단 유지. is_text=false면 빈 문자열",\n'
+        '  "tags": ["주제 태그 1~3개"],\n'
+        '  "hub": "큰 주제 한 단어(없으면 빈 문자열)"\n'
+        "}\n"
+        "글이 길어도 잘리지 말고 최대한 옮겨. 오타/이모지도 원문대로.\n"
+        f"사용자 캡션: {caption or '(없음)'}"
+    )
+    content = [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                     "data": _b64.b64encode(image_bytes).decode("ascii")}},
+        {"type": "text", "text": ask},
+    ]
+    for m_name in _model_chain(True):
+        try:
+            resp = _get_client().messages.create(
+                model=m_name, max_tokens=3000,
+                messages=[{"role": "user", "content": content}],
+            )
+            mm = re.search(r"\{.*\}", resp.content[0].text.strip(), re.DOTALL)
+            if mm:
+                data = json.loads(mm.group())
+                return {
+                    "is_text": bool(data.get("is_text")),
+                    "title": (data.get("title") or "").strip(),
+                    "text": (data.get("text") or "").strip(),
+                    "tags": data.get("tags") or [],
+                    "hub": (data.get("hub") or "").strip(),
+                }
+        except Exception as e:
+            logger.warning(f"read_photo_text 실패 (model={m_name}): {e}")
+    return {"is_text": False, "title": "", "text": "", "tags": [], "hub": ""}
+
+
+def build_text_note(parsed: dict, user_text: str = "", image_embed: str = "") -> tuple[str, str]:
+    """텍스트 캡처(스크린샷 OCR) 전용 노트 — 읽은 글을 본문 그대로."""
+    now = _now_kst()
+    stamp_file = now.strftime("%Y-%m-%d_%H%M")
+    stamp_human = now.strftime("%Y-%m-%d %H:%M")
+    title = (parsed.get("title") or "글 캡처").strip()
+    path = f"Inbox/{stamp_file}_{_slugify(title)}.md"
+    tags = parsed.get("tags") or ["글", "캡처"]
+    tags_yaml = "[" + ", ".join(tags) + "]"
+    hub = (parsed.get("hub") or "").strip()
+
+    lines = ["---", "type: text-capture", f"created: {stamp_human}", f"tags: {tags_yaml}"]
+    if hub:
+        lines.append(f'hub: "{hub}"')
+    lines += ["---", "", f"# {title}", ""]
+    if user_text and user_text.strip():
+        lines += ["## ✍️ 내 생각", user_text.strip(), ""]
+    lines += ["## 📄 내용", parsed.get("text", "").strip(), ""]
+    if image_embed:
+        lines += [f"![[{image_embed}]]", ""]
+    if hub:
+        lines += [f"관련: [[{hub}]]", ""]
+    return path, "\n".join(lines)
+
+
 def parse_shopping(text: str, raw: dict, image_bytes: bytes = None) -> dict:
     """
     상품 정보 추출. 사진이 있으면 Claude 비전으로 화면 속 상품/가격까지 읽는다.

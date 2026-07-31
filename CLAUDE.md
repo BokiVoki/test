@@ -24,7 +24,7 @@
   - 영양제 재고 + 복용 기록, 생리주기 추적 + 단계별 알림(PMS 등)
   - 브리핑: 아침/저녁/밤 (매일 고정 알림은 브리핑에서 제외됨)
   - **하루앱 주머니 던지기**: `앱 <내용> [마감]` → 하루 웹앱 주머니(Supabase todos, `bucket='inbox'`)로 바로 저장 (`bot/haru_app.py`). 끝에 붙은 날짜(오늘/내일/모레/글피, 요일, `M/D`·`M.D`·`M-D`, `M월 D일`)를 `parse_pocket_due`로 떼어 due로 저장. 환경변수: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `HARU_OWNER_ID`, (선택 `HARU_WORKSPACE`, 기본 '일')
-  - **구글 캘린더 일정**: `일정 <내용> <날짜/기간 [시간]>` **또는 끝에 `구캘`**(예: `출장 8/6-8/8 구캘`, `회의 8/6 구캘`) → 구글 캘린더 이벤트 생성 (`_create_schedule` 공통) (`bot/gcal.py`, `parse_schedule`). 기간 `8/6-8/8`·`8월6일-8월8일`, 단일 `8/6`/`8월 3일`/오늘·내일, 시간 `8/6 14:00`(1시간). 서비스계정(GOOGLE_CREDENTIALS_JSON) 재사용 — **셋업**: Calendar API 사용설정 + 내 캘린더를 서비스계정 client_email에 '일정 변경'으로 공유 + env `GOOGLE_CALENDAR_ID`(기본캘린더면 내 gmail).
+  - **구글 캘린더 일정**: `일정 <내용> <날짜/기간 [시간]>` **또는 끝에 `구캘`**(예: `출장 8/6-8/8 구캘`, `회의 8/6 구캘`) → 구글 캘린더 이벤트 생성 (`_create_schedule` 공통) (`bot/gcal.py`, `parse_schedule`). 기간 `8/6-8/8`·`8월6일-8월8일`, 단일 `8/6`/`8월 3일`/오늘·내일, 시간 `8/6 14:00`(1시간). 서비스계정(GOOGLE_CREDENTIALS_JSON) 재사용 — **셋업**: Calendar API 사용설정 + 내 캘린더를 서비스계정 client_email에 '일정 변경'으로 공유 + env `GOOGLE_CALENDAR_ID`(기본캘린더면 내 gmail). **캘린더 + 하루앱 동시**: 성공 시 `haru_app.add_to_pocket(bucket='active', due=시작일)`로 하루앱에도 표시(기간이면 제목에 `~`).
   - **하루앱 11시 체크인**: 매일 11:00(KST) 전용 메시지로 오늘 추천(우선순위순 `haru_app.list_open`)+마감(`list_due`)을 쏨 (`send_haru_daily`, `scheduler.send_haru_daily_job`, main.py UTC 02:00). 즉시 확인: `추천`/`체크인` 텍스트. 마감만: `마감` 텍스트 또는 `/deadlines`. (브리핑엔 합치지 않음)
 - **최근 수정/버그픽스**
   - `cancel_alarms` 오발동 방지 (프롬프트 강화)
@@ -41,7 +41,7 @@
 - **동작**
   - 링크 → 본문 fetch + Claude(Sonnet) 요약 + "왜 저장" 한 줄. 인스타 등 못 읽는 사이트는 안내 문구
   - 생각/텍스트 → 아이디어 노트
-  - 사진 → 볼트 `Inbox/attachments/`에 직접 커밋 + `![[...]]` 임베드
+  - 사진 → 볼트 `Inbox/attachments/`에 직접 커밋 + `![[...]]` 임베드. **텍스트 위주 사진(스크린샷/글 캡처)이면** 비전으로 글 읽어(`capture.read_photo_text`) **본문 그대로 메모**(`build_text_note`, type:text-capture, `## 📄 내용`).
   - 쇼핑("살까/얼마") → `Shopping/` 위시리스트 (비전으로 상품/가격 읽음)
   - 책("읽어볼까/책추천") → `Books/` 읽고싶은 책 (표지 제목/저자 읽음, 여러 권이면 목록)
   - `✍️ 내 생각` 버튼 → 사용자 말에서 태그 재추출, 캡션 우선

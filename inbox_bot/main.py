@@ -490,24 +490,35 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ 저장 실패: {e}")
         return
 
+    text_saved = False
     try:
-        # 캡션이 있으면 제목/태그만 뽑고, 요약은 만들지 않음 (캡션 중복 방지)
-        if caption:
-            light = capture.summarize("idea", "", {}, caption)
-            parsed = {
-                "title": light.get("title") or caption[:20],
-                "summary": "",   # 캡션이 곧 '내 생각' — 중복 요약 안 함
-                "why": "",
-                "tags": light.get("tags") or ["사진"],
-                "hub": light.get("hub", ""),
-            }
+        # 텍스트 위주 사진(스크린샷 등)이면 글을 읽어 메모 본문으로
+        ocr = capture.read_photo_text(buf, caption) if buf else {"is_text": False}
+        if ocr.get("is_text") and ocr.get("text"):
+            title_ov = (caption.strip()[:30] if caption else "") or ocr.get("title") or "글 캡처"
+            parsed = {"title": title_ov, "text": ocr["text"],
+                      "tags": ocr.get("tags") or ["글", "캡처"], "hub": ocr.get("hub", "")}
+            path, content = capture.build_text_note(parsed, user_text=caption, image_embed=image_embed)
+            vault.write_note(path, content, commit_msg=f"text: {parsed['title']}")
+            text_saved = True
         else:
-            parsed = {"title": f"사진 {_now_kst().strftime('%m/%d %H:%M')}",
-                      "summary": "", "why": "", "tags": ["사진"], "hub": ""}
-        path, content = capture.build_note(
-            "image", parsed, user_text=caption, image_embed=image_embed,
-        )
-        vault.write_note(path, content, commit_msg=f"inbox: {parsed.get('title','사진')}")
+            # 캡션이 있으면 제목/태그만 뽑고, 요약은 만들지 않음 (캡션 중복 방지)
+            if caption:
+                light = capture.summarize("idea", "", {}, caption)
+                parsed = {
+                    "title": light.get("title") or caption[:20],
+                    "summary": "",   # 캡션이 곧 '내 생각' — 중복 요약 안 함
+                    "why": "",
+                    "tags": light.get("tags") or ["사진"],
+                    "hub": light.get("hub", ""),
+                }
+            else:
+                parsed = {"title": f"사진 {_now_kst().strftime('%m/%d %H:%M')}",
+                          "summary": "", "why": "", "tags": ["사진"], "hub": ""}
+            path, content = capture.build_note(
+                "image", parsed, user_text=caption, image_embed=image_embed,
+            )
+            vault.write_note(path, content, commit_msg=f"inbox: {parsed.get('title','사진')}")
     except Exception as e:
         logger.exception("사진 캡처 실패")
         await update.message.reply_text(f"❌ 저장 실패: {e}")
@@ -517,7 +528,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 쇼핑 전환 버튼용으로 사진 정보 잠깐 보관
     _last_photo[chat_id] = {"bytes": buf, "embed": image_embed, "caption": caption, "inbox_path": path}
 
-    reply = "✅ 사진 저장했어요"
+    reply = "✅ 글 읽어서 메모로 저장했어요 📝" if text_saved else "✅ 사진 저장했어요"
     if not image_embed:
         reply += "\n(⚠️ 이미지 업로드는 실패 — 메모만 저장됨)"
     reply += "\n\n_한 줄 남기거나, 종류에 맞는 버튼을 눌러요._"
