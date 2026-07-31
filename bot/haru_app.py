@@ -38,7 +38,7 @@ def is_configured() -> bool:
 
 
 def add_to_pocket(title: str, ws: str | None = None, due: str | None = None,
-                  bucket: str = "inbox") -> None:
+                  bucket: str = "inbox", endd: str | None = None) -> None:
     """할일 하나를 하루앱에 넣는다. (기본 주머니 bucket='inbox')
 
     due: 'YYYY-MM-DD' 마감일(선택). bucket: 'inbox'|'active'|'later'.
@@ -71,6 +71,8 @@ def add_to_pocket(title: str, ws: str | None = None, due: str | None = None,
         "sort": 0,
         "owner": OWNER_ID,
     }
+    if endd:
+        row["endd"] = endd  # 기간 일정 종료일 (todos.endd 컬럼 필요)
     resp = requests.post(
         f"{SUPABASE_URL}/rest/v1/todos",
         headers={

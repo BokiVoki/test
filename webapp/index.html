@@ -162,6 +162,8 @@
   .cell.today .dn{color:#fff;background:var(--accent);border-radius:3px;padding:1px 5px}
   .cell.drop{background:var(--accent-wash);outline:1.5px solid var(--accent);outline-offset:-1px}
   .ev{display:block;font-size:11px;margin-top:4px;padding:2px 6px;border-radius:3px;background:var(--accent-wash);color:var(--accent-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:grab;border-left:2px solid var(--accent)}
+  .ev.evspan{background:var(--accent);color:#fff;border-left:0;border-radius:0}
+  .ev.evcont{cursor:default;min-height:14px;opacity:.55}
   .ev.over{color:var(--text);border-left-color:var(--text)}
   .memo{display:grid;grid-template-columns:250px 1fr;border:1px solid var(--line-2);border-radius:4px;overflow:hidden;min-height:460px}
   @media(max-width:680px){.memo{grid-template-columns:1fr}.mside{max-height:240px}}
@@ -311,6 +313,7 @@
   var hasArchive=false;  // DB에 doneat/archived 컬럼이 있으면 true (마이그레이션 후)
   var hasSubs=false;     // DB에 subs 컬럼이 있으면 true
   var hasDep=false;      // DB에 dep 컬럼이 있으면 true (프로젝트 순서도 의존성)
+  var hasEnd=false;      // DB에 endd 컬럼이 있으면 true (기간 일정 종료일)
   var hasMemoUpd=false;  // memos에 updated 컬럼이 있으면 true (정렬용)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var flowShownProj={};  // 프로젝트별 인라인 순서도 표시 여부 (세션 한정)
@@ -335,8 +338,8 @@
   // DB mapping
   function sid(){return 's'+Math.random().toString(36).slice(2,8);}
   function normSubs(arr){return (Array.isArray(arr)?arr:[]).map(function(s){return {t:s.t||'',d:!!s.d,id:s.id||sid(),due:s.due||'',stage:(typeof s.stage==='number'?s.stage:0)};});}
-  function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}if(hasDep){r.dep=(typeof t.stage==='number'?t.stage:0);}return r;}
-  function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),stage:(typeof r.dep==='number'?r.dep:0)};}
+  function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}if(hasDep){r.dep=(typeof t.stage==='number'?t.stage:0);}if(hasEnd){r.endd=t.endd||null;}return r;}
+  function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),stage:(typeof r.dep==='number'?r.dep:0),endd:r.endd||''};}
   function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;return r;}
   function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',updated:r.updated||''};}
   function putTodo(t){sb.from('todos').upsert(rowT(t)).then(function(r){if(r.error)console.warn('todo',r.error.message);});}
@@ -380,11 +383,12 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
       hasDep=!(res[5]&&res[5].error);      // dep 컬럼이 있으면 프로젝트 순서도 저장 켜짐
+      hasEnd=!(res[7]&&res[7].error);      // endd 컬럼이 있으면 기간 일정 표시 켜짐
       hasMemoUpd=!(res[6]&&res[6].error);  // memos.updated 있으면 최신순 정렬 저장 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
@@ -472,7 +476,7 @@
     var first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),prev=new Date(y,m,0).getDate();
     for(var i=0;i<first;i++){var c=document.createElement('div');c.className='cell out';c.innerHTML='<span class="dn">'+(prev-first+1+i)+'</span>';cg.appendChild(c);}
     for(var d=1;d<=days;d++){var iso=y+'-'+pad(m+1)+'-'+pad(d);var c=document.createElement('div');c.className='cell'+(iso===todayISO()?' today':'');c.dataset.iso=iso;var h='<span class="dn">'+d+'</span>';
-      wsTodos().filter(function(t){return t.due===iso&&!t.done;}).forEach(function(t){h+='<span class="ev'+(daysTo(iso)<0?' over':'')+'" draggable="true" data-id="'+t.id+'">'+esc(t.title)+'</span>';});
+      wsTodos().filter(function(t){return !t.done&&t.due&&(t.due===iso||(t.endd&&t.due<=iso&&iso<=t.endd));}).forEach(function(t){var isStart=(t.due===iso),span=(t.endd&&t.endd>t.due);var cls='ev'+(daysTo(iso)<0?' over':'')+(span?' evspan':'')+(isStart?'':' evcont');h+='<span class="'+cls+'"'+(isStart?' draggable="true"':'')+' data-id="'+t.id+'">'+(isStart?esc(t.title):'')+'</span>';});
       c.innerHTML=h;cg.appendChild(c);}}
   function renderMemos(){var mf=document.getElementById('mfolders');
     mf.innerHTML=FOLDERS.map(function(f){var cnt=f==='전체'?state.memos.length:state.memos.filter(function(m){return m.folder===f;}).length;return '<button data-f="'+f+'"'+(f===state.curFolder?' aria-selected="true"':'')+'>'+f+(f==='전체'?'':' '+cnt)+'</button>';}).join('');

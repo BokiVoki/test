@@ -24,7 +24,7 @@
   - 영양제 재고 + 복용 기록, 생리주기 추적 + 단계별 알림(PMS 등)
   - 브리핑: 아침/저녁/밤 (매일 고정 알림은 브리핑에서 제외됨)
   - **하루앱 주머니 던지기**: `앱 <내용> [마감]` → 하루 웹앱 주머니(Supabase todos, `bucket='inbox'`)로 바로 저장 (`bot/haru_app.py`). 끝에 붙은 날짜(오늘/내일/모레/글피, 요일, `M/D`·`M.D`·`M-D`, `M월 D일`)를 `parse_pocket_due`로 떼어 due로 저장. 환경변수: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `HARU_OWNER_ID`, (선택 `HARU_WORKSPACE`, 기본 '일')
-  - **구글 캘린더 일정**: `일정 <내용> <날짜/기간 [시간]>` **또는 끝에 `구캘`**(예: `출장 8/6-8/8 구캘`, `회의 8/6 구캘`) → 구글 캘린더 이벤트 생성 (`_create_schedule` 공통) (`bot/gcal.py`, `parse_schedule`). 기간 `8/6-8/8`·`8월6일-8월8일`, 단일 `8/6`/`8월 3일`/오늘·내일, 시간 `8/6 14:00`(1시간). 서비스계정(GOOGLE_CREDENTIALS_JSON) 재사용 — **셋업**: Calendar API 사용설정 + 내 캘린더를 서비스계정 client_email에 '일정 변경'으로 공유 + env `GOOGLE_CALENDAR_ID`(기본캘린더면 내 gmail). **캘린더 + 하루앱 동시**: 성공 시 `haru_app.add_to_pocket(bucket='active', due=시작일)`로 하루앱에도 표시(기간이면 제목에 `~`).
+  - **구글 캘린더 일정**: `일정 <내용> <날짜/기간 [시간]>` **또는 끝에 `구캘`**(예: `출장 8/6-8/8 구캘`, `회의 8/6 구캘`) → 구글 캘린더 이벤트 생성 (`_create_schedule` 공통) (`bot/gcal.py`, `parse_schedule`). 기간 `8/6-8/8`·`8월6일-8월8일`, 단일 `8/6`/`8월 3일`/오늘·내일, 시간 `8/6 14:00`(1시간). 서비스계정(GOOGLE_CREDENTIALS_JSON) 재사용 — **셋업**: Calendar API 사용설정 + 내 캘린더를 서비스계정 client_email에 '일정 변경'으로 공유 + env `GOOGLE_CALENDAR_ID`(기본캘린더면 내 gmail). **캘린더 + 하루앱 동시**: 성공 시 `haru_app.add_to_pocket(bucket='inbox', due=시작일, endd=종료일)`로 하루앱 주머니+캘린더에도 표시(기간이면 제목에 `~` + `todos.endd`로 캘린더에 시작~종료 쫙). 실패/미연결이면 답장에 이유 표시.
   - **하루앱 11시 체크인**: 매일 11:00(KST) 전용 메시지로 오늘 추천(우선순위순 `haru_app.list_open`)+마감(`list_due`)을 쏨 (`send_haru_daily`, `scheduler.send_haru_daily_job`, main.py UTC 02:00). 즉시 확인: `추천`/`체크인` 텍스트. 마감만: `마감` 텍스트 또는 `/deadlines`. (브리핑엔 합치지 않음)
 - **최근 수정/버그픽스**
   - `cancel_alarms` 오발동 방지 (프롬프트 강화)
@@ -64,7 +64,7 @@
 - **전체 검색**: 헤더 아래 검색바(`#q`) — 모든 탭/워크스페이스 걸쳐 할일(제목·하위항목·프로젝트)+메모 검색. **띄어쓰기 무시**(`norm()`=공백 제거+소문자). 결과 클릭 시 해당 위치로 이동. (`runSearch`, `#searchView`)
   - **대시보드**: 빠른 담기 + 오늘의 집중(자동 우선순위 + 가용시간 · **오늘 찍음 or 오늘 마감 자동 포함**, 밀린 건 마감 섹션에만) + 마감 임박 + 오늘 흐름 토글. 진짜 할일만. 빠른담기 옆 **오늘** 버튼=오늘의 집중 바로 담기(Shift+Enter도). 행 hover **🔁**=고정업무(none→매일→매주(요일)→매월(일)→none), 프로젝트 행 hover **오늘** 토글, 하위 항목 hover **＋날짜**(`subdue`, sub.due).
   - **주머니·프로젝트**: 주머니(inbox) 분류(오늘/프로젝트/나중/메모/버림) + 프로젝트 아코디언
-  - **캘린더**: 월 그리드, 드래그로 마감일 변경
+  - **캘린더**: 월 그리드, 드래그로 마감일 변경. **기간 일정**(`todos.endd`)이면 시작~종료 모든 날에 바 표시(시작일=제목, 이후=`.evcont` 연속 바). 구캘 일정이 여기 뜸.
   - **메모**: 애플 메모st, 폴더, 할일 연결(📝). **연결은 메모 본문에서 `@`**로 → 할일 검색(제목·**하위항목**·**프로젝트** 다, 띄어쓰기 무시)해서 클릭하면 연결. 드롭다운은 **커서 바로 아래**에 위치(`caretXY` 미러 div로 좌표 계산 → 글자 안 가림)(`@할일제목` 삽입 + `todos.memoid`/`memo.link` 설정, `#mentionPop`/`mentionCheck`). 연결된 할일 행엔 📝(메모로 점프)만 표시(할일 행에 링크 버튼은 안 붙임). 메모 편집기 `연결 해제`(`data-unlink`). (주머니 "메모"는 할일→메모 변환이라 다름)
   - **완료함**: 체크=완료(찍 긋고 그 자리 유지 + 완료시점 `doneat` 기록) → "완료함으로" 버튼/일괄정리로 `archived=true` → 완료함 탭에서 완료시점 표시 + 되돌리기. 반복 항목은 예외(lastdone).
   - **프로젝트**: 헤더 ⠿ 핸들 드래그로 순서 변경(→ `settings.projOrder[ws]`), ✕로 삭제(할일은 주머니로 이동, 삭제 아님). 프로젝트 안 **할일 행 ⠿ 드래그로 순서 변경**(→ `todos.sort`, `reorderTodo`), **하위 항목 ⠿ 드래그로 순서 변경**(subs 배열 재정렬, `reorderSub`).
@@ -74,7 +74,7 @@
     - **순서도 → 프로젝트 리스트 반영**: 프로젝트 할일 정렬 = 단계 우선(미배치=뒤) → 그다음 `sort`. 행에 단계 배지(`.stbadge`).
     - **상위 마감 → 하위 자동 분배**(`flowDistribute`, 순서도 헤더 `📅 하위 마감 자동 분배` 버튼, todo-source+상위 due 있을 때): 오늘~상위마감을 단계 수로 나눠 각 단계 하위 항목에 마감 배정(마지막 단계=상위마감, 미배치는 제외).
     - **보드 개선**: 카드에 마감 표시(`.fcdue`), **단계-대-단계**를 화살표 SVG 곡선 1개로 연결(`drawFlowLines`, 칼럼 gap 32px, 화살촉 marker). 인라인 순서도 두 종류: 프로젝트 섹션 헤더 **🔀**(`proj-flow`, `flowShownProj`, `.projflow`)=프로젝트 할일 순서도, 하위 있는 할일 행 **🔀**(`row-flow`, `flowShownTodo`, `.rowflow`/`.flowsubrow`)=그 할일 하위 순서도. 둘 다 읽기전용. 프로젝트 행은 제목 옆에 하위토글이 먼저.
-  - **DB 추가**: `todos.doneat text`, `todos.archived bool`, `todos.subs jsonb`(각 sub `{t,d,id,due,stage}`), `todos.dep jsonb`(프로젝트 순서도 단계 숫자), `settings(owner uuid pk, data jsonb)` 테이블(RLS `owner=auth.uid()`). 코드는 `hasArchive`/`hasSubs`/`hasDep` 플래그로 컬럼 없어도 안 깨지게 방어.
+  - **DB 추가**: `todos.doneat text`, `todos.archived bool`, `todos.subs jsonb`(각 sub `{t,d,id,due,stage}`), `todos.dep jsonb`(프로젝트 순서도 단계 숫자), `todos.endd text`(기간 일정 종료일), `settings(owner uuid pk, data jsonb)` 테이블(RLS `owner=auth.uid()`). 코드는 `hasArchive`/`hasSubs`/`hasDep`/`hasEnd` 플래그로 컬럼 없어도 안 깨지게 방어.
 - **우선순위 점수**: `중요도*25 + 마감임박도(지남100/오늘·내일60/3일내30) + 빠른완수(≤20분)10`
 - **Supabase**
   - Project URL: `https://mfgiesampazjzgfliuje.supabase.co`

@@ -2785,11 +2785,13 @@ async def _create_schedule(update, body):
                 if parsed["kind"] == "allday":
                     s = parsed["start"][5:].replace("-", "/")
                     e = parsed["end"][5:].replace("-", "/")
-                    apt = parsed["summary"] if parsed["start"] == parsed["end"] else f"{parsed['summary']} ({s}~{e})"
-                    haru_app.add_to_pocket(apt, due=parsed["start"], bucket="active")
+                    same = parsed["start"] == parsed["end"]
+                    apt = parsed["summary"] if same else f"{parsed['summary']} ({s}~{e})"
+                    haru_app.add_to_pocket(apt, due=parsed["start"], bucket="inbox",
+                                           endd=None if same else parsed["end"])
                 else:
-                    haru_app.add_to_pocket(f"{parsed['summary']} ({parsed['start_dt'][11:16]})", due=parsed["start_dt"][:10], bucket="active")
-                msg += "\n🗂 하루앱 캘린더/마감에도 표시돼요"
+                    haru_app.add_to_pocket(f"{parsed['summary']} ({parsed['start_dt'][11:16]})", due=parsed["start_dt"][:10], bucket="inbox")
+                msg += "\n🗂 하루앱 주머니 + 캘린더에도 표시돼요"
             except Exception as ex:
                 msg += f"\n(⚠️ 하루앱 추가 실패: {ex})"
         else:
