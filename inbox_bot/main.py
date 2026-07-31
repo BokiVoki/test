@@ -231,13 +231,28 @@ async def ocr_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         content = re.sub(r"\n## 📄 인식한 글\n.*?(?=\n## |\Z)", section, content, flags=re.DOTALL)
     else:
         content = content.rstrip() + "\n" + section
+    # 옵시디언용 정리: 읽은 글에서 뽑은 태그/허브를 노트 frontmatter에 합치고 그래프 링크(관련: [[허브]])까지
+    extra = ""
+    try:
+        tags = ocr.get("tags") or []
+        hub = (ocr.get("hub") or "").strip()
+        if tags or hub:
+            content = capture.merge_tags_into_note(content, tags, hub)
+            if tags:
+                extra = "\n🏷 " + " ".join("#" + t for t in tags)
+            if hub:
+                extra += f"\n🗂 {hub}"
+    except Exception as e:
+        logger.warning(f"ocr 태깅 실패: {e}")
     try:
         vault.write_note(path, content, commit_msg=f"ocr: {path.split('/')[-1]}")
     except Exception as e:
         await query.message.reply_text(f"❌ 메모 저장 실패: {e}")
         return
     preview = text if len(text) <= 3500 else text[:3500] + "\n…(너무 길어 여기선 잘림 — 노트엔 전체 저장됨)"
-    await query.message.reply_text("📝 글 읽어서 메모에 넣었어요. 확인해봐요:\n\n" + preview)
+    await query.message.reply_text(
+        "📝 글 읽어서 메모에 넣고 옵시디언용으로 정리했어요. 확인해봐요:" + extra + "\n\n" + preview
+    )
 
 
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
