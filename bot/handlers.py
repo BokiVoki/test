@@ -1620,22 +1620,29 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ 주머니 저장 실패: {e}")
         return
 
-    # ── "일정 ..." (앞) 또는 "... 구캘" (뒤) → 구글 캘린더 이벤트 ──
+    # ── "일정 ..."(앞, 캘린더만) / "... 구캘"(뒤, 캘린더만) / "... 구할"(뒤, 캘린더+할일) ──
     if text[:2] == "일정" and len(text) > 2 and text[2] in (" ", "\n", "\t"):
         body = text[2:].strip()
         if not body:
-            await update.message.reply_text("📅 예: `일정 출장 8/6-8/8` · `회의 8/6 구캘`", parse_mode="Markdown")
+            await update.message.reply_text("📅 예: `출장 8/6-8/8 구캘`(캘린더만) · `회의 8/6 구할`(캘린더+할일)", parse_mode="Markdown")
             return
-        await _create_schedule(update, body)
+        await _create_schedule(update, body, also_app=False)
         return
     _gc = text.rstrip()
-    for _suf in ("구글 캘린더", "구글캘린더", "구캘린더", "구캘"):
-        if _gc.endswith(_suf):
-            _sbody = _gc[: -len(_suf)].strip()
-            if _sbody:
-                await _create_schedule(update, _sbody)
-                return
-            break
+    # 구할 = 캘린더 + 하루앱 / 구캘 = 캘린더만
+    if _gc.endswith("구할"):
+        _sbody = _gc[:-2].strip()
+        if _sbody:
+            await _create_schedule(update, _sbody, also_app=True)
+            return
+    else:
+        for _suf in ("구글 캘린더", "구글캘린더", "구캘린더", "구캘"):
+            if _gc.endswith(_suf):
+                _sbody = _gc[: -len(_suf)].strip()
+                if _sbody:
+                    await _create_schedule(update, _sbody, also_app=False)
+                    return
+                break
 
     # ── "마감" → 하루앱 마감 임박 할일 즉시 확인 ──
     if text in ("마감", "마감?", "하루마감", "마감임박", "마감확인"):
@@ -2759,8 +2766,8 @@ def parse_schedule(text, today):
     return None
 
 
-async def _create_schedule(update, body):
-    """파싱한 일정으로 구글 캘린더 이벤트를 만든다. (일정/구캘 공통)"""
+async def _create_schedule(update, body, also_app=False):
+    """파싱한 일정으로 구글 캘린더 이벤트를 만든다. also_app=True면 하루앱에도 추가. (일정/구캘/구할 공통)"""
     parsed = parse_schedule(body, _now_kst().date())
     if not parsed:
         await update.message.reply_text("📅 날짜를 못 읽었어요. 예: `출장 8/6-8/8 구캘` · `회의 8/6 14:00 구캘`", parse_mode="Markdown")
@@ -2779,23 +2786,24 @@ async def _create_schedule(update, body):
             ev = gcal.create_timed(parsed["summary"], parsed["start_dt"], parsed["end_dt"])
             when = parsed["start_dt"][5:16].replace("-", "/").replace("T", " ")
             msg = f"📅 캘린더에 넣었어요\n· {parsed['summary']} ({when})"
-        # 하루앱에도 같이 표시
-        if haru_app.is_configured():
-            try:
-                if parsed["kind"] == "allday":
-                    s = parsed["start"][5:].replace("-", "/")
-                    e = parsed["end"][5:].replace("-", "/")
-                    same = parsed["start"] == parsed["end"]
-                    apt = parsed["summary"] if same else f"{parsed['summary']} ({s}~{e})"
-                    haru_app.add_to_pocket(apt, due=parsed["start"], bucket="inbox",
-                                           endd=None if same else parsed["end"])
-                else:
-                    haru_app.add_to_pocket(f"{parsed['summary']} ({parsed['start_dt'][11:16]})", due=parsed["start_dt"][:10], bucket="inbox")
-                msg += "\n🗂 하루앱 주머니 + 캘린더에도 표시돼요"
-            except Exception as ex:
-                msg += f"\n(⚠️ 하루앱 추가 실패: {ex})"
-        else:
-            msg += "\n(하루앱 미연결 — SUPABASE_URL/SERVICE_KEY/HARU_OWNER_ID 필요)"
+        # also_app=True('구할')일 때만 하루앱에도 추가
+        if also_app:
+            if haru_app.is_configured():
+                try:
+                    if parsed["kind"] == "allday":
+                        s = parsed["start"][5:].replace("-", "/")
+                        e = parsed["end"][5:].replace("-", "/")
+                        same = parsed["start"] == parsed["end"]
+                        apt = parsed["summary"] if same else f"{parsed['summary']} ({s}~{e})"
+                        haru_app.add_to_pocket(apt, due=parsed["start"], bucket="inbox",
+                                               endd=None if same else parsed["end"])
+                    else:
+                        haru_app.add_to_pocket(f"{parsed['summary']} ({parsed['start_dt'][11:16]})", due=parsed["start_dt"][:10], bucket="inbox")
+                    msg += "\n🗂 하루앱 주머니 + 캘린더에도 넣었어요"
+                except Exception as ex:
+                    msg += f"\n(⚠️ 하루앱 추가 실패: {ex})"
+            else:
+                msg += "\n(하루앱 미연결 — SUPABASE 환경변수 필요)"
         link = ev.get("htmlLink")
         if link:
             msg += f"\n{link}"
