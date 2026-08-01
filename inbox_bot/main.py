@@ -66,6 +66,42 @@ def _find_note(folder_code: str, stamp: str) -> str | None:
     return None
 
 
+_hub_seen: set = set()   # 이미 만든/확인한 허브 (중복 API 호출 방지)
+
+
+def _ensure_hub_notes(content: str) -> int:
+    """노트 내용의 '관련: [[허브]]' 링크에 대응하는 Hubs/허브.md 를 없으면 만든다.
+    허브를 실제 파일로 만들어야 옵시디언 그래프에서 색칠(path:Hubs)·클릭이 됨. 반환: 새로 만든 수."""
+    made = 0
+    try:
+        for hub in re.findall(r"관련:\s*\[\[([^\]]+)\]\]", content or ""):
+            hub = hub.strip()
+            if not hub or hub in _hub_seen:
+                continue
+            if any(c in hub for c in '\\/:*?"<>|'):   # 파일명 불가 문자면 스킵(드묾)
+                _hub_seen.add(hub)
+                continue
+            hp = f"Hubs/{hub}.md"
+            if vault.read_note(hp) is not None:       # 이미 있음
+                _hub_seen.add(hub)
+                continue
+            note = (f"---\ntype: hub\ntags: [허브]\n---\n\n# {hub}\n\n"
+                    f"_이 주제로 묶인 노트들의 허브._\n")
+            vault.write_note(hp, note, commit_msg=f"hub: {hub}")
+            _hub_seen.add(hub)
+            made += 1
+    except Exception as e:
+        logger.warning(f"허브 노트 생성 실패: {e}")
+    return made
+
+
+def _save_note(path: str, content: str, commit_msg: str = ""):
+    """노트를 저장하고, 안에 있는 허브(관련: [[..]])의 Hubs/ 파일도 자동 생성."""
+    res = vault.write_note(path, content, commit_msg=commit_msg)
+    _ensure_hub_notes(content)
+    return res
+
+
 def _del_button(note_path: str) -> InlineKeyboardButton:
     return InlineKeyboardButton("🗑 삭제", callback_data=_stampcb("d", note_path))
 
@@ -208,7 +244,7 @@ def _rename_old_notes() -> tuple[int, int, list]:
                 errors += 1
                 continue
             try:
-                vault.write_note(new_path, content, commit_msg=f"rename: {new}")
+                _save_note(new_path, content, commit_msg=f"rename: {new}")
                 vault.delete_note(old_path, commit_msg=f"rename cleanup: {name}")  # .md만 지움(첨부 유지)
                 seen.add(new)
                 renamed += 1
@@ -220,24 +256,41 @@ def _rename_old_notes() -> tuple[int, int, list]:
     return renamed, errors, examples
 
 
+def _backfill_hubs() -> int:
+    """기존 모든 노트를 훑어 '관련: [[허브]]'에 대응하는 Hubs/허브.md 를 만든다. 반환: 새로 만든 허브 수."""
+    made = 0
+    for folder in ("Inbox", "Books", "Shopping"):
+        for name in vault.list_folder(folder):
+            c = vault.read_note(f"{folder}/{name}")
+            if c:
+                made += _ensure_hub_notes(c)
+    return made
+
+
 async def _migrate_names(update):
-    """'이름정리' 명령: 옛날 노트 파일명을 새 형식으로 일괄 변경."""
+    """'이름정리' 명령: 옛날 노트 파일명을 새 형식으로 바꾸고, 허브를 실제 파일(Hubs/)로 만든다."""
     if not vault.is_configured():
         await update.message.reply_text("⚠️ 볼트 연결이 안 됐어요.")
         return
-    await update.message.reply_text("🧹 옛날 노트 파일명을 정리할게요… 개수가 많으면 좀 걸려요.")
+    await update.message.reply_text("🧹 파일명 정리 + 허브 노드 만드는 중… 개수가 많으면 좀 걸려요.")
     renamed, errors, examples = await asyncio.to_thread(_rename_old_notes)
-    if not renamed and not errors:
-        await update.message.reply_text("이미 다 새 형식이에요 — 바꿀 옛날 노트가 없어요 🙂")
+    hubs = await asyncio.to_thread(_backfill_hubs)
+    if not renamed and not errors and not hubs:
+        await update.message.reply_text("이미 다 정리돼 있어요 — 바꿀 것도, 새 허브도 없어요 🙂")
         return
-    msg = f"✅ 파일명 정리 끝! {renamed}개를 새 형식으로 바꿨어요."
+    msg = "✅ 정리 끝!"
+    if renamed:
+        msg += f"\n· 파일명 {renamed}개를 새 형식으로 바꿈"
     if errors:
-        msg += f" (실패 {errors}개 — 다시 '이름정리' 하면 재시도돼요)"
+        msg += f"\n· 실패 {errors}개 (다시 '이름정리' 하면 재시도)"
+    if hubs:
+        msg += f"\n· 허브 {hubs}개를 실제 노트(Hubs/)로 만듦 → 이제 그래프에서 색칠 가능"
     if examples:
         msg += "\n\n예:"
         for old, new in examples:
             msg += f"\n· {old}\n  → {new}"
-    msg += "\n\n_옵시디언에서 새로고침(당겨서)하면 그래프에 제목으로 떠요._"
+    msg += ("\n\n_옵시디언에서 당겨서 새로고침 → 그래프 뷰 → Groups에 `path:Hubs` 를 초록으로 하면 "
+            "허브(부동산·브랜딩 등)가 초록으로 떠요._")
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 
@@ -315,7 +368,7 @@ async def ocr_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.warning(f"ocr 태깅 실패: {e}")
     try:
-        vault.write_note(path, content, commit_msg=f"ocr: {path.split('/')[-1]}")
+        _save_note(path, content, commit_msg=f"ocr: {path.split('/')[-1]}")
     except Exception as e:
         await query.message.reply_text(f"❌ 메모 저장 실패: {e}")
         return
@@ -368,7 +421,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.warning(f"annotate 태깅 실패: {e}")
             try:
-                vault.write_note(path, new_content, commit_msg=f"annotate: {note.get('title','')}")
+                _save_note(path, new_content, commit_msg=f"annotate: {note.get('title','')}")
                 _last_note[chat_id]["content"] = new_content
                 await update.message.reply_text(
                     "✍️ 네 생각 넣고, 그 말에서 태그도 뽑았어요. 이게 진짜 알맹이예요 🙂" + extra
@@ -394,7 +447,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bk = capture.parse_book(text, raw)
             path, content = capture.build_book_note(bk, url=url or "", user_text=text)
             title = bk.get("title", "읽고 싶은 책")
-            vault.write_note(path, content, commit_msg=f"book: {title}")
+            _save_note(path, content, commit_msg=f"book: {title}")
             _last_note[chat_id] = {"path": path, "content": content, "title": title}
             author = bk.get("author", "")
             reply = f"📚 **{title}** 읽고싶은 책에 넣었어요"
@@ -411,7 +464,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sp = capture.parse_shopping(text, raw)
             path, content = capture.build_shopping_note(sp, url=url or "", user_text=text)
             title = sp.get("item", "사고 싶은 것")
-            vault.write_note(path, content, commit_msg=f"shopping: {title}")
+            _save_note(path, content, commit_msg=f"shopping: {title}")
             _last_note[chat_id] = {"path": path, "content": content, "title": title}
             price = sp.get("price", "")
             reply = f"🛒 **{title}** 위시리스트에 넣었어요"
@@ -428,7 +481,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parsed = capture.summarize("idea", "", {}, text)
             path, content = capture.build_note("idea", parsed, user_text=text)
 
-        vault.write_note(path, content, commit_msg=f"inbox: {parsed.get('title','메모')}")
+        _save_note(path, content, commit_msg=f"inbox: {parsed.get('title','메모')}")
     except Exception as e:
         logger.exception("캡처 실패")
         await update.message.reply_text(f"❌ 저장 실패: {e}")
@@ -540,7 +593,7 @@ async def _flush_album(context: ContextTypes.DEFAULT_TYPE):
         if len(embeds) > 1:
             extra = "\n".join(f"![[{e}]]" for e in embeds[1:])
             content = content.replace(f"![[{embeds[0]}]]", f"![[{embeds[0]}]]\n{extra}", 1)
-        vault.write_note(path, content, commit_msg=f"inbox album: {parsed['title']} ({len(embeds)}장)")
+        _save_note(path, content, commit_msg=f"inbox album: {parsed['title']} ({len(embeds)}장)")
         _last_note[chat_id] = {"path": path, "content": content, "title": parsed["title"]}
         markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
@@ -604,7 +657,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bk = capture.parse_book(caption, {}, image_bytes=buf or None)
             path, content = capture.build_book_note(bk, user_text=caption, image_embed=image_embed)
             title = bk.get("title", "읽고 싶은 책")
-            vault.write_note(path, content, commit_msg=f"book: {title}")
+            _save_note(path, content, commit_msg=f"book: {title}")
             _last_note[chat_id] = {"path": path, "content": content, "title": title}
             author = bk.get("author", "")
             reply = f"📚 **{title}** 읽고싶은 책에 넣었어요"
@@ -622,7 +675,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sp = capture.parse_shopping(caption, {}, image_bytes=buf or None)
             path, content = capture.build_shopping_note(sp, user_text=caption, image_embed=image_embed)
             title = sp.get("item", "사고 싶은 것")
-            vault.write_note(path, content, commit_msg=f"shopping: {title}")
+            _save_note(path, content, commit_msg=f"shopping: {title}")
             _last_note[chat_id] = {"path": path, "content": content, "title": title}
             price = sp.get("price", "")
             reply = f"🛒 **{title}** 위시리스트에 넣었어요"
@@ -651,7 +704,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         path, content = capture.build_note(
             "image", parsed, user_text=caption, image_embed=image_embed,
         )
-        vault.write_note(path, content, commit_msg=f"inbox: {parsed.get('title','사진')}")
+        _save_note(path, content, commit_msg=f"inbox: {parsed.get('title','사진')}")
     except Exception as e:
         logger.exception("사진 캡처 실패")
         await update.message.reply_text(f"❌ 저장 실패: {e}")
@@ -696,7 +749,7 @@ async def toshop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sp, user_text=photo.get("caption", ""), image_embed=photo.get("embed", ""),
         )
         title = sp.get("item", "사고 싶은 것")
-        vault.write_note(path, content, commit_msg=f"shopping: {title}")
+        _save_note(path, content, commit_msg=f"shopping: {title}")
         # 원래 인박스 노트는 제거 (위시리스트로 이동)
         if photo.get("inbox_path"):
             vault.delete_note(photo["inbox_path"], commit_msg=f"move to shopping: {title}")
@@ -735,7 +788,7 @@ async def toread_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bk, user_text=photo.get("caption", ""), image_embed=photo.get("embed", ""),
         )
         title = bk.get("title", "읽고 싶은 책")
-        vault.write_note(path, content, commit_msg=f"book: {title}")
+        _save_note(path, content, commit_msg=f"book: {title}")
         if photo.get("inbox_path"):
             vault.delete_note(photo["inbox_path"], commit_msg=f"move to books: {title}")
         _last_note[chat_id] = {"path": path, "content": content, "title": title}
