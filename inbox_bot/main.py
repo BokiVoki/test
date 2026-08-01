@@ -29,7 +29,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from . import capture, vault
+from . import art_sync, capture, vault
 
 # chat_id → {"path","content","title"} : 방금 저장한 노트 (한 줄 덧붙이기용)
 _last_note: dict[int, dict] = {}
@@ -343,6 +343,39 @@ async def _migrate_tags(update):
     await update.message.reply_text(msg)
 
 
+async def _migrate_art(update):
+    """'그림동기화' 명령: 하루앱 그림공부(작가/그림)를 옵시디언 노트로 즉시 미러링."""
+    if not art_sync.is_configured():
+        await update.message.reply_text(
+            "⚠️ 그림공부 동기화 연결이 안 됐어요. Railway 인박스봇 서비스에 "
+            "SUPABASE_URL / SUPABASE_SERVICE_KEY / HARU_OWNER_ID 를 넣어주세요 "
+            "(일정봇에 쓰는 것과 같은 값)."
+        )
+        return
+    await update.message.reply_text("🎨 그림공부를 옵시디언에 동기화할게요…")
+    try:
+        a, w = await asyncio.to_thread(art_sync.sync_art)
+    except Exception as e:
+        await update.message.reply_text(f"❌ 동기화 실패: {e}")
+        return
+    if not a and not w:
+        await update.message.reply_text("이미 최신이에요 — 바뀐 게 없어요 🙂")
+        return
+    await update.message.reply_text(f"✅ 동기화 끝! 작가 노트 {a}개 · 그림 노트 {w}개 갱신했어요.")
+
+
+async def _periodic_art_sync(context: ContextTypes.DEFAULT_TYPE):
+    """20분마다 조용히 자동 동기화(바뀐 게 있을 때만 커밋, 텔레그램 알림은 안 보냄)."""
+    if not art_sync.is_configured():
+        return
+    try:
+        a, w = await asyncio.to_thread(art_sync.sync_art)
+        if a or w:
+            logger.info(f"그림공부 자동 동기화: 작가 {a}개 · 그림 {w}개")
+    except Exception as e:
+        logger.warning(f"그림공부 자동 동기화 실패: {e}")
+
+
 async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update):
         return
@@ -450,6 +483,11 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ── '태그정리' → 옛날 노트 태그의 공백/중복 일괄 정리 ──
     if re.match(r"^태그\s*정리$", text):
         await _migrate_tags(update)
+        return
+
+    # ── '그림동기화' → 그림공부(하루앱)를 옵시디언에 즉시 동기화 ──
+    if re.match(r"^그림\s*동기화$", text):
+        await _migrate_art(update)
         return
 
     # ── '내 생각' 덧붙이기 대기 중이면 → 직전 노트에 추가 + 내 말에서 태그 재추출 ──
@@ -878,6 +916,9 @@ def main():
     app.add_handler(CallbackQueryHandler(toread_callback, pattern=r"^toread$"))
     app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
+
+    if app.job_queue:
+        app.job_queue.run_repeating(_periodic_art_sync, interval=1200, first=60)  # 20분마다 그림공부 자동 동기화
 
     logger.info("인박스 봇 시작. 폴링 중...")
     app.run_polling(drop_pending_updates=True)

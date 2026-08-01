@@ -9,7 +9,7 @@
 |---|---|---|---|
 | **일정 비서봇** | 텔레그램 봇. 할일/알람/리마인더/영양제 재고/생리주기/브리핑 | Railway (BOT_ROLE 미설정) + Google Sheets | ✅ 운영 중 |
 | **인박스봇** | 텔레그램 봇. 링크/생각/사진/쇼핑/책을 옵시디언 볼트로 자동 정리 | Railway (BOT_ROLE=inbox) + GitHub 볼트 `BokiVoki/obsidian-vault`(Private) | ✅ 운영 중 (Books/Inbox/Shopping 폴더에 커밋 중). 남은 건 옵시디언 앱에서 볼트 열기(Obsidian Git) |
-| **하루(Haru) 웹앱** | 개인 업무 할일 대시보드 (미니멀·딥그린) | **Cloudflare** + Supabase | ✅ 운영 중 (`webapp/index.html`, `haru.lolcv1294.workers.dev`) |
+| **하루(Haru) 웹앱** | 개인 업무 할일 대시보드 (미니멀·딥그린) + 그림공부(작가별 그림 태그 상속) | **Cloudflare** + Supabase, 그림은 옵시디언에도 미러링 | ✅ 운영 중 (`webapp/index.html`, `haru.lolcv1294.workers.dev`) |
 
 ---
 
@@ -85,8 +85,22 @@
   - ⚠️ secret key는 절대 코드/문서에 넣지 말 것
   - 테이블: `todos`, `memos` (RLS `owner=auth.uid()`)
   - Auth: email+password (Confirm email 꺼둠)
-- **호스팅**: Netlify. 자동배포는 이 repo `webapp/` 폴더 연결 (아래 참고).
+- **호스팅**: Cloudflare (`haru.lolcv1294.workers.dev`). 자동배포는 이 repo `main` 브랜치 연결 (아래 배포 메모 참고).
 - **데이터**: 현재 빈 상태로 시작. 예전 러버블 CSV(todos 300개)는 원하면 Supabase Table Editor로 Import 가능.
+
+---
+
+## 4. 그림공부 (하루앱 새 탭 + 옵시디언 미러링)
+
+- **뭐냐**: 작가별로 그림(작품)을 쌓아 공부하는 기능. 작가 태그를 달면 그 작가의 모든 그림에 자동 상속(합산)되고, 태그를 누르면 무드보드처럼 관련 그림이 다 모여 보임.
+- **어디**: 하루앱(`webapp/index.html`) 탭 `그림공부` (`data-tab="art"`). Supabase가 원본, 옵시디언은 봇이 주기적으로 미러링(한쪽 방향, 옵시디언→하루앱 반영은 안 됨).
+- **태그 상속(합산) 원리**: 저장할 땐 작가 태그와 그림 태그를 따로 저장, **보여줄 때만 합쳐서** 표시(`effTags`, JS)/`art_sync._effective_tags`(파이썬) — 그래서 작가 태그를 나중에 바꿔도 소급 적용됨. 자기 태그(✕로 지울 수 있음) vs 상속 태그(그림 화면엔 뜨지만 못 지움, 작가 쪽에서 지워야 함)로 구분해서 보여줌.
+- **데이터 모델(Supabase)**: `art_artists`(id,owner,name,tags jsonb,note,created,updated), `art_works`(id,owner,artist_id,title,year,genre,medium,image_url,source_url,tags jsonb,note,favorite,created,updated). id는 프론트에서 생성(`'ar'+uid()`/`'aw'+uid()`)해서 `upsert`로 저장 — todos/memos와 같은 방식. `hasArt` 프로브 플래그로 테이블 없어도 안 깨짐.
+- **이미지**: Supabase Storage 버킷 `art`(public read, 본인 폴더에만 업로드 — `storage.foldername(name)[1]=auth.uid()`). 새 그림 폼에서 **파일 업로드**(🖼 이미지 추가 → `uploadArtImage`) 또는 **링크 붙여넣기** 둘 다 가능, 둘 다 같은 이미지 링크 인풋에 채워짐.
+- **작가 선택**: 새 그림 폼의 작가 입력은 `<input list>` + `<datalist>`(네이티브 자동완성) — 기존 작가면 그대로 매칭, 없는 이름이면 저장 시 새 작가로 자동 생성.
+- **UI 구조**: 왼쪽 사이드바(작가 검색·목록·전체 태그클라우드) + 메인(작가 화면=태그·공부메모·그림 그리드 / 그림 화면=필드·효과태그·공부메모 / 태그 클릭 시 무드보드 그리드). 삭제는 실행취소 토스트 방식(다른 삭제와 동일), 작가 삭제 시 그 작가의 그림도 같이 삭제(되돌리기 가능).
+- **옵시디언 미러링**(`inbox_bot/art_sync.py`): `Artists/{작가}.md`(frontmatter tags=작가 태그) + `Artworks/{작가} - {제목}.md`(frontmatter tags=효과 태그(합산), `아티스트: [[작가]]` 위키링크로 백링크 연결 — 파일 경로에 타임스탬프 없이 이름 기반 고정이라 재동기화해도 같은 파일을 덮어씀(중복 생성 안 됨), 내용 바뀐 노트만 커밋. 텔레그램 **`그림동기화`** 명령으로 즉시 실행, 또는 20분마다 자동(`_periodic_art_sync`, 조용히·바뀐 게 있을 때만 로그). **env**: `SUPABASE_URL`/`SUPABASE_SERVICE_KEY`/`HARU_OWNER_ID`를 인박스봇 Railway 서비스에도 넣어야 함(일정봇과 같은 값).
+- **아이패드 손글씨**: 자체 캔버스 안 만들고 옵시디언 **Excalidraw 플러그인** 쓰기로 결정 — 그림 노트가 옵시디언에 미러링되니 그 노트 안에 Excalidraw 임베드해서 애플펜슬로 바로 필기/스케치.
 
 ---
 
