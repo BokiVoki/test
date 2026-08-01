@@ -759,6 +759,29 @@
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
   document.getElementById('mbody').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.body=this.value;clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);mentionCheck(this);});
   document.getElementById('mbody').addEventListener('keydown',function(e){if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;}});
+  // 리스트 자동표기 (노션/애플메모st): "- "→"• ", 엔터로 불릿·번호 자동 이어짐, 빈 줄에서 엔터로 빠져나옴
+  document.getElementById('mbody').addEventListener('keydown',function(e){
+    if(e.isComposing||e.keyCode===229)return;                 // 한글 조합 중이면 건드리지 않음
+    if(!document.getElementById('mentionPop').classList.contains('hidden'))return; // @연결 팝업 중이면 양보
+    var ta=this;if(ta.selectionStart!==ta.selectionEnd)return; // 선택 영역 있으면 패스
+    var val=ta.value,pos=ta.selectionStart,ls=val.lastIndexOf('\n',pos-1)+1,line=val.slice(ls,pos);
+    function apply(nv,caret){ta.value=nv;ta.setSelectionRange(caret,caret);ta.dispatchEvent(new Event('input'));}
+    if(e.key===' '){                                          // "- "/"* " → "• "
+      var d=line.match(/^(\s*)[-*]$/);
+      if(d){e.preventDefault();var rep=d[1]+'• ';apply(val.slice(0,ls)+rep+val.slice(pos),ls+rep.length);return;}
+    }
+    if(e.key==='Enter'&&!e.shiftKey){
+      var b=line.match(/^(\s*)•\s+(.*)$/),n=line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+      if(b){e.preventDefault();
+        if(b[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 불릿 → 리스트 종료
+        else{var ins='\n'+b[1]+'• ';apply(val.slice(0,pos)+ins+val.slice(pos),pos+ins.length);}
+        return;}
+      if(n){e.preventDefault();
+        if(n[3].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 번호 → 리스트 종료
+        else{var ins2='\n'+n[1]+(parseInt(n[2],10)+1)+'. ';apply(val.slice(0,pos)+ins2+val.slice(pos),pos+ins2.length);}
+        return;}
+    }
+  });
   document.getElementById('mbody').addEventListener('blur',function(){setTimeout(function(){document.getElementById('mentionPop').classList.add('hidden');},160);});
   var _mentionStart=-1;
   function caretXY(ta){var m=document.getElementById('_cmir');if(!m){m=document.createElement('div');m.id='_cmir';document.body.appendChild(m);}
