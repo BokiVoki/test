@@ -61,7 +61,7 @@ def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
         '  "author": "저자 또는 추천인 (예: 이해인 편집장). 모르면 빈 문자열",\n'
         '  "items": ["사진/내용에 여러 책·만화가 있으면 각 제목을 배열로. 한 권이면 그 하나. 없으면 빈 배열 []"],\n'
         '  "why": "어떤 추천인지/왜 읽고 싶은지 한 줄 (한국어)",\n'
-        '  "tags": ["주제 태그 2~3개 (예: 순정만화, 에세이, 자기계발)"]\n'
+        '  "tags": ["짧은 개념어 태그 2~3개. 공백 없이 한 단어씩(예: 순정만화, 에세이, 자기계발). 문장·구는 금지"]\n'
         "}\n"
         "사진에 여러 만화·책 표지가 격자(grid)로 있으면, 표지 하나하나를 순서대로 훑으며 "
         "각 제목을 최대한 읽어 items에 담아. 일본어 제목이면 원제 그대로 또는 한국어 번역으로. "
@@ -106,7 +106,7 @@ def build_book_note(parsed: dict, url: str = "", user_text: str = "",
     title = (parsed.get("title") or "읽고 싶은 책").strip()
     path = _note_path("Books", title, now)
 
-    tags = parsed.get("tags") or []
+    tags = _clean_tags(parsed.get("tags"))
     if "독서" not in tags:
         tags = ["독서"] + tags
     tags_yaml = "[" + ", ".join(tags) + "]"
@@ -164,8 +164,10 @@ def derive_tags(thought: str) -> dict:
         return {"tags": [], "hub": ""}
     prompt = (
         "다음은 사용자가 직접 남긴 생각/메모야. 이 사람의 관점에서 핵심을 태그로 뽑아줘. JSON만:\n"
-        '{ "tags": ["구체적 태그 2~4개 (한국어, #없이, 내용의 핵심 개념)"],'
-        ' "hub": "이 생각이 속할 큰 주제 하나 (예: 트렌드, F&B, 브랜딩)" }\n\n'
+        '{ "tags": ["짧은 개념어 태그 2~4개. 반드시 공백 없는 한 단어(또는 붙여쓴 복합어). '
+        '이 메모의 요약이 아니라 속성/종류를 나타내는 라벨(예: 자기성찰, 관계, 성장)"],'
+        ' "hub": "이 생각이 속할 더 큰 카테고리 하나 — 여러 메모가 공유할 넓은 주제(예: 트렌드, F&B, 브랜딩). '
+        '이 메모만의 구체 요약이 아님" }\n\n'
         f"메모: {thought.strip()}"
     )
     model = os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5")
@@ -188,15 +190,14 @@ def derive_tags(thought: str) -> dict:
 
 def merge_tags_into_note(content: str, new_tags: list, new_hub: str = "") -> str:
     """기존 노트 frontmatter의 tags에 new_tags를 합치고, hub가 비어있으면 채운다."""
-    # tags 병합
+    # tags 병합 (기존 태그도 공백 있으면 이 기회에 정리)
     m = re.search(r"^tags: \[(.*)\]\s*$", content, re.MULTILINE)
     existing = []
     if m:
-        existing = [t.strip() for t in m.group(1).split(",") if t.strip()]
+        existing = _clean_tags(m.group(1).split(","))
     merged = existing[:]
-    for t in (new_tags or []):
-        t = (t or "").strip()
-        if t and t not in merged:
+    for t in _clean_tags(new_tags):
+        if t not in merged:
             merged.append(t)
     tags_line = "tags: [" + ", ".join(merged) + "]"
     if m:
@@ -234,6 +235,19 @@ def _model_chain(has_image: bool) -> list:
     if has_image:
         return [os.getenv("INBOX_VISION_MODEL", "claude-sonnet-5"), "claude-haiku-4-5"]
     return [os.getenv("INBOX_SUMMARY_MODEL", "claude-sonnet-5"), "claude-haiku-4-5"]
+
+
+def _clean_tags(tags) -> list:
+    """옵시디언 태그 규칙에 맞게 정리. 공백이 있으면 태그로 인식이 안 되므로(#내 태그 X) 무조건 제거,
+    중복/빈 값도 정리. 모델이 실수로 공백 태그를 만들어도 여기서 걸러진다(안전장치)."""
+    out, seen = [], set()
+    for t in (tags or []):
+        t = re.sub(r"\s+", "", (t or "").strip())
+        t = re.sub(r"[,\[\]#]", "", t)
+        if t and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
 
 
 def _slugify(title: str) -> str:
@@ -347,8 +361,10 @@ def summarize(source_type: str, url: str, raw: dict, user_text: str) -> dict:
         '  "title": "짧고 명확한 제목 (한국어, 15자 내외)",\n'
         '  "summary": "핵심 2~3줄 요약 (한국어)",\n'
         '  "why": "이걸 왜 저장했을지/어디에 쓸모있을지 한 줄 추측 (한국어)",\n'
-        '  "tags": ["태그2~4개 (한국어, #없이)"],\n'
-        '  "hub": "이 내용이 속할 만한 큰 주제 하나 (예: 루틴과 습관, 글쓰기, 브랜딩)"\n'
+        '  "tags": ["짧은 개념어 태그 2~4개. 공백 없는 한 단어(또는 붙여쓴 복합어). '
+        '내용의 요약이 아니라 종류/속성 라벨(예: 감상, 인터뷰, 유튜브, 방법론, 창의력)"],\n'
+        '  "hub": "이 내용이 속할 더 큰 카테고리 하나(공백 없이 짧게, 예: 글쓰기, 브랜딩, 자기계발). '
+        '여러 노트가 재사용할 넓은 주제이지, 이 노트만의 구체 요약이 아님"\n'
         "}\n\n"
         f"내용:\n{material}"
     )
@@ -392,8 +408,8 @@ def read_photo_text(image_bytes: bytes, caption: str = "") -> dict:
         '  "is_text": true/false,\n'
         '  "title": "내용을 대표하는 짧은 제목(한국어). 캡션 있으면 반영",\n'
         '  "text": "사진 속 글을 최대한 그대로 옮겨적기. 줄바꿈/문단 유지. is_text=false면 빈 문자열",\n'
-        '  "tags": ["주제 태그 1~3개"],\n'
-        '  "hub": "큰 주제 한 단어(없으면 빈 문자열)"\n'
+        '  "tags": ["짧은 개념어 태그 1~3개. 공백 없는 한 단어(내용 요약이 아니라 속성 라벨, 예: 감상, 인터뷰, 자기계발)"],\n'
+        '  "hub": "이 글이 속할 더 큰 카테고리 한 단어(없으면 빈 문자열, 예: 글쓰기, 자기계발)"\n'
         "}\n"
         "글이 길어도 잘리지 말고 최대한 옮겨. 오타/이모지도 원문대로.\n"
         f"사용자 캡션: {caption or '(없음)'}"
@@ -431,7 +447,7 @@ def build_text_note(parsed: dict, user_text: str = "", image_embed: str = "") ->
     stamp_human = now.strftime("%Y-%m-%d %H:%M")
     title = (parsed.get("title") or "글 캡처").strip()
     path = _note_path("Inbox", title, now)
-    tags = parsed.get("tags") or ["글", "캡처"]
+    tags = _clean_tags(parsed.get("tags")) or ["글", "캡처"]
     tags_yaml = "[" + ", ".join(tags) + "]"
     hub = (parsed.get("hub") or "").strip()
 
@@ -469,7 +485,7 @@ def parse_shopping(text: str, raw: dict, image_bytes: bytes = None) -> dict:
         '  "price": "가격 (숫자+원, 모르면 빈 문자열)",\n'
         '  "where": "판매처/브랜드/사이트 (모르면 빈 문자열)",\n'
         '  "reason": "왜 사고 싶어 보이는지 한 줄 (한국어)",\n'
-        '  "tags": ["카테고리 태그 2~3개 (예: 패션, 가전, 뷰티)"]\n'
+        '  "tags": ["짧은 카테고리 태그 2~3개. 공백 없이(예: 패션, 가전, 뷰티)"]\n'
         "}\n"
         "사진이 있으면 사진 속 글자(상품명·가격)를 최대한 읽어줘.\n\n"
         f"{material}"
@@ -516,7 +532,7 @@ def build_shopping_note(parsed: dict, url: str = "", user_text: str = "",
     item = (parsed.get("item") or "사고 싶은 것").strip()
     path = _note_path("Shopping", item, now)
 
-    tags = parsed.get("tags") or []
+    tags = _clean_tags(parsed.get("tags"))
     if "쇼핑" not in tags:
         tags = ["쇼핑"] + tags
     tags_yaml = "[" + ", ".join(tags) + "]"
@@ -575,7 +591,7 @@ def build_note(source_type: str, parsed: dict, url: str = "", user_text: str = "
     title = parsed.get("title") or "메모"
     path = _note_path("Inbox", title, now)
 
-    tags = parsed.get("tags") or []
+    tags = _clean_tags(parsed.get("tags"))
     tags_yaml = "[" + ", ".join(tags) + "]" if tags else "[]"
     hub = (parsed.get("hub") or "").strip()
 

@@ -51,6 +51,7 @@
   - 비전 모델: `INBOX_VISION_MODEL` (기본 sonnet, opus로 올릴 수 있음)
   - **파일명 형식**: `제목 YYMMDD-HHMM.md` (제목 앞으로, 밑줄 X=띄어쓰기, 날짜는 뒤에 짧게) — 옵시디언 그래프에서 노드가 날짜 대신 **제목으로 읽히게** (`capture._slugify`는 공백 유지+금지문자만 제거, `capture._note_path`). 삭제/글인식 콜백은 파일명 뒤 `YYMMDD-HHMM` 스탬프로 노트 매칭(`_stampcb`/`_find_note`, `stamp in name`), 옛 형식(`YYYY-MM-DD_HHMM` 앞)도 호환. 최신순 정렬은 `vault._recency_key`가 파일명에서 날짜 뽑아 유지.
   - **허브를 실제 파일로**: `관련: [[허브]]`는 원래 유령 노드(파일 없음)라 옵시디언 그래프에서 색칠이 안 됨 → 노트 저장 시 `_save_note`(모든 write_note 래퍼)가 `_ensure_hub_notes`로 `Hubs/{허브}.md`(frontmatter `tags:[허브]`)를 자동 생성(`_hub_seen` 캐시). **`이름정리` 명령**이 기존 노트도 리네임 + 허브 백필(`_backfill_hubs`). **그래프 색칠은 옵시디언 앱에서 Groups `path:Hubs` → 초록**(코드 아님).
+  - **태그 vs 허브 기준**: 태그(2~4개)=이 노트 하나의 짧은 속성/종류 라벨(예: 감상·인터뷰·유튜브·창의력), 허브(1개)=여러 노트가 재사용하는 넓은 카테고리(예: 글쓰기·브랜딩·자기계발) — 노트 요약이면 안 됨. **옵시디언 태그는 공백이 있으면 무효**라 프롬프트에 "공백 없는 한 단어"를 명시(모든 tags 프롬프트: `summarize`/`derive_tags`/`read_photo_text`/`parse_book`/`parse_shopping`) + 코드 안전장치 `capture._clean_tags`(공백 제거·중복 제거)를 모든 tags_yaml 생성 지점과 `merge_tags_into_note`에 적용(기존에 이미 오염된 태그도 다음 저장 때 자동 정리됨).
 - **연결 상태**: ✅ 이미 연결됨. 볼트 = `BokiVoki/obsidian-vault`(Private), Railway 두 번째 서비스(`BOT_ROLE=inbox`)에서 커밋 중. env: `INBOX_BOT_TOKEN`, `VAULT_REPO`, `GITHUB_TOKEN`, `BOT_ROLE=inbox`, (공유: `ANTHROPIC_API_KEY`, `TELEGRAM_USER_ID`)
   - **남은 것**: 옵시디언 앱에서 그 볼트를 열어 보기 (GitHub Desktop으로 clone → 폴더를 볼트로 열기 → 자동 업데이트는 **Obsidian Git** 플러그인)
 
