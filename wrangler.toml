@@ -1,0 +1,7 @@
+name = "haru"
+compatibility_date = "2024-11-01"
+
+# webapp/ 폴더를 정적 사이트로 배포 (Cloudflare Workers Static Assets)
+# 코드 워커 없이 assets 디렉터리만 있는 "assets-only" 배포.
+[assets]
+directory = "./webapp"
