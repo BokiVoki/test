@@ -294,6 +294,55 @@ async def _migrate_names(update):
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 
+def _clean_note_tags() -> tuple[int, int, list]:
+    """모든 노트의 tags에서 공백을 제거(옵시디언 태그는 공백이면 무효)하고 중복도 정리.
+    바뀔 게 있는 노트만 실제로 다시 저장(불필요한 쓰기 없이 빠르게). 반환: (고친 수, 검사한 수, 예시)"""
+    fixed = scanned = 0
+    examples = []
+    for folder in ("Inbox", "Books", "Shopping"):
+        for name in vault.list_folder(folder):
+            path = f"{folder}/{name}"
+            content = vault.read_note(path)
+            if content is None:
+                continue
+            scanned += 1
+            m = re.search(r"^tags: \[(.*)\]\s*$", content, re.MULTILINE)
+            if not m:
+                continue
+            before = [t.strip() for t in m.group(1).split(",") if t.strip()]
+            after = capture._clean_tags(before)
+            if after == before:
+                continue
+            new_content = content[:m.start()] + "tags: [" + ", ".join(after) + "]" + content[m.end():]
+            try:
+                vault.write_note(path, new_content, commit_msg=f"tags: {name}")
+                fixed += 1
+                if len(examples) < 3:
+                    examples.append((name, ", ".join(before), ", ".join(after)))
+            except Exception as e:
+                logger.warning(f"태그정리 실패 {name}: {e}")
+    return fixed, scanned, examples
+
+
+async def _migrate_tags(update):
+    """'태그정리' 명령: 기존 노트 태그에서 공백/중복을 정리(옵시디언 태그 규칙에 맞게)."""
+    if not vault.is_configured():
+        await update.message.reply_text("⚠️ 볼트 연결이 안 됐어요.")
+        return
+    await update.message.reply_text("🏷 옛날 노트 태그를 정리할게요… 개수가 많으면 좀 걸려요.")
+    fixed, scanned, examples = await asyncio.to_thread(_clean_note_tags)
+    if not fixed:
+        await update.message.reply_text(f"확인해봤는데 이미 다 깨끗해요 ({scanned}개 노트 검사) 🙂")
+        return
+    msg = f"✅ 태그 정리 끝! {scanned}개 중 {fixed}개 노트의 태그를 손봤어요 (공백 제거 등)."
+    if examples:
+        msg += "\n\n예:"
+        for name, before, after in examples:
+            msg += f"\n· {name}\n  [{before}]\n  → [{after}]"
+    msg += "\n\n_옵시디언에서 새로고침하면 태그가 제대로 인식돼요._"
+    await update.message.reply_text(msg)
+
+
 async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update):
         return
@@ -396,6 +445,11 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ── '이름정리' → 옛날 노트 파일명을 새 형식(제목 앞으로)으로 일괄 변경 ──
     if re.match(r"^(?:이름|파일명)\s*정리$", text):
         await _migrate_names(update)
+        return
+
+    # ── '태그정리' → 옛날 노트 태그의 공백/중복 일괄 정리 ──
+    if re.match(r"^태그\s*정리$", text):
+        await _migrate_tags(update)
         return
 
     # ── '내 생각' 덧붙이기 대기 중이면 → 직전 노트에 추가 + 내 말에서 태그 재추출 ──
