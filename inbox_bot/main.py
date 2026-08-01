@@ -12,6 +12,7 @@
 - GITHUB_TOKEN, VAULT_REPO, VAULT_BRANCH : 옵시디언 볼트(GitHub) 저장용
 - GOOGLE_CREDENTIALS_JSON, GOOGLE_DRIVE_FOLDER_ID : 사진 업로드용 (선택)
 """
+import asyncio
 import logging
 import os
 import re
@@ -174,6 +175,72 @@ async def _delete_recent(update, n: int):
     await update.message.reply_text(f"🗑 인박스 최근 {deleted}개 삭제했어요 (사진 첨부도 함께).")
 
 
+def _new_name_for(name: str) -> str | None:
+    """옛 형식 파일명(YYYY-MM-DD_HHMM_제목.md)을 새 형식(제목 YYMMDD-HHMM.md)으로.
+    이미 새 형식이거나 형식이 아니면 None."""
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})_(\d{4})_(.+)\.md$", name)
+    if not m:
+        return None
+    stamp = f"{m.group(1)[2:]}{m.group(2)}{m.group(3)}-{m.group(4)}"
+    title = capture._slugify(m.group(5).replace("_", " "))
+    return f"{title} {stamp}.md"
+
+
+def _rename_old_notes() -> tuple[int, int, list]:
+    """볼트의 옛 형식 노트를 새 형식으로 일괄 리네임. (내용·첨부는 그대로 두고 .md만 이동)
+    반환: (바꾼 수, 실패 수, 예시 [(old,new)...])"""
+    renamed = errors = 0
+    seen: set[str] = set()
+    examples: list = []
+    for folder in ("Inbox", "Books", "Shopping"):
+        for name in vault.list_folder(folder):
+            new = _new_name_for(name)
+            if not new or new == name:
+                continue
+            base = new
+            k = 1
+            while new in seen:                       # 같은 실행 내 이름 충돌 방지
+                new = base[:-3] + f" ({k}).md"
+                k += 1
+            old_path, new_path = f"{folder}/{name}", f"{folder}/{new}"
+            content = vault.read_note(old_path)
+            if content is None:
+                errors += 1
+                continue
+            try:
+                vault.write_note(new_path, content, commit_msg=f"rename: {new}")
+                vault.delete_note(old_path, commit_msg=f"rename cleanup: {name}")  # .md만 지움(첨부 유지)
+                seen.add(new)
+                renamed += 1
+                if len(examples) < 3:
+                    examples.append((name, new))
+            except Exception as e:
+                logger.warning(f"rename 실패 {name}: {e}")
+                errors += 1
+    return renamed, errors, examples
+
+
+async def _migrate_names(update):
+    """'이름정리' 명령: 옛날 노트 파일명을 새 형식으로 일괄 변경."""
+    if not vault.is_configured():
+        await update.message.reply_text("⚠️ 볼트 연결이 안 됐어요.")
+        return
+    await update.message.reply_text("🧹 옛날 노트 파일명을 정리할게요… 개수가 많으면 좀 걸려요.")
+    renamed, errors, examples = await asyncio.to_thread(_rename_old_notes)
+    if not renamed and not errors:
+        await update.message.reply_text("이미 다 새 형식이에요 — 바꿀 옛날 노트가 없어요 🙂")
+        return
+    msg = f"✅ 파일명 정리 끝! {renamed}개를 새 형식으로 바꿨어요."
+    if errors:
+        msg += f" (실패 {errors}개 — 다시 '이름정리' 하면 재시도돼요)"
+    if examples:
+        msg += "\n\n예:"
+        for old, new in examples:
+            msg += f"\n· {old}\n  → {new}"
+    msg += "\n\n_옵시디언에서 새로고침(당겨서)하면 그래프에 제목으로 떠요._"
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
+
 async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update):
         return
@@ -271,6 +338,11 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if dm:
         n = int(dm.group(1)) if dm.group(1) else 1
         await _delete_recent(update, max(1, min(n, 30)))
+        return
+
+    # ── '이름정리' → 옛날 노트 파일명을 새 형식(제목 앞으로)으로 일괄 변경 ──
+    if re.match(r"^(?:이름|파일명)\s*정리$", text):
+        await _migrate_names(update)
         return
 
     # ── '내 생각' 덧붙이기 대기 중이면 → 직전 노트에 추가 + 내 말에서 태그 재추출 ──
