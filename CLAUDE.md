@@ -9,7 +9,7 @@
 |---|---|---|---|
 | **일정 비서봇** | 텔레그램 봇. 할일/알람/리마인더/영양제 재고/생리주기/브리핑 | Railway (BOT_ROLE 미설정) + Google Sheets | ✅ 운영 중 |
 | **인박스봇** | 텔레그램 봇. 링크/생각/사진/쇼핑/책을 옵시디언 볼트로 자동 정리 | Railway (BOT_ROLE=inbox) + GitHub 볼트 `BokiVoki/obsidian-vault`(Private) | ✅ 운영 중 (Books/Inbox/Shopping 폴더에 커밋 중). 남은 건 옵시디언 앱에서 볼트 열기(Obsidian Git) |
-| **하루(Haru) 웹앱** | 개인 업무 할일 대시보드 (미니멀·딥그린) | Netlify + Supabase | ✅ 운영 중 (`webapp/index.html`) |
+| **하루(Haru) 웹앱** | 개인 업무 할일 대시보드 (미니멀·딥그린) | **Cloudflare** + Supabase | ✅ 운영 중 (`webapp/index.html`, `haru.lolcv1294.workers.dev`) |
 
 ---
 
@@ -65,7 +65,7 @@
   - **대시보드**: 빠른 담기 + 오늘의 집중(자동 우선순위 + 가용시간 · **오늘 찍음 or 오늘 마감 자동 포함**, 밀린 건 마감 섹션에만) + 마감 임박 + 오늘 흐름 토글. 진짜 할일만. 빠른담기 옆 **오늘** 버튼=오늘의 집중 바로 담기(Shift+Enter도). 행 hover **🔁**=고정업무(none→매일→매주(요일)→매월(일)→none), 프로젝트 행 hover **오늘** 토글, 하위 항목 hover **＋날짜**(`subdue`, sub.due).
   - **주머니·프로젝트**: 주머니(inbox) 분류(오늘/프로젝트/나중/메모/버림) + 프로젝트 아코디언
   - **캘린더**: 월 그리드, 드래그로 마감일 변경. **기간 일정**(`todos.endd`)이면 시작~종료 모든 날에 바 표시(시작일=제목, 이후=`.evcont` 연속 바). 구캘 일정이 여기 뜸.
-  - **메모**: 애플 메모st, 폴더, 할일 연결(📝). **연결은 메모 본문에서 `@`**로 → 할일 검색(제목·**하위항목**·**프로젝트** 다, 띄어쓰기 무시)해서 클릭하면 연결. 드롭다운은 **커서 바로 아래**에 위치(`caretXY` 미러 div로 좌표 계산 → 글자 안 가림)(`@할일제목` 삽입 + `todos.memoid`/`memo.link` 설정, `#mentionPop`/`mentionCheck`). 연결된 할일 행엔 📝(메모로 점프)만 표시(할일 행에 링크 버튼은 안 붙임). 메모 편집기 `연결 해제`(`data-unlink`). (주머니 "메모"는 할일→메모 변환이라 다름)
+  - **메모**: 애플 메모st, 폴더, 할일 연결(📝). **리스트 자동표기**(노션/애플메모st): `-`(또는 `*`)+스페이스 → `• `, 불릿/번호 줄에서 엔터 → 다음 줄 자동 이어짐(`1.`→`2.`), 빈 불릿/번호에서 엔터 → 리스트 종료. `#mbody` keydown 핸들러(한글 조합 중·@팝업 중엔 양보). **연결은 메모 본문에서 `@`**로 → 할일 검색(제목·**하위항목**·**프로젝트** 다, 띄어쓰기 무시)해서 클릭하면 연결. 드롭다운은 **커서 바로 아래**에 위치(`caretXY` 미러 div로 좌표 계산 → 글자 안 가림)(`@할일제목` 삽입 + `todos.memoid`/`memo.link` 설정, `#mentionPop`/`mentionCheck`). 연결된 할일 행엔 📝(메모로 점프)만 표시(할일 행에 링크 버튼은 안 붙임). 메모 편집기 `연결 해제`(`data-unlink`). (주머니 "메모"는 할일→메모 변환이라 다름)
   - **완료함**: 체크=완료(찍 긋고 그 자리 유지 + 완료시점 `doneat` 기록) → "완료함으로" 버튼/일괄정리로 `archived=true` → 완료함 탭에서 완료시점 표시 + 되돌리기. 반복 항목은 예외(lastdone).
   - **프로젝트**: 헤더 ⠿ 핸들 드래그로 순서 변경(→ `settings.projOrder[ws]`), ✕로 삭제(할일은 주머니로 이동, 삭제 아님). 프로젝트 안 **할일 행 ⠿ 드래그로 순서 변경**(→ `todos.sort`, `reorderTodo`), **하위 항목 ⠿ 드래그로 순서 변경**(subs 배열 재정렬, `reorderSub`).
   - **⤵하위로(nest) 연결 모드 주의**: 모드 진입 후 아무 데나 클릭하면 취소됨(예전엔 유효 대상 아니면 무시→전체 먹통 버그였음, 수정됨), Esc로도 취소.
@@ -90,19 +90,19 @@
 ## 배포 / 인프라 메모
 
 - **Railway**: 봇 2개(일정봇 / 인박스봇). Procfile `worker: python start.py`, `BOT_ROLE`로 구분.
-- **Netlify**: 하루 웹앱. `webapp/index.html`을 publish. GitHub 연결 시 push→자동배포.
+- **Cloudflare (하루 웹앱 호스팅)**: `haru.lolcv1294.workers.dev`. `main` 브랜치 push → 자동배포. `wrangler.toml`(repo 루트)이 `webapp/` 폴더를 정적 사이트(Workers Static Assets)로 배포(`npx wrangler deploy`, assets-only). **Netlify에서 이사함**(무료 크레딧 소진으로 production deploy 멈춰서). ⚠️ 예전 Netlify는 개발 브랜치를 봤지만 Cloudflare는 `main`을 봄 → 웹앱 배포하려면 `main`에도 push해야 함.
 - **Google**: `GOOGLE_CREDENTIALS_JSON`(서비스계정), `GOOGLE_DRIVE_FOLDER_ID`(사진), `SPREADSHEET_ID`.
-- **개발 브랜치**: `claude/content-archive-bot-xv3nx` (봇 개발용).
+- **개발 브랜치**: `claude/content-archive-bot-xv3nx` (봇 개발용). 웹앱 변경은 `main`에도 fast-forward push해야 Cloudflare가 배포함.
 
 ## 자주 하는 작업 (how-to)
 
-- **웹앱 고치기**: `webapp/index.html` 수정 → push → Netlife 자동 반영 (GitHub 연결 후)
+- **웹앱 고치기**: `webapp/index.html` 수정 → 개발 브랜치 + `main` 둘 다 push → Cloudflare 자동 반영 (`haru.lolcv1294.workers.dev`)
 - **봇 고치기**: `bot/` 또는 `inbox_bot/` 수정 → push → Railway 자동 재배포
 - **메모리 갱신**: 뭔가 구조가 바뀌면 이 `CLAUDE.md`도 같이 고칠 것
 
 ## 다음 할 일 (백로그)
 
-1. 하루 웹앱 GitHub↔Netlify 자동배포 연결 (진행 중)
+1. ~~하루 웹앱 GitHub↔Netlify 자동배포 연결~~ ✅ Cloudflare로 이사 완료 (`main` push→자동배포)
 2. 인박스봇 볼트/Railway 연결
 3. ~~텔레그램 → 하루 웹앱 주머니로 던지기 연동~~ ✅ 완료 (`앱 <내용>`, `bot/haru_app.py`) — Railway 환경변수만 넣으면 작동
 4. 예전 CSV 300개 Supabase로 옮기기 (원할 때)
