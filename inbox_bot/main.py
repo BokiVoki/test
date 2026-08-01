@@ -45,19 +45,22 @@ _FOLDER = {"I": "Inbox", "B": "Books", "S": "Shopping"}
 
 
 def _stampcb(code: str, note_path: str) -> str:
-    """재시작에도 안전한 콜백: {code}:{폴더코드}:{파일 타임스탬프}."""
+    """재시작에도 안전한 콜백: {code}:{폴더코드}:{파일 타임스탬프}.
+    새 형식(제목 뒤 'YYMMDD-HHMM') / 옛 형식(앞의 'YYYY-MM-DD_HHMM') 둘 다 지원."""
     folder = note_path.split("/")[0]
     fname = note_path.split("/")[-1]
-    m = re.match(r"(\d{4}-\d{2}-\d{2}_\d{4})", fname)
+    m = re.search(r"(\d{6}-\d{4})(?:\.md)?$", fname)          # 새 형식: 제목 260708-1359.md
+    if not m:
+        m = re.match(r"(\d{4}-\d{2}-\d{2}_\d{4})", fname)     # 옛 형식: 2026-07-08_1359_...
     stamp = m.group(1) if m else fname[:15]
     return f"{code}:{_FCODE.get(folder, 'I')}:{stamp}"
 
 
 def _find_note(folder_code: str, stamp: str) -> str | None:
-    """폴더코드+스탬프로 노트 경로를 찾는다."""
+    """폴더코드+스탬프로 노트 경로를 찾는다. (스탬프가 파일명 어디에 있든 매칭)"""
     folder = _FOLDER.get(folder_code, "Inbox")
     for n in vault.list_folder(folder):
-        if n.startswith(stamp + "_"):
+        if stamp in n:
             return f"{folder}/{n}"
     return None
 
@@ -181,7 +184,7 @@ async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     folder = _FOLDER.get(parts[1], "Inbox")
     stamp = parts[2]
-    names = [n for n in vault.list_folder(folder) if n.startswith(stamp + "_")]
+    names = [n for n in vault.list_folder(folder) if stamp in n]
     if not names:
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("앗, 이미 지웠거나 못 찾았어요.")

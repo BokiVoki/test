@@ -10,6 +10,7 @@
 import base64
 import logging
 import os
+import re
 
 import requests
 
@@ -177,7 +178,18 @@ def list_folder(folder: str, prefix: str = "") -> list[str]:
     if prefix:
         needle = prefix.lower()
         names = [n for n in names if needle in n.lower()]
-    return sorted(names, reverse=True)
+    return sorted(names, key=_recency_key, reverse=True)  # 최신순 (날짜가 파일명 뒤로 가도 유지)
+
+
+def _recency_key(name: str) -> str:
+    """파일명에서 날짜를 뽑아 최신순 정렬용 키(YYYYMMDDHHMM). 새/옛 형식 모두 지원."""
+    m = re.search(r"(\d{6})-(\d{4})\.md$", name)              # 새: 제목 260708-1359.md
+    if m:
+        return "20" + m.group(1) + m.group(2)
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})_(\d{4})", name)    # 옛: 2026-07-08_1359_...
+    if m:
+        return "".join(m.groups())
+    return "0" + name                                         # 날짜 없으면 뒤로
 
 
 def list_inbox(prefix: str = "") -> list[str]:

@@ -49,6 +49,7 @@
   - **사진 여러 장(앨범)**: `media_group_id`로 **file_id만 즉시 버퍼**(`_album_buf`, 핸들러는 업로드 안 함=빠름) → 4초 debounce 후 `_flush_album`이 다운로드+업로드하고 **한 노트에 전부 임베드**(`![[img]]` 여러 줄, 첫 캡션 사용). job_queue 없으면 개별 저장로 폴백. (예전에 핸들러에서 바로 업로드하다 느려서 앨범이 쪼개지던 것 → file_id 버퍼링으로 해결)
   - 명령어: `/today` `/find` `/shopping` `/books`
   - 비전 모델: `INBOX_VISION_MODEL` (기본 sonnet, opus로 올릴 수 있음)
+  - **파일명 형식**: `제목 YYMMDD-HHMM.md` (제목 앞으로, 밑줄 X=띄어쓰기, 날짜는 뒤에 짧게) — 옵시디언 그래프에서 노드가 날짜 대신 **제목으로 읽히게** (`capture._slugify`는 공백 유지+금지문자만 제거, `capture._note_path`). 삭제/글인식 콜백은 파일명 뒤 `YYMMDD-HHMM` 스탬프로 노트 매칭(`_stampcb`/`_find_note`, `stamp in name`), 옛 형식(`YYYY-MM-DD_HHMM` 앞)도 호환. 최신순 정렬은 `vault._recency_key`가 파일명에서 날짜 뽑아 유지. **태그/허브 노드 초록색은 옵시디언 앱 설정**(그래프 뷰 Groups)이라 코드 아님.
 - **연결 상태**: ✅ 이미 연결됨. 볼트 = `BokiVoki/obsidian-vault`(Private), Railway 두 번째 서비스(`BOT_ROLE=inbox`)에서 커밋 중. env: `INBOX_BOT_TOKEN`, `VAULT_REPO`, `GITHUB_TOKEN`, `BOT_ROLE=inbox`, (공유: `ANTHROPIC_API_KEY`, `TELEGRAM_USER_ID`)
   - **남은 것**: 옵시디언 앱에서 그 볼트를 열어 보기 (GitHub Desktop으로 clone → 폴더를 볼트로 열기 → 자동 업데이트는 **Obsidian Git** 플러그인)
 

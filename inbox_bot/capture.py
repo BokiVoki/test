@@ -104,7 +104,7 @@ def build_book_note(parsed: dict, url: str = "", user_text: str = "",
     stamp_file = now.strftime("%Y-%m-%d_%H%M")
     stamp_human = now.strftime("%Y-%m-%d %H:%M")
     title = (parsed.get("title") or "읽고 싶은 책").strip()
-    path = f"Books/{stamp_file}_{_slugify(title)}.md"
+    path = _note_path("Books", title, now)
 
     tags = parsed.get("tags") or []
     if "독서" not in tags:
@@ -237,10 +237,18 @@ def _model_chain(has_image: bool) -> list:
 
 
 def _slugify(title: str) -> str:
-    """파일명용 — 한글 유지, 특수문자 제거, 공백 → _"""
-    s = re.sub(r"[\\/:*?\"<>|#\[\]]", "", title or "").strip()
-    s = re.sub(r"\s+", "_", s)
-    return s[:50] or "무제"
+    """파일명용 — 한글/공백 유지, 파일시스템·옵시디언 금지문자만 제거.
+    (옵시디언 그래프에서 노드 이름으로 그대로 보이므로 읽히게 둔다. 밑줄 X)"""
+    s = re.sub(r"[\\/:*?\"<>|#^\[\]]", "", title or "")
+    s = re.sub(r"\s+", " ", s).strip().rstrip(". ")
+    return s[:60] or "무제"
+
+
+def _note_path(folder: str, title: str, now: datetime) -> str:
+    """그래프에서 잘 읽히는 노트 경로: '폴더/제목 YYMMDD-HHMM.md'.
+    날짜를 뒤에 짧게 붙여 제목이 앞에 오게 하고(요점이 보임), 중복 방지 + 삭제/글인식 매칭용."""
+    stamp = now.strftime("%y%m%d-%H%M")
+    return f"{folder}/{_slugify(title)} {stamp}.md"
 
 
 # ── 링크 내용 가져오기 ──────────────────────────────────────
@@ -422,7 +430,7 @@ def build_text_note(parsed: dict, user_text: str = "", image_embed: str = "") ->
     stamp_file = now.strftime("%Y-%m-%d_%H%M")
     stamp_human = now.strftime("%Y-%m-%d %H:%M")
     title = (parsed.get("title") or "글 캡처").strip()
-    path = f"Inbox/{stamp_file}_{_slugify(title)}.md"
+    path = _note_path("Inbox", title, now)
     tags = parsed.get("tags") or ["글", "캡처"]
     tags_yaml = "[" + ", ".join(tags) + "]"
     hub = (parsed.get("hub") or "").strip()
@@ -506,7 +514,7 @@ def build_shopping_note(parsed: dict, url: str = "", user_text: str = "",
     stamp_file = now.strftime("%Y-%m-%d_%H%M")
     stamp_human = now.strftime("%Y-%m-%d %H:%M")
     item = (parsed.get("item") or "사고 싶은 것").strip()
-    path = f"Shopping/{stamp_file}_{_slugify(item)}.md"
+    path = _note_path("Shopping", item, now)
 
     tags = parsed.get("tags") or []
     if "쇼핑" not in tags:
@@ -565,7 +573,7 @@ def build_note(source_type: str, parsed: dict, url: str = "", user_text: str = "
     stamp_file = now.strftime("%Y-%m-%d_%H%M")
     stamp_human = now.strftime("%Y-%m-%d %H:%M")
     title = parsed.get("title") or "메모"
-    path = f"Inbox/{stamp_file}_{_slugify(title)}.md"
+    path = _note_path("Inbox", title, now)
 
     tags = parsed.get("tags") or []
     tags_yaml = "[" + ", ".join(tags) + "]" if tags else "[]"
