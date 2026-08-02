@@ -249,6 +249,7 @@
   .art-form textarea{min-height:70px;resize:vertical}
   .art-form label{font-size:11.5px;color:var(--faint);margin-bottom:-4px}
   .art-imgpick .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .art-pastehint{font-size:11.5px;color:var(--faint);margin-top:2px}
   .art-imgpick img{max-width:160px;border-radius:6px;margin-top:4px;display:block}
   .art-star{cursor:pointer;color:var(--faint);font-size:17px;border:0;background:none;padding:0}
   .art-star.on{color:#E0A72A}
@@ -715,7 +716,7 @@
       '<div class="art-form">'+
       '<label>작가</label><input id="artNewWorkArtist" list="artArtistDatalist" placeholder="작가 이름 (기존 선택 또는 새로 입력)" value="'+(a?esc(a.name):'')+'"><datalist id="artArtistDatalist">'+opts+'</datalist>'+
       '<label>제목</label><input id="artNewWorkTitle" placeholder="그림 제목">'+
-      '<label>이미지 (파일 선택 · 링크 붙여넣기 · 이미지 복사 후 Cmd/Ctrl+V 다 가능)</label><div class="art-imgpick"><div class="row"><button class="btn-s" id="artImgBtn" type="button">🖼 이미지 추가</button><input type="file" id="artImgFile" accept="image/*" class="hidden"><input id="artImgLink" placeholder="또는 이미지 링크 붙여넣기" style="flex:1;min-width:160px"></div><img id="artImgPreview" class="hidden"></div>'+
+      '<label>이미지</label><div class="art-imgpick"><div class="row"><button class="btn-s" id="artImgBtn" type="button">🖼 파일 선택</button><input type="file" id="artImgFile" accept="image/*" class="hidden"><input id="artImgLink" placeholder="또는 이미지 URL 링크 입력" style="flex:1;min-width:160px"></div><div class="art-pastehint">📋 이미지를 복사했다면(스크린샷·다른 사이트 이미지 복사 등) 이 화면 아무 데나 <b>Cmd+V</b>(또는 Ctrl+V)만 눌러도 바로 올라가요</div><img id="artImgPreview" class="hidden"></div>'+
       '<div class="row" style="display:flex;gap:8px"><input id="artNewWorkYear" placeholder="연도" style="width:90px"><input id="artNewWorkGenre" placeholder="장르" style="width:120px"><input id="artNewWorkMedium" placeholder="매체/재료" style="flex:1"></div>'+
       '<label>태그</label><input id="artNewWorkTags" placeholder="쉼표로 구분 (예: 추상화, 점화)">'+
       '<label>메모</label><textarea id="artNewWorkNote" placeholder="이 그림에 대해 공부한 것…"></textarea>'+
