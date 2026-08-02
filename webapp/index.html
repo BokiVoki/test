@@ -166,7 +166,13 @@
   .ev.evcont{cursor:default;min-height:14px;opacity:.55}
   .ev.over{color:var(--text);border-left-color:var(--text)}
   .memo{display:grid;grid-template-columns:250px 1fr;border:1px solid var(--line-2);border-radius:4px;overflow:hidden;min-height:460px}
-  @media(max-width:680px){.memo{grid-template-columns:1fr}.mside{max-height:240px}}
+  .mBackBtn{display:none;align-items:center;gap:4px;font-size:13px;color:var(--accent);background:none;border:0;cursor:pointer;padding:0 0 12px;margin:0}
+  @media(max-width:680px){
+    .memo{grid-template-columns:1fr}.mside{max-height:240px}
+    .memo.mob-edit .mside{display:none}
+    .memo.mob-edit .medit{position:fixed;inset:0;z-index:40;background:var(--bg);padding:16px 16px 24px;overflow-y:auto}
+    .mBackBtn{display:flex}
+  }
   .mside{display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--sunk);overflow:hidden}
   .mfolders{display:flex;flex-wrap:wrap;gap:5px;padding:10px;border-bottom:1px solid var(--line)}
   .mfolders button{font:inherit;font-size:11.5px;color:var(--muted);background:none;border:1px solid var(--line-2);border-radius:3px;padding:3px 9px;cursor:pointer}
@@ -183,6 +189,14 @@
   .mimgadd{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
   .mimghint{font-size:11px;color:var(--faint)}
   .mbodywrap{position:relative;flex:1;display:flex}
+  .mread{flex:1;font-size:14px;line-height:1.65;color:var(--text);cursor:text;overflow-y:auto;word-break:break-word}
+  .mread.hidden{display:none}
+  .mread>div{min-height:1.5em;white-space:pre-wrap}
+  .mread:empty:before{content:'메모를 입력하세요… (탭해서 쓰기 시작)';color:var(--faint)}
+  .mreadimg-wrap{position:relative;display:inline-block;margin:6px 0}
+  .mreadimg{max-width:220px;max-height:220px;border-radius:8px;display:block;cursor:pointer;border:1px solid var(--line)}
+  .mreadimg-del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:12px;cursor:pointer;line-height:22px;padding:0}
+  .mreadck{cursor:pointer}
   .mentionpop{position:absolute;left:8px;top:26px;width:min(280px,82%);max-height:210px;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:20}
   .mentionitem .mtt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mentionitem .mhit{font-size:11px;color:var(--faint)}
@@ -219,7 +233,11 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   /* 그림공부 */
   .art-wrap{display:grid;grid-template-columns:230px 1fr;gap:18px}
-  @media(max-width:680px){.art-wrap{grid-template-columns:1fr}}
+  @media(max-width:680px){
+    .art-wrap{grid-template-columns:1fr}
+    .art-wrap.art-mob-detail .art-side{display:none}
+    .art-wrap.art-mob-detail .art-main{position:fixed;inset:0;z-index:40;background:var(--bg);padding:16px;overflow-y:auto}
+  }
   #artistSearch{width:100%;font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line-2);border-radius:4px;background:var(--panel);color:var(--text);margin-bottom:8px}
   .art-artistlist{display:flex;flex-direction:column;gap:2px;max-height:280px;overflow:auto}
   .art-artist-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:4px;cursor:pointer;font-size:13px}
@@ -340,9 +358,9 @@
   <div id="memo" class="hidden">
     <div class="bhead"><h2>메모</h2><div class="r"><button class="btn-s" id="newMemo">+ 새 메모</button></div></div>
     <div class="memo"><div class="mside"><div class="mfolders" id="mfolders"></div><div class="mlist" id="mlist"></div></div>
-      <div class="medit"><input class="mtitle" id="mtitle" placeholder="제목"><div class="mtoprow"><select class="mfolsel" id="mfolsel"></select><button class="btn-s" id="mDelBtn">🗑 삭제</button></div><div class="mlinkbar" id="mlinkbar"></div>
+      <div class="medit"><button class="mBackBtn" id="mBackBtn" type="button">‹ 메모 목록</button><input class="mtitle" id="mtitle" placeholder="제목"><div class="mtoprow"><select class="mfolsel" id="mfolsel"></select><button class="btn-s" id="mDelBtn">🗑 삭제</button></div><div class="mlinkbar" id="mlinkbar"></div>
         <div class="mimgadd"><button class="btn-s" id="mImgBtn" type="button">📎 사진</button><input type="file" id="mImgFile" accept="image/*" multiple class="hidden"><span class="mimghint">또는 메모에 붙여넣기(Cmd/Ctrl+V) · 드래그해서 놓기 — 본문 속 📷 사진 줄을 탭하면 사진이 열리고, 끝의 ✕를 탭하면 지워져요</span></div>
-        <div class="mbodywrap"><textarea id="mbody" placeholder="메모를 입력하세요… (@로 할일 연결 · [] 로 체크리스트)"></textarea><div id="mentionPop" class="mentionpop hidden"></div></div></div>
+        <div class="mbodywrap"><div class="mread" id="mbodyRead"></div><textarea id="mbody" class="hidden" placeholder="메모를 입력하세요… (@로 할일 연결 · [] 로 체크리스트)"></textarea><div id="mentionPop" class="mentionpop hidden"></div></div></div>
     </div>
   </div>
   <div id="done" class="hidden">
@@ -446,6 +464,7 @@
     var linked=state.todos.filter(function(t){return t.memoId===m.id;});
     state.memos.splice(idx,1);delMemoDB(m.id);
     linked.forEach(function(t){t.memoId=null;putTodo(t);});
+    if(memoEditingId===m.id)memoEditingId=null;
     state.curMemo=null;renderMemos();renderProjects();renderToday();
     showToast('메모를 삭제했어요',function(){
       state.memos.unshift(m);putMemo(m);
@@ -614,8 +633,39 @@
     document.getElementById('mfolsel').innerHTML=FOLDERS.slice(1).map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
     if(cur){state.curMemo=cur.id;document.getElementById('mtitle').value=cur.title;document.getElementById('mbody').value=cur.body;document.getElementById('mfolsel').value=cur.folder;
-      document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';}
-    else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';}}
+      document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';
+      if(!memoEditingId||memoEditingId!==cur.id){document.getElementById('mbody').classList.add('hidden');document.getElementById('mbodyRead').classList.remove('hidden');renderMemoRead(cur);}}
+    else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyRead').innerHTML='';}}
+  var memoEditingId=null; // 지금 편집(raw textarea) 중인 메모 id, 아니면 null(읽기뷰)
+  function renderMemoRead(m){
+    var lines=((m&&m.body)||'').split('\n'),html='',markerIdx=0;
+    for(var i=0;i<lines.length;i++){
+      var line=lines[i];
+      if(line.trim()===MEMO_IMG_MARKER){
+        var url=(m.images||[])[markerIdx];
+        html+='<span class="mreadimg-wrap">'+(url?'<img class="mreadimg" src="'+esc(url)+'" data-act="mread-img-view">':'')+'<button class="mreadimg-del" data-act="mread-img-del" data-i="'+markerIdx+'">✕</button></span>';
+        markerIdx++;
+        continue;
+      }
+      var ck=line.match(/^(\s*)([☐☑])(\s+)(.*)$/);
+      if(ck){html+='<div><span class="mreadck" data-act="mread-ck-toggle" data-line="'+i+'">'+ck[2]+'</span> '+esc(ck[4])+'</div>';}
+      else{html+='<div>'+esc(line)+'</div>';}
+    }
+    document.getElementById('mbodyRead').innerHTML=html;
+  }
+  function startMemoEdit(){
+    var m=mById(state.curMemo);if(!m)return;
+    memoEditingId=m.id;
+    document.getElementById('mbodyRead').classList.add('hidden');
+    var ta=document.getElementById('mbody');ta.classList.remove('hidden');ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
+  }
+  function endMemoEdit(){
+    memoEditingId=null;
+    var m=mById(state.curMemo);
+    document.getElementById('mbody').classList.add('hidden');
+    document.getElementById('mbodyRead').classList.remove('hidden');
+    if(m)renderMemoRead(m);
+  }
   function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}});}
   // ===== 순서도 (flow) : 단계 보드 + 드래그앤드롭 =====
   function flowSources(){return {projs:orderedProjects(),todos:wsTodos().filter(function(t){return (t.subs||[]).length>0;})};}
@@ -794,6 +844,7 @@
   }
   function renderArtMain(){
     var m=document.getElementById('artMain'),sel=state.artSel;
+    document.getElementById('artBody').classList.toggle('art-mob-detail',sel.type!=='none');
     if(sel.type==='artist')m.innerHTML=artistViewHtml(sel.id);
     else if(sel.type==='work')m.innerHTML=workViewHtml(sel.id);
     else if(sel.type==='tag')m.innerHTML=tagViewHtml(sel.tag);
@@ -1067,6 +1118,18 @@
     else if(act==='art-fav'){var fw=workById(state.artSel.id);if(!fw)return;fw.favorite=!fw.favorite;putWork(fw);renderArtMain();}
     else if(act==='art-sketch'){openSketchPad(state.artSel.id);}
     else if(act==='art-sketch-view'){window.open(el.src,'_blank');}
+    else if(act==='mread-img-view'){window.open(el.src,'_blank');}
+    else if(act==='mread-img-del'){var rm=mById(state.curMemo);if(!rm)return;var ridx=+el.dataset.i;
+      rm.images=(rm.images||[]).filter(function(u,i){return i!==ridx;});
+      rm.body=removeNthMemoMarker(rm.body||'',ridx);
+      document.getElementById('mbody').value=rm.body;
+      putMemo(rm);renderMemoRead(rm);}
+    else if(act==='mread-ck-toggle'){var rm2=mById(state.curMemo);if(!rm2)return;
+      var rlines=(rm2.body||'').split('\n'),rli=+el.dataset.line;
+      if(rlines[rli])rlines[rli]=rlines[rli].replace(/[☐☑]/,function(g){return g==='☐'?'☑':'☐';});
+      rm2.body=rlines.join('\n');
+      document.getElementById('mbody').value=rm2.body;
+      putMemo(rm2);renderMemoRead(rm2);}
     else if(act==='art-untag-artist'){var ua=artistById(state.artSel.id);if(!ua)return;ua.tags=(ua.tags||[]).filter(function(x){return x!==el.dataset.t;});putArtist(ua);renderArt();}
     else if(act==='art-untag-work'){var uw=workById(state.artSel.id);if(!uw)return;uw.tags=(uw.tags||[]).filter(function(x){return x!==el.dataset.t;});putWork(uw);renderArtMain();renderArtSidebar();}
   });
@@ -1164,7 +1227,14 @@
   });
   // memo events
   document.getElementById('mfolders').addEventListener('click',function(e){var b=e.target.closest('button[data-f]');if(!b)return;state.curFolder=b.dataset.f;savePrefs();renderMemos();});
-  document.getElementById('mlist').addEventListener('click',function(e){var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();});
+  var memoEl=document.querySelector('.memo');
+  document.getElementById('mlist').addEventListener('click',function(e){var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();memoEl.classList.add('mob-edit');});
+  document.getElementById('mBackBtn').addEventListener('click',function(){memoEl.classList.remove('mob-edit');});
+  document.getElementById('mbodyRead').addEventListener('click',function(e){if(e.target.closest('[data-act]'))return;startMemoEdit();});
+  document.getElementById('mbody').addEventListener('blur',function(){
+    var ta=this;
+    setTimeout(function(){if(document.activeElement!==ta)endMemoEdit();},180);
+  });
   var memoT;
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
   var MEMO_IMG_MARKER='📷 사진 ✕'; // 본문 속 한 줄짜리 마커. 탭하면 보기, 끝(✕)을 탭하면 삭제
@@ -1197,6 +1267,7 @@
       ta.value=nv;m.body=nv;
       if(document.activeElement===ta)ta.setSelectionRange(caret,caret);
       putMemo(m);
+      if(memoEditingId!==m.id)renderMemoRead(m);
     }).catch(function(err){showToast('사진 업로드 실패: '+((err&&err.message)||err));});
   }
   document.getElementById('mImgBtn').addEventListener('click',function(){document.getElementById('mImgFile').click();});
@@ -1297,7 +1368,7 @@
   document.getElementById('mlinkbar').addEventListener('click',function(e){
     if(e.target.hasAttribute('data-unlink')){var m=mById(state.curMemo);if(m){state.todos.forEach(function(t){if(t.memoId===m.id){t.memoId=null;putTodo(t);}});m.link='';putMemo(m);renderAll();renderMemos();showToast('연결을 해제했어요');}return;}
     if(e.target.hasAttribute('data-back')){var mm=mById(state.curMemo);var lt=mm&&state.todos.filter(function(t){return t.memoId===mm.id;})[0];if(lt&&lt.ws!==state.ws){state.ws=lt.ws;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});savePrefs();renderAll();}switchTab('dash');showToast('연결된 할일로 이동');}});
-  document.getElementById('newMemo').addEventListener('click',function(){var f=state.curFolder==='전체'?'업무':state.curFolder;var m={id:'m'+uid(),folder:f,title:'',body:'',link:''};state.memos.unshift(m);putMemo(m);state.curMemo=m.id;renderMemos();document.getElementById('mtitle').focus();showToast('새 메모 · '+f);});
+  document.getElementById('newMemo').addEventListener('click',function(){var f=state.curFolder==='전체'?'업무':state.curFolder;var m={id:'m'+uid(),folder:f,title:'',body:'',link:''};state.memos.unshift(m);putMemo(m);state.curMemo=m.id;memoEditingId=m.id;renderMemos();document.getElementById('mbodyRead').classList.add('hidden');document.getElementById('mbody').classList.remove('hidden');memoEl.classList.add('mob-edit');document.getElementById('mtitle').focus();showToast('새 메모 · '+f);});
   document.getElementById('mDelBtn').addEventListener('click',function(){var m=mById(state.curMemo);if(m)removeMemo(m);});
 })();
 </script>
