@@ -364,6 +364,36 @@ async def _migrate_art(update):
     await update.message.reply_text(f"✅ 동기화 끝! 작가 노트 {a}개 · 그림 노트 {w}개 갱신했어요.")
 
 
+async def _import_artists(update):
+    """'작가공부 가져오기' 명령: 볼트의 '작가 공부' 폴더(니들보스에서 옮긴 옛 노트)를
+    하루앱 그림공부(art_artists)로 가져온다. 이미지는 못 옮김(Private 볼트라 웹앱에서 바로 못 씀)."""
+    if not art_sync.is_configured():
+        await update.message.reply_text(
+            "⚠️ 연결이 안 됐어요. Railway 인박스봇 서비스에 "
+            "SUPABASE_URL / SUPABASE_SERVICE_KEY / HARU_OWNER_ID 를 넣어주세요 "
+            "(일정봇에 쓰는 것과 같은 값)."
+        )
+        return
+    await update.message.reply_text("🎨 '작가 공부' 폴더를 하루앱으로 가져올게요… 개수가 많으면 좀 걸려요.")
+    try:
+        created, skipped, examples = await asyncio.to_thread(art_sync.import_artists_from_vault)
+    except Exception as e:
+        await update.message.reply_text(f"❌ 가져오기 실패: {e}")
+        return
+    if not created:
+        await update.message.reply_text(f"새로 가져올 작가가 없어요 (건너뜀 {skipped}개 — 이미 있는 이름).")
+        return
+    msg = f"✅ 작가 {created}명을 하루앱에 새로 넣었어요."
+    if skipped:
+        msg += f" (이미 있어서 건너뜀 {skipped}명)"
+    if examples:
+        msg += "\n\n예:"
+        for name, tags in examples:
+            msg += f"\n· {name}" + (" · #" + " #".join(tags) if tags else "")
+    msg += "\n\n_이미지는 안 옮겼어요(볼트가 비공개라 웹앱에서 못 씀) — 하루앱에서 각 작가 화면에 '+ 새 그림'으로 직접 몇 장만 다시 올려줘._"
+    await update.message.reply_text(msg)
+
+
 async def _periodic_art_sync(context: ContextTypes.DEFAULT_TYPE):
     """20분마다 조용히 자동 동기화(바뀐 게 있을 때만 커밋, 텔레그램 알림은 안 보냄)."""
     if not art_sync.is_configured():
@@ -488,6 +518,11 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ── '그림동기화' → 그림공부(하루앱)를 옵시디언에 즉시 동기화 ──
     if re.match(r"^그림\s*동기화$", text):
         await _migrate_art(update)
+        return
+
+    # ── '작가공부 가져오기' → 옛 볼트 '작가 공부' 폴더를 하루앱 art_artists로 1회 가져오기 ──
+    if re.match(r"^작가\s*공부\s*가져오기$", text):
+        await _import_artists(update)
         return
 
     # ── '내 생각' 덧붙이기 대기 중이면 → 직전 노트에 추가 + 내 말에서 태그 재추출 ──
