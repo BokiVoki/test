@@ -180,12 +180,7 @@
   .medit{display:flex;flex-direction:column;padding:18px 20px}
   .medit .mtitle{font:inherit;font-size:20px;font-weight:700;border:0;outline:none;background:transparent;color:var(--text);padding:0;margin-bottom:6px}
   .medit .mlinkbar{font-size:12px;color:var(--accent);min-height:18px;margin-bottom:10px}
-  .mimgs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
-  .mimgs:empty{display:none}
-  .mimgs .mimg{position:relative;width:70px;height:70px;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
-  .mimgs .mimg img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
-  .mimgs .mimg .mimgdel{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:11px;line-height:18px;padding:0;cursor:pointer}
-  .mimgadd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .mimgadd{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
   .mimghint{font-size:11px;color:var(--faint)}
   .mbodywrap{position:relative;flex:1;display:flex}
   .mentionpop{position:absolute;left:8px;top:26px;width:min(280px,82%);max-height:210px;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:20}
@@ -346,8 +341,7 @@
     <div class="bhead"><h2>메모</h2><div class="r"><button class="btn-s" id="newMemo">+ 새 메모</button></div></div>
     <div class="memo"><div class="mside"><div class="mfolders" id="mfolders"></div><div class="mlist" id="mlist"></div></div>
       <div class="medit"><input class="mtitle" id="mtitle" placeholder="제목"><div class="mtoprow"><select class="mfolsel" id="mfolsel"></select><button class="btn-s" id="mDelBtn">🗑 삭제</button></div><div class="mlinkbar" id="mlinkbar"></div>
-        <div class="mimgs" id="mimgs"></div>
-        <div class="mimgadd"><button class="btn-s" id="mImgBtn" type="button">📎 사진</button><input type="file" id="mImgFile" accept="image/*" multiple class="hidden"><span class="mimghint">또는 메모에 붙여넣기(Cmd/Ctrl+V) · 드래그해서 놓기</span></div>
+        <div class="mimgadd"><button class="btn-s" id="mImgBtn" type="button">📎 사진</button><input type="file" id="mImgFile" accept="image/*" multiple class="hidden"><span class="mimghint">또는 메모에 붙여넣기(Cmd/Ctrl+V) · 드래그해서 놓기 — 본문 속 📷 사진 줄을 탭하면 사진이 열리고, 끝의 ✕를 탭하면 지워져요</span></div>
         <div class="mbodywrap"><textarea id="mbody" placeholder="메모를 입력하세요… (@로 할일 연결 · [] 로 체크리스트)"></textarea><div id="mentionPop" class="mentionpop hidden"></div></div></div>
     </div>
   </div>
@@ -620,14 +614,8 @@
     document.getElementById('mfolsel').innerHTML=FOLDERS.slice(1).map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
     if(cur){state.curMemo=cur.id;document.getElementById('mtitle').value=cur.title;document.getElementById('mbody').value=cur.body;document.getElementById('mfolsel').value=cur.folder;
-      document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';
-      renderMemoImgs(cur);}
-    else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mimgs').innerHTML='';}}
-  function renderMemoImgs(m){
-    document.getElementById('mimgs').innerHTML=(m.images||[]).map(function(url,i){
-      return '<div class="mimg"><img src="'+esc(url)+'" data-act="mimg-view" data-i="'+i+'"><button class="mimgdel" data-act="mimg-del" data-i="'+i+'">✕</button></div>';
-    }).join('');
-  }
+      document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';}
+    else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';}}
   function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}});}
   // ===== 순서도 (flow) : 단계 보드 + 드래그앤드롭 =====
   function flowSources(){return {projs:orderedProjects(),todos:wsTodos().filter(function(t){return (t.subs||[]).length>0;})};}
@@ -1079,12 +1067,6 @@
     else if(act==='art-fav'){var fw=workById(state.artSel.id);if(!fw)return;fw.favorite=!fw.favorite;putWork(fw);renderArtMain();}
     else if(act==='art-sketch'){openSketchPad(state.artSel.id);}
     else if(act==='art-sketch-view'){window.open(el.src,'_blank');}
-    else if(act==='mimg-del'){var mm=mById(state.curMemo);if(!mm)return;var midx=+el.dataset.i;
-      mm.images=(mm.images||[]).filter(function(u,i){return i!==midx;});
-      mm.body=removeNthMemoMarker(mm.body||'',midx);
-      var mta=document.getElementById('mbody');if(mta)mta.value=mm.body;
-      putMemo(mm);renderMemoImgs(mm);}
-    else if(act==='mimg-view'){window.open(el.src,'_blank');}
     else if(act==='art-untag-artist'){var ua=artistById(state.artSel.id);if(!ua)return;ua.tags=(ua.tags||[]).filter(function(x){return x!==el.dataset.t;});putArtist(ua);renderArt();}
     else if(act==='art-untag-work'){var uw=workById(state.artSel.id);if(!uw)return;uw.tags=(uw.tags||[]).filter(function(x){return x!==el.dataset.t;});putWork(uw);renderArtMain();renderArtSidebar();}
   });
@@ -1185,7 +1167,12 @@
   document.getElementById('mlist').addEventListener('click',function(e){var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();});
   var memoT;
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
-  var MEMO_IMG_MARKER='📷 사진';
+  var MEMO_IMG_MARKER='📷 사진 ✕'; // 본문 속 한 줄짜리 마커. 탭하면 보기, 끝(✕)을 탭하면 삭제
+  function memoMarkerIndexAt(val,lineStart){ // lineStart 줄이 몇 번째(0-based) 마커인지
+    var prior=val.slice(0,lineStart).split('\n'),n=0;
+    for(var i=0;i<prior.length;i++){if(prior[i].trim()===MEMO_IMG_MARKER)n++;}
+    return n;
+  }
   function removeNthMemoMarker(text,n){ // n번째(0-based)로 등장하는 마커 줄을 지운다
     var lines=(text||'').split('\n'),count=-1;
     for(var i=0;i<lines.length;i++){
@@ -1209,7 +1196,7 @@
       var nv=before+block+after,caret=before.length+block.length;
       ta.value=nv;m.body=nv;
       if(document.activeElement===ta)ta.setSelectionRange(caret,caret);
-      putMemo(m);renderMemoImgs(m);
+      putMemo(m);
     }).catch(function(err){showToast('사진 업로드 실패: '+((err&&err.message)||err));});
   }
   document.getElementById('mImgBtn').addEventListener('click',function(){document.getElementById('mImgFile').click();});
@@ -1258,11 +1245,24 @@
         return;}
     }
   });
-  // 체크박스(☐/☑) 글리프를 탭/클릭하면 완료 토글
+  // 체크박스(☐/☑) 글리프 탭 → 완료 토글, 📷 사진 마커 줄 탭 → 보기(끝의 ✕는 삭제)
   document.getElementById('mbody').addEventListener('click',function(e){
     var ta=this,pos=ta.selectionStart,val=ta.value,ls=val.lastIndexOf('\n',pos-1)+1;
     var le=val.indexOf('\n',ls);if(le===-1)le=val.length;
-    var line=val.slice(ls,le),m=line.match(/^(\s*)([☐☑])(\s|$)/);
+    var line=val.slice(ls,le);
+    if(line.trim()===MEMO_IMG_MARKER){
+      var midx=memoMarkerIndexAt(val,ls),mm=mById(state.curMemo);if(!mm)return;
+      var offsetInLine=pos-ls;
+      if(offsetInLine>=line.length-2){ // 줄 끝(✕) 근처 탭 → 삭제
+        mm.images=(mm.images||[]).filter(function(u,i){return i!==midx;});
+        mm.body=removeNthMemoMarker(mm.body||'',midx);
+        ta.value=mm.body;putMemo(mm);
+      }else{ // 그 외(📷 사진 부분) 탭 → 보기
+        var url=(mm.images||[])[midx];if(url)window.open(url,'_blank');
+      }
+      return;
+    }
+    var m=line.match(/^(\s*)([☐☑])(\s|$)/);
     if(!m)return;
     var glyphPos=ls+m[1].length;
     if(pos<glyphPos||pos>glyphPos+2)return; // 글리프 바로 근처를 눌렀을 때만 토글(본문 클릭은 그냥 커서 이동)
