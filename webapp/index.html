@@ -198,6 +198,7 @@
   .mentionitem .mtag{margin-left:auto;font-size:11px;color:var(--faint);white-space:nowrap}
   .medit .mlinkbar span{cursor:pointer;border-bottom:1px dashed var(--accent)}
   .medit textarea{flex:1;font:inherit;font-size:14px;line-height:1.65;border:0;outline:none;resize:none;background:transparent;color:var(--text);min-height:320px}
+  .medit textarea.dragover{outline:2px dashed var(--accent);outline-offset:-2px;background:var(--accent-wash)}
   .medit textarea::placeholder,.medit .mtitle::placeholder{color:var(--faint)}
   .mtoprow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
   .medit .mfolsel{font:inherit;font-size:12px;color:var(--muted);background:var(--sunk);border:1px solid var(--line-2);border-radius:4px;padding:3px 6px;align-self:flex-start}
@@ -346,7 +347,7 @@
     <div class="memo"><div class="mside"><div class="mfolders" id="mfolders"></div><div class="mlist" id="mlist"></div></div>
       <div class="medit"><input class="mtitle" id="mtitle" placeholder="제목"><div class="mtoprow"><select class="mfolsel" id="mfolsel"></select><button class="btn-s" id="mDelBtn">🗑 삭제</button></div><div class="mlinkbar" id="mlinkbar"></div>
         <div class="mimgs" id="mimgs"></div>
-        <div class="mimgadd"><button class="btn-s" id="mImgBtn" type="button">📎 사진</button><input type="file" id="mImgFile" accept="image/*" class="hidden"><span class="mimghint">또는 메모 안에 이미지 붙여넣기(Cmd/Ctrl+V)</span></div>
+        <div class="mimgadd"><button class="btn-s" id="mImgBtn" type="button">📎 사진</button><input type="file" id="mImgFile" accept="image/*" class="hidden"><span class="mimghint">또는 메모에 붙여넣기(Cmd/Ctrl+V) · 드래그해서 놓기</span></div>
         <div class="mbodywrap"><textarea id="mbody" placeholder="메모를 입력하세요… (@로 할일 연결 · [] 로 체크리스트)"></textarea><div id="mentionPop" class="mentionpop hidden"></div></div></div>
     </div>
   </div>
@@ -1192,6 +1193,13 @@
     for(var i=0;i<items.length;i++){
       if(items[i].type&&items[i].type.indexOf('image/')===0){e.preventDefault();var f=items[i].getAsFile();if(f)addMemoImage(f);return;}
     }
+  });
+  document.getElementById('mbody').addEventListener('dragover',function(e){e.preventDefault();this.classList.add('dragover');});
+  document.getElementById('mbody').addEventListener('dragleave',function(){this.classList.remove('dragover');});
+  document.getElementById('mbody').addEventListener('drop',function(e){
+    e.preventDefault();this.classList.remove('dragover');
+    var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(f&&f.type.indexOf('image/')===0)addMemoImage(f);
   });
   document.getElementById('mbody').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.body=this.value;clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);mentionCheck(this);});
   document.getElementById('mbody').addEventListener('keydown',function(e){if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;}});
