@@ -1079,7 +1079,11 @@
     else if(act==='art-fav'){var fw=workById(state.artSel.id);if(!fw)return;fw.favorite=!fw.favorite;putWork(fw);renderArtMain();}
     else if(act==='art-sketch'){openSketchPad(state.artSel.id);}
     else if(act==='art-sketch-view'){window.open(el.src,'_blank');}
-    else if(act==='mimg-del'){var mm=mById(state.curMemo);if(!mm)return;mm.images=(mm.images||[]).filter(function(u,i){return i!==(+el.dataset.i);});putMemo(mm);renderMemoImgs(mm);}
+    else if(act==='mimg-del'){var mm=mById(state.curMemo);if(!mm)return;var midx=+el.dataset.i;
+      mm.images=(mm.images||[]).filter(function(u,i){return i!==midx;});
+      mm.body=removeNthMemoMarker(mm.body||'',midx);
+      var mta=document.getElementById('mbody');if(mta)mta.value=mm.body;
+      putMemo(mm);renderMemoImgs(mm);}
     else if(act==='mimg-view'){window.open(el.src,'_blank');}
     else if(act==='art-untag-artist'){var ua=artistById(state.artSel.id);if(!ua)return;ua.tags=(ua.tags||[]).filter(function(x){return x!==el.dataset.t;});putArtist(ua);renderArt();}
     else if(act==='art-untag-work'){var uw=workById(state.artSel.id);if(!uw)return;uw.tags=(uw.tags||[]).filter(function(x){return x!==el.dataset.t;});putWork(uw);renderArtMain();renderArtSidebar();}
@@ -1181,29 +1185,47 @@
   document.getElementById('mlist').addEventListener('click',function(e){var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();});
   var memoT;
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
-  function addMemoImage(file){
+  var MEMO_IMG_MARKER='📷 사진';
+  function removeNthMemoMarker(text,n){ // n번째(0-based)로 등장하는 마커 줄을 지운다
+    var lines=(text||'').split('\n'),count=-1;
+    for(var i=0;i<lines.length;i++){
+      if(lines[i].trim()===MEMO_IMG_MARKER){count++;if(count===n){lines.splice(i,1);break;}}
+    }
+    return lines.join('\n');
+  }
+  function addMemoImages(fileList){
     var m=mById(state.curMemo);if(!m)return;
-    uploadArtImage(file).then(function(url){m.images=(m.images||[]).concat([url]);putMemo(m);renderMemoImgs(m);})
-      .catch(function(err){showToast('사진 업로드 실패: '+((err&&err.message)||err));});
+    var files=[];for(var k=0;k<fileList.length;k++){var f=fileList[k];if(f&&f.type&&f.type.indexOf('image/')===0)files.push(f);}
+    if(!files.length)return;
+    var ta=document.getElementById('mbody');
+    var insertPos=(document.activeElement===ta)?ta.selectionStart:ta.value.length;
+    Promise.all(files.map(function(f){return uploadArtImage(f);})).then(function(urls){
+      m.images=(m.images||[]).concat(urls);
+      var val=ta.value,before=val.slice(0,insertPos),after=val.slice(insertPos);
+      var lead=(before.length&&before.slice(-1)!=='\n')?'\n':'';
+      var trail=(after.length&&after.slice(0,1)!=='\n')?'\n':'';
+      var markers=urls.map(function(){return MEMO_IMG_MARKER;}).join('\n');
+      var block=lead+markers+'\n'+trail;
+      var nv=before+block+after,caret=before.length+block.length;
+      ta.value=nv;m.body=nv;
+      if(document.activeElement===ta)ta.setSelectionRange(caret,caret);
+      putMemo(m);renderMemoImgs(m);
+    }).catch(function(err){showToast('사진 업로드 실패: '+((err&&err.message)||err));});
   }
   document.getElementById('mImgBtn').addEventListener('click',function(){document.getElementById('mImgFile').click();});
-  document.getElementById('mImgFile').addEventListener('change',function(){
-    for(var i=0;i<this.files.length;i++)addMemoImage(this.files[i]);
-    this.value='';
-  });
+  document.getElementById('mImgFile').addEventListener('change',function(){addMemoImages(this.files);this.value='';});
   document.getElementById('mbody').addEventListener('paste',function(e){
-    var items=(e.clipboardData&&e.clipboardData.items)||[],found=false;
+    var items=(e.clipboardData&&e.clipboardData.items)||[],files=[];
     for(var i=0;i<items.length;i++){
-      if(items[i].type&&items[i].type.indexOf('image/')===0){var f=items[i].getAsFile();if(f){found=true;addMemoImage(f);}}
+      if(items[i].type&&items[i].type.indexOf('image/')===0){var f=items[i].getAsFile();if(f)files.push(f);}
     }
-    if(found)e.preventDefault();
+    if(files.length){e.preventDefault();addMemoImages(files);}
   });
   document.getElementById('mbody').addEventListener('dragover',function(e){e.preventDefault();this.classList.add('dragover');});
   document.getElementById('mbody').addEventListener('dragleave',function(){this.classList.remove('dragover');});
   document.getElementById('mbody').addEventListener('drop',function(e){
     e.preventDefault();this.classList.remove('dragover');
-    var files=(e.dataTransfer&&e.dataTransfer.files)||[];
-    for(var i=0;i<files.length;i++){if(files[i].type.indexOf('image/')===0)addMemoImage(files[i]);}
+    if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length)addMemoImages(e.dataTransfer.files);
   });
   document.getElementById('mbody').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.body=this.value;clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);mentionCheck(this);});
   document.getElementById('mbody').addEventListener('keydown',function(e){if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;}});
