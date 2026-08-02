@@ -257,6 +257,18 @@
   .art-star{cursor:pointer;color:var(--faint);font-size:17px;border:0;background:none;padding:0}
   .art-star.on{color:#E0A72A}
   .art-back{font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:8px;display:inline-block}
+  .art-sketch-thumb{max-width:160px;border-radius:6px;display:block;margin-top:8px;border:1px solid var(--line)}
+  .art-sketch-modal{position:fixed;inset:0;background:#1a1a1a;z-index:60;display:flex;flex-direction:column}
+  .art-sketch-modal.hidden{display:none}
+  .art-sketch-bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid #333;flex-wrap:wrap;background:#1a1a1a}
+  .art-sketch-bar .btn-s{color:#eee;border-color:#444}
+  .sk-color{width:26px;height:26px;border-radius:50%;padding:0;border:2px solid transparent;cursor:pointer}
+  .sk-color[data-sk="black"]{background:#111}
+  .sk-color[data-sk="red"]{background:#e5484d}
+  .sk-color[data-sk="blue"]{background:#3b82f6}
+  .sk-color[aria-pressed="true"]{border-color:#fff}
+  #skEraser[aria-pressed="true"]{background:#444;color:#fff}
+  #artSketchCanvas{flex:1;touch-action:none;background:#fff;cursor:crosshair;width:100%}
 </style>
 </head>
 <body>
@@ -358,6 +370,21 @@
 
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo" class="hidden">되돌리기</button></div>
 
+<div class="art-sketch-modal hidden" id="artSketchModal">
+  <div class="art-sketch-bar">
+    <button type="button" class="sk-color" data-sk="black" aria-pressed="true" title="검정"></button>
+    <button type="button" class="sk-color" data-sk="red" title="빨강"></button>
+    <button type="button" class="sk-color" data-sk="blue" title="파랑"></button>
+    <button type="button" class="btn-s" id="skEraser">🧽 지우개</button>
+    <button type="button" class="btn-s" id="skUndo">↩ 실행취소</button>
+    <button type="button" class="btn-s" id="skClear">전체지우기</button>
+    <span style="flex:1"></span>
+    <button type="button" class="btn-s" id="skCancel">취소</button>
+    <button type="button" class="btn-s" id="skSave">저장</button>
+  </div>
+  <canvas id="artSketchCanvas"></canvas>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -373,6 +400,7 @@
   var hasDep=false;      // DB에 dep 컬럼이 있으면 true (프로젝트 순서도 의존성)
   var hasEnd=false;      // DB에 endd 컬럼이 있으면 true (기간 일정 종료일)
   var hasArt=false;      // art_artists/art_works 테이블이 있으면 true (그림공부, SQL 마이그레이션 후)
+  var hasSketch=false;   // art_works.sketch_url 컬럼이 있으면 true (손그림 저장, SQL 마이그레이션 후)
   var hasMemoUpd=false;  // memos에 updated 컬럼이 있으면 true (정렬용)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var flowShownProj={};  // 프로젝트별 인라인 순서도 표시 여부 (세션 한정)
@@ -408,8 +436,8 @@
   // ── 그림공부: 작가/그림 ──
   function rowArtist(a){return {id:a.id,owner:state.uid,name:a.name||'',tags:a.tags||[],note:a.note||'',created:a.created||a.updated,updated:a.updated};}
   function fromArtist(r){return {id:r.id,name:r.name||'',tags:r.tags||[],note:r.note||'',created:r.created||'',updated:r.updated||''};}
-  function rowWork(w){return {id:w.id,owner:state.uid,artist_id:w.artistId||null,title:w.title||'',year:w.year||'',genre:w.genre||'',medium:w.medium||'',image_url:w.imageUrl||'',source_url:w.sourceUrl||'',tags:w.tags||[],note:w.note||'',favorite:!!w.favorite,created:w.created||w.updated,updated:w.updated};}
-  function fromWork(r){return {id:r.id,artistId:r.artist_id||null,title:r.title||'',year:r.year||'',genre:r.genre||'',medium:r.medium||'',imageUrl:r.image_url||'',sourceUrl:r.source_url||'',tags:r.tags||[],note:r.note||'',favorite:!!r.favorite,created:r.created||'',updated:r.updated||''};}
+  function rowWork(w){var r={id:w.id,owner:state.uid,artist_id:w.artistId||null,title:w.title||'',year:w.year||'',genre:w.genre||'',medium:w.medium||'',image_url:w.imageUrl||'',source_url:w.sourceUrl||'',tags:w.tags||[],note:w.note||'',favorite:!!w.favorite,created:w.created||w.updated,updated:w.updated};if(hasSketch)r.sketch_url=w.sketchUrl||null;return r;}
+  function fromWork(r){return {id:r.id,artistId:r.artist_id||null,title:r.title||'',year:r.year||'',genre:r.genre||'',medium:r.medium||'',imageUrl:r.image_url||'',sourceUrl:r.source_url||'',tags:r.tags||[],note:r.note||'',favorite:!!r.favorite,sketchUrl:r.sketch_url||'',created:r.created||'',updated:r.updated||''};}
   function putArtist(a){a.updated=new Date().toISOString();sb.from('art_artists').upsert(rowArtist(a)).then(function(r){if(r.error)console.warn('artist',r.error.message);});}
   function delArtistDB(id){sb.from('art_artists').delete().eq('id',id).then(function(){});}
   function putWork(w){w.updated=new Date().toISOString();sb.from('art_works').upsert(rowWork(w)).then(function(r){if(r.error)console.warn('artwork',r.error.message);});}
@@ -458,7 +486,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*')]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -466,6 +494,7 @@
       hasEnd=!(res[7]&&res[7].error);      // endd 컬럼이 있으면 기간 일정 표시 켜짐
       hasMemoUpd=!(res[6]&&res[6].error);  // memos.updated 있으면 최신순 정렬 저장 켜짐
       hasArt=!(res[8]&&res[8].error);      // art_artists/art_works 테이블 있으면 그림공부 켜짐
+      hasSketch=!(res[10]&&res[10].error); // art_works.sketch_url 컬럼 있으면 손그림 저장 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -699,7 +728,9 @@
     var artOpts=state.artists.slice().sort(function(x,y){return x.name.localeCompare(y.name,'ko');}).map(function(x){return '<option value="'+esc(x.name)+'">';}).join('');
     return '<span class="art-back" data-act="art-back-artist" data-artist="'+(w.artistId||'')+'">‹ '+esc(a?a.name:'미분류')+'로</span>'+
       '<div class="art-detail"><div>'+(w.imageUrl?'<img src="'+esc(w.imageUrl)+'">':'')+
-        '<button class="art-star'+(w.favorite?' on':'')+'" data-act="art-fav">'+(w.favorite?'★':'☆')+' 다시 볼 것</button></div>'+
+        '<button class="art-star'+(w.favorite?' on':'')+'" data-act="art-fav">'+(w.favorite?'★':'☆')+' 다시 볼 것</button>'+
+        (w.sketchUrl?'<img class="art-sketch-thumb" src="'+esc(w.sketchUrl)+'">':'')+
+        '<button class="btn-s" style="width:100%;margin-top:8px" data-act="art-sketch">✏️ '+(w.sketchUrl?'손그림 이어그리기':'손으로 공부하기')+'</button></div>'+
       '<div><div class="art-fields">'+
         '<input id="artFArtist" list="artFArtistDatalist" placeholder="작가 (없으면 비워둬도 돼요)" value="'+(a?esc(a.name):'')+'"><datalist id="artFArtistDatalist">'+artOpts+'</datalist>'+
         '<input id="artFTitle" placeholder="제목" value="'+esc(w.title)+'">'+
@@ -794,6 +825,94 @@
       state.artSel={type:'work',id:w.id};renderArt();showToast('그림을 추가했어요'+(artist?'':' · 작가는 나중에 채워도 돼요'));
     });
   }
+
+  // ── 그림공부: 손그림 캔버스(아이패드 펜 압력 지원) ──
+  var skCtx=null,skColor='#111',skErasing=false,skDrawing=false,skUndoStack=[],skLastPoint=null,skTargetWorkId=null;
+  function skCanvas(){return document.getElementById('artSketchCanvas');}
+  function openSketchPad(workId){
+    skTargetWorkId=workId;
+    var modal=document.getElementById('artSketchModal'),canvas=skCanvas();
+    modal.classList.remove('hidden');
+    requestAnimationFrame(function(){
+      var rect=canvas.getBoundingClientRect();
+      canvas.width=Math.max(1,Math.round(rect.width));canvas.height=Math.max(1,Math.round(rect.height));
+      skCtx=canvas.getContext('2d');
+      skCtx.fillStyle='#fff';skCtx.fillRect(0,0,canvas.width,canvas.height);
+      skCtx.lineCap='round';skCtx.lineJoin='round';
+      skUndoStack=[];skColor='#111';skErasing=false;
+      document.querySelectorAll('.sk-color').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.sk==='black'?'true':'false');});
+      document.getElementById('skEraser').setAttribute('aria-pressed','false');
+      var w=workById(workId);
+      if(w&&w.sketchUrl){
+        var img=new Image();img.crossOrigin='anonymous';
+        img.onload=function(){if(skCtx)skCtx.drawImage(img,0,0,canvas.width,canvas.height);};
+        img.src=w.sketchUrl;
+      }
+    });
+  }
+  function closeSketchPad(){document.getElementById('artSketchModal').classList.add('hidden');skCtx=null;skTargetWorkId=null;}
+  function skSnapshot(){if(!skCtx)return;var canvas=skCanvas();skUndoStack.push(skCtx.getImageData(0,0,canvas.width,canvas.height));if(skUndoStack.length>25)skUndoStack.shift();}
+  function skUndo(){if(!skCtx||!skUndoStack.length)return;skCtx.putImageData(skUndoStack.pop(),0,0);}
+  function skPoint(e){var r=skCanvas().getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
+  (function(){
+    var canvas=skCanvas();
+    canvas.addEventListener('pointerdown',function(e){
+      if(!skCtx)return;
+      skDrawing=true;skSnapshot();
+      skCtx.strokeStyle=skErasing?'#fff':skColor;
+      skCtx.lineWidth=skErasing?18:Math.max(1.5,(e.pressure||0.5)*8);
+      skLastPoint=skPoint(e);
+      canvas.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointermove',function(e){
+      if(!skDrawing||!skCtx)return;
+      var p=skPoint(e);
+      skCtx.lineWidth=skErasing?18:Math.max(1.5,(e.pressure||0.5)*8);
+      skCtx.beginPath();skCtx.moveTo(skLastPoint.x,skLastPoint.y);skCtx.lineTo(p.x,p.y);skCtx.stroke();
+      skLastPoint=p;
+      e.preventDefault();
+    });
+    function skEnd(){skDrawing=false;skLastPoint=null;}
+    canvas.addEventListener('pointerup',skEnd);
+    canvas.addEventListener('pointerleave',skEnd);
+    canvas.addEventListener('pointercancel',skEnd);
+    document.querySelectorAll('.sk-color').forEach(function(b){
+      b.addEventListener('click',function(){
+        var c=b.dataset.sk;
+        skColor=(c==='red')?'#e5484d':(c==='blue')?'#3b82f6':'#111';
+        skErasing=false;
+        document.querySelectorAll('.sk-color').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});
+        document.getElementById('skEraser').setAttribute('aria-pressed','false');
+      });
+    });
+    document.getElementById('skEraser').addEventListener('click',function(){
+      skErasing=true;
+      document.querySelectorAll('.sk-color').forEach(function(x){x.setAttribute('aria-pressed','false');});
+      this.setAttribute('aria-pressed','true');
+    });
+    document.getElementById('skUndo').addEventListener('click',skUndo);
+    document.getElementById('skClear').addEventListener('click',function(){
+      if(!skCtx)return;skSnapshot();
+      skCtx.fillStyle='#fff';skCtx.fillRect(0,0,canvas.width,canvas.height);
+    });
+    document.getElementById('skCancel').addEventListener('click',closeSketchPad);
+    document.getElementById('skSave').addEventListener('click',function(){
+      if(!skCtx||!skTargetWorkId)return;
+      var save=this;
+      canvas.toBlob(function(blob){
+        if(!blob)return;
+        var file=new File([blob],'sketch.png',{type:'image/png'});
+        save.disabled=true;save.textContent='저장 중…';
+        uploadArtImage(file).then(function(url){
+          var w=workById(skTargetWorkId);
+          if(w){w.sketchUrl=url;putWork(w);}
+          save.disabled=false;save.textContent='저장';
+          closeSketchPad();renderArtMain();showToast('손그림을 저장했어요');
+        }).catch(function(err){save.disabled=false;save.textContent='저장';showToast('저장 실패: '+((err&&err.message)||err));});
+      },'image/png');
+    });
+  })();
 
   function renderAll(){syncLinks();renderToday();renderDue();renderInbox();renderProjects();renderCal();renderMemos();renderDone();renderArt();if(state.q)runSearch();if(state.tab==='flow')renderFlow();}
   // ===== 전체 검색 (띄어쓰기 무시) =====
@@ -922,6 +1041,7 @@
       state.artSel=dw.artistId?{type:'artist',id:dw.artistId}:{type:'none'};renderArt();
       showToast('그림을 지웠어요',function(){state.artworks.unshift(dw);putWork(dw);renderArt();});}
     else if(act==='art-fav'){var fw=workById(state.artSel.id);if(!fw)return;fw.favorite=!fw.favorite;putWork(fw);renderArtMain();}
+    else if(act==='art-sketch'){openSketchPad(state.artSel.id);}
     else if(act==='art-untag-artist'){var ua=artistById(state.artSel.id);if(!ua)return;ua.tags=(ua.tags||[]).filter(function(x){return x!==el.dataset.t;});putArtist(ua);renderArt();}
     else if(act==='art-untag-work'){var uw=workById(state.artSel.id);if(!uw)return;uw.tags=(uw.tags||[]).filter(function(x){return x!==el.dataset.t;});putWork(uw);renderArtMain();renderArtSidebar();}
   });
