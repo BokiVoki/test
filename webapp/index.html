@@ -787,7 +787,8 @@
     var a=artistById(id);if(!a)return '<p class="caphint">작가를 찾을 수 없어요.</p>';
     var works=worksOfArtist(id).sort(function(x,y){return (y.created||'').localeCompare(x.created||'');});
     var tagsHtml=(a.tags||[]).map(function(t){return '<span class="art-tag" data-act="art-tag-nav" data-tag="'+esc(t)+'">#'+esc(t)+' <button data-act="art-untag-artist" data-t="'+esc(t)+'">✕</button></span>';}).join('');
-    return '<div class="art-header"><h2>'+esc(a.name)+'</h2><button class="btn-s" data-act="art-del-artist">🗑 작가 삭제</button></div>'+
+    return '<span class="art-back" data-act="art-back-list">‹ 목록</span>'+
+      '<div class="art-header"><h2>'+esc(a.name)+'</h2><button class="btn-s" data-act="art-del-artist">🗑 작가 삭제</button></div>'+
       '<div class="art-tags-edit">'+tagsHtml+'<input id="artArtistTagInput" placeholder="+ 태그 (모든 그림에 적용, Enter)"></div>'+
       '<textarea class="art-note" id="artArtistNote" placeholder="이 작가에 대해 전체적으로 공부한 것…">'+esc(a.note)+'</textarea>'+
       '<div class="bhead" style="margin-top:16px"><h2 style="font-size:15px">그림 ('+works.length+')</h2><button class="btn-s" data-act="art-new-work" data-artist="'+id+'">+ 새 그림</button></div>'+
@@ -820,11 +821,13 @@
   }
   function tagViewHtml(tag){
     var works=state.artworks.filter(function(w){return effTags(w).indexOf(tag)>-1;});
-    return '<div class="art-header"><h2>#'+esc(tag)+'</h2></div><p class="caphint">'+works.length+'개 그림</p><div class="art-grid">'+works.map(workCardHtml).join('')+'</div>';
+    return '<span class="art-back" data-act="art-back-list">‹ 목록</span>'+
+      '<div class="art-header"><h2>#'+esc(tag)+'</h2></div><p class="caphint">'+works.length+'개 그림</p><div class="art-grid">'+works.map(workCardHtml).join('')+'</div>';
   }
   function unassignedViewHtml(){
     var works=state.artworks.filter(function(w){return !w.artistId;}).sort(function(x,y){return (y.created||'').localeCompare(x.created||'');});
-    return '<div class="art-header"><h2>미분류 그림</h2><button class="btn-s" data-act="art-new-work" data-artist="">+ 새 그림</button></div>'+
+    return '<span class="art-back" data-act="art-back-list">‹ 목록</span>'+
+      '<div class="art-header"><h2>미분류 그림</h2><button class="btn-s" data-act="art-new-work" data-artist="">+ 새 그림</button></div>'+
       '<p class="caphint">작가를 아직 안 정한 그림들이에요 — 그림 눌러서 언제든 작가를 채울 수 있어요.</p>'+
       '<div class="art-grid">'+works.map(workCardHtml).join('')+'</div>';
   }
@@ -1106,6 +1109,7 @@
     else if(act==='art-open-work'){state.artSel={type:'work',id:el.dataset.id};renderArtMain();}
     else if(act==='art-new-work'){state.artSel={type:'newWork',artistId:el.dataset.artist||''};renderArtMain();}
     else if(act==='art-back-artist'){var baid=el.dataset.artist;state.artSel=baid?{type:'artist',id:baid}:{type:'unassigned'};renderArtMain();renderArtSidebar();}
+    else if(act==='art-back-list'){state.artSel={type:'none'};renderArtMain();renderArtSidebar();}
     else if(act==='art-del-artist'){var da=artistById(state.artSel.id);if(!da)return;var dWorks=worksOfArtist(da.id);
       var ai=state.artists.indexOf(da);if(ai>=0)state.artists.splice(ai,1);delArtistDB(da.id);
       dWorks.forEach(function(w){var wix=state.artworks.indexOf(w);if(wix>=0)state.artworks.splice(wix,1);delWorkDB(w.id);});
