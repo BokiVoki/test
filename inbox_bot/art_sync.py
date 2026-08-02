@@ -178,8 +178,22 @@ def _parse_artist_note(fallback_name: str, content: str) -> tuple[str, list, str
     return name.strip(), tags, body.strip(), is_artist
 
 
+def _walk_md(folder: str):
+    """folder 이하를 재귀적으로 훑어 (하위폴더 경로 조각들, 파일명) 을 낸다.
+    폴더 구조 자체가 카테고리로 쓰인 경우가 있어서(예: '작가 공부/다다,포스트모더니즘,팝/작가.md')
+    상위 폴더 이름들도 같이 돌려준다(폴더명이 태그로 흡수될 수 있게)."""
+    for item in vault.list_dir(folder):
+        name = item.get("name", "")
+        if item.get("type") == "file" and name.endswith(".md"):
+            yield [], name
+        elif item.get("type") == "dir":
+            for sub_parts, fname in _walk_md(f"{folder}/{name}"):
+                yield [name] + sub_parts, fname
+
+
 def import_artists_from_vault(folder: str = "작가 공부") -> tuple[int, int, list]:
-    """옵시디언 볼트의 옛 작가노트 폴더를 하루앱 art_artists로 가져온다.
+    """옵시디언 볼트의 옛 작가노트 폴더(하위 폴더까지 재귀)를 하루앱 art_artists로 가져온다.
+    하위 폴더 이름(쉼표로 여러 개면 각각)은 태그로 흡수한다(예: '다다,포스트모더니즘,팝' → 3개 태그).
     이미 같은 이름의 작가가 있으면 건너뜀(중복 방지, 여러 번 돌려도 안전).
     이미지는 옮기지 않는다(Private 볼트 이미지는 웹앱에서 바로 못 씀 — 텍스트만).
     반환: (새로 만든 수, 건너뛴 수, 예시 [(이름, 태그)...])"""
@@ -191,11 +205,11 @@ def import_artists_from_vault(folder: str = "작가 공부") -> tuple[int, int, 
     existing = _get("art_artists", "name")
     existing_names = {(e.get("name") or "").strip().lower() for e in existing}
 
-    names = [n for n in vault.list_folder(folder) if n.endswith(".md")]
     created = skipped = 0
     examples = []
-    for fname in names:
-        content = vault.read_note(f"{folder}/{fname}")
+    for sub_parts, fname in _walk_md(folder):
+        subfolder = "/".join([folder] + sub_parts)
+        content = vault.read_note(f"{subfolder}/{fname}")
         if content is None:
             continue
         name, tags, note, is_artist = _parse_artist_note(fname[:-3], content)
@@ -204,6 +218,8 @@ def import_artists_from_vault(folder: str = "작가 공부") -> tuple[int, int, 
         if not name or name.strip().lower() in existing_names:
             skipped += 1
             continue
+        folder_tags = [t.strip() for part in sub_parts for t in part.split(",") if t.strip()]
+        tags = capture._clean_tags(tags + folder_tags)
         now = _now_iso()
         row = {
             "id": f"ar{uuid.uuid4().hex[:12]}", "owner": OWNER_ID, "name": name,

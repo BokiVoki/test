@@ -181,6 +181,22 @@ def list_folder(folder: str, prefix: str = "") -> list[str]:
     return sorted(names, key=_recency_key, reverse=True)  # 최신순 (날짜가 파일명 뒤로 가도 유지)
 
 
+def list_dir(path: str) -> list[dict]:
+    """path 바로 안의 파일+폴더 raw 목록(GitHub API item dict 그대로, 'name'/'type' 등). 실패 시 []."""
+    repo = _repo()
+    branch = _branch()
+    url = f"{_API}/repos/{repo}/contents/{path}"
+    try:
+        r = requests.get(url, headers=_headers(), params={"ref": branch}, timeout=15)
+        if r.status_code != 200:
+            return []
+        data = r.json()
+        return data if isinstance(data, list) else []
+    except Exception as e:
+        logger.warning(f"{path} 목록 조회 실패: {e}")
+        return []
+
+
 def _recency_key(name: str) -> str:
     """파일명에서 날짜를 뽑아 최신순 정렬용 키(YYYYMMDDHHMM). 새/옛 형식 모두 지원."""
     m = re.search(r"(\d{6})-(\d{4})\.md$", name)              # 새: 제목 260708-1359.md
