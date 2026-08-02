@@ -248,8 +248,11 @@
   .art-form input,.art-form textarea{font:inherit;font-size:13.5px;border:1px solid var(--line-2);border-radius:5px;padding:8px 10px;background:var(--panel);color:var(--text)}
   .art-form textarea{min-height:70px;resize:vertical}
   .art-form label{font-size:11.5px;color:var(--faint);margin-bottom:-4px}
+  .art-imgpick{border:1px dashed var(--line-2);border-radius:6px;padding:10px;transition:border-color .12s,background .12s}
+  .art-imgpick.dragover{border-color:var(--accent);background:var(--accent-wash)}
   .art-imgpick .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .art-pastehint{font-size:11.5px;color:var(--faint);margin-top:2px}
+  .art-pastehint{font-size:11.5px;color:var(--faint);margin-top:6px}
+  .art-artist-item[data-id="__unassigned__"]{border-bottom:1px solid var(--line);margin-bottom:4px;padding-bottom:9px;color:var(--muted)}
   .art-imgpick img{max-width:160px;border-radius:6px;margin-top:4px;display:block}
   .art-star{cursor:pointer;color:var(--faint);font-size:17px;border:0;background:none;padding:0}
   .art-star.on{color:#E0A72A}
@@ -341,6 +344,7 @@
     <div id="artNoTable" class="hidden"><p class="caphint">⚠️ 그림공부 테이블이 아직 없어요 — Supabase에 SQL 마이그레이션을 먼저 실행해주세요.</p></div>
     <div id="artBody" class="art-wrap">
       <div class="art-side">
+        <button class="btn-s" id="artQuickAdd" style="width:100%;margin-bottom:8px">🖼 그림 바로 추가</button>
         <input id="artistSearch" placeholder="🔍 작가 검색" aria-label="작가 검색">
         <div class="art-artistlist" id="artistList"></div>
         <button class="btn-s" id="artNewArtist" style="width:100%;margin-top:8px">+ 새 작가</button>
@@ -670,7 +674,9 @@
   function renderArtSidebar(){
     var q=(document.getElementById('artistSearch').value||'').trim().toLowerCase();
     var list=state.artists.filter(function(a){return !q||a.name.toLowerCase().indexOf(q)>-1;}).sort(function(a,b){return a.name.localeCompare(b.name,'ko');});
-    document.getElementById('artistList').innerHTML=list.map(function(a){return '<div class="art-artist-item" data-id="'+a.id+'"'+(state.artSel.type==='artist'&&state.artSel.id===a.id?' aria-selected="true"':'')+'><span>'+esc(a.name)+'</span><span class="cnt">'+worksOfArtist(a.id).length+'</span></div>';}).join('')||'<div class="empty" style="padding:8px;color:var(--faint);font-size:12px">아직 작가 없음</div>';
+    var unassignedN=state.artworks.filter(function(w){return !w.artistId;}).length;
+    var pin='<div class="art-artist-item" data-id="__unassigned__"'+(state.artSel.type==='unassigned'?' aria-selected="true"':'')+'><span>🗂 미분류 그림</span><span class="cnt">'+unassignedN+'</span></div>';
+    document.getElementById('artistList').innerHTML=pin+(list.map(function(a){return '<div class="art-artist-item" data-id="'+a.id+'"'+(state.artSel.type==='artist'&&state.artSel.id===a.id?' aria-selected="true"':'')+'><span>'+esc(a.name)+'</span><span class="cnt">'+worksOfArtist(a.id).length+'</span></div>';}).join('')||'<div class="empty" style="padding:8px;color:var(--faint);font-size:12px">아직 작가 없음</div>');
     var tags=allArtTags();
     document.getElementById('artTagCloud').innerHTML=tags.map(function(t){return '<button class="art-tag" data-act="art-tag-nav" data-tag="'+esc(t)+'">#'+esc(t)+'</button>';}).join('');
   }
@@ -690,10 +696,12 @@
     var w=workById(id);if(!w)return '<p class="caphint">그림을 찾을 수 없어요.</p>';
     var a=artistById(w.artistId),tags=effTags(w),own=w.tags||[];
     var tagsHtml=tags.map(function(t){return '<span class="art-tag" data-act="art-tag-nav" data-tag="'+esc(t)+'">#'+esc(t)+(own.indexOf(t)>-1?' <button data-act="art-untag-work" data-t="'+esc(t)+'">✕</button>':'')+'</span>';}).join('');
-    return '<span class="art-back" data-act="art-back-artist" data-artist="'+(w.artistId||'')+'">‹ '+esc(a?a.name:'작가')+'로</span>'+
+    var artOpts=state.artists.slice().sort(function(x,y){return x.name.localeCompare(y.name,'ko');}).map(function(x){return '<option value="'+esc(x.name)+'">';}).join('');
+    return '<span class="art-back" data-act="art-back-artist" data-artist="'+(w.artistId||'')+'">‹ '+esc(a?a.name:'미분류')+'로</span>'+
       '<div class="art-detail"><div>'+(w.imageUrl?'<img src="'+esc(w.imageUrl)+'">':'')+
         '<button class="art-star'+(w.favorite?' on':'')+'" data-act="art-fav">'+(w.favorite?'★':'☆')+' 다시 볼 것</button></div>'+
       '<div><div class="art-fields">'+
+        '<input id="artFArtist" list="artFArtistDatalist" placeholder="작가 (없으면 비워둬도 돼요)" value="'+(a?esc(a.name):'')+'"><datalist id="artFArtistDatalist">'+artOpts+'</datalist>'+
         '<input id="artFTitle" placeholder="제목" value="'+esc(w.title)+'">'+
         '<input id="artFYear" placeholder="연도" value="'+esc(w.year)+'">'+
         '<input id="artFGenre" placeholder="장르" value="'+esc(w.genre)+'">'+
@@ -709,14 +717,20 @@
     var works=state.artworks.filter(function(w){return effTags(w).indexOf(tag)>-1;});
     return '<div class="art-header"><h2>#'+esc(tag)+'</h2></div><p class="caphint">'+works.length+'개 그림</p><div class="art-grid">'+works.map(workCardHtml).join('')+'</div>';
   }
+  function unassignedViewHtml(){
+    var works=state.artworks.filter(function(w){return !w.artistId;}).sort(function(x,y){return (y.created||'').localeCompare(x.created||'');});
+    return '<div class="art-header"><h2>미분류 그림</h2><button class="btn-s" data-act="art-new-work" data-artist="">+ 새 그림</button></div>'+
+      '<p class="caphint">작가를 아직 안 정한 그림들이에요 — 그림 눌러서 언제든 작가를 채울 수 있어요.</p>'+
+      '<div class="art-grid">'+works.map(workCardHtml).join('')+'</div>';
+  }
   function newWorkFormHtml(artistId){
     var opts=state.artists.slice().sort(function(a,b){return a.name.localeCompare(b.name,'ko');}).map(function(a){return '<option value="'+esc(a.name)+'">';}).join('');
     var a=artistById(artistId);
     return '<span class="art-back" data-act="art-back-artist" data-artist="'+(artistId||'')+'">‹ 뒤로</span>'+
       '<div class="art-form">'+
-      '<label>작가</label><input id="artNewWorkArtist" list="artArtistDatalist" placeholder="작가 이름 (기존 선택 또는 새로 입력)" value="'+(a?esc(a.name):'')+'"><datalist id="artArtistDatalist">'+opts+'</datalist>'+
-      '<label>제목</label><input id="artNewWorkTitle" placeholder="그림 제목">'+
-      '<label>이미지</label><div class="art-imgpick"><div class="row"><button class="btn-s" id="artImgBtn" type="button">🖼 파일 선택</button><input type="file" id="artImgFile" accept="image/*" class="hidden"><input id="artImgLink" placeholder="또는 이미지 URL 링크 입력" style="flex:1;min-width:160px"></div><div class="art-pastehint">📋 이미지를 복사했다면(스크린샷·다른 사이트 이미지 복사 등) 이 화면 아무 데나 <b>Cmd+V</b>(또는 Ctrl+V)만 눌러도 바로 올라가요</div><img id="artImgPreview" class="hidden"></div>'+
+      '<label>작가 (없으면 비워둬도 돼요 — 나중에 채워도 됨)</label><input id="artNewWorkArtist" list="artArtistDatalist" placeholder="작가 이름 (기존 선택 또는 새로 입력, 몰라도 OK)" value="'+(a?esc(a.name):'')+'"><datalist id="artArtistDatalist">'+opts+'</datalist>'+
+      '<label>제목</label><input id="artNewWorkTitle" placeholder="그림 제목 (몰라도 OK)">'+
+      '<label>이미지</label><div class="art-imgpick" id="artImgDropzone"><div class="row"><button class="btn-s" id="artImgBtn" type="button">🖼 파일 선택</button><input type="file" id="artImgFile" accept="image/*" class="hidden"><input id="artImgLink" placeholder="또는 이미지 URL 링크 입력" style="flex:1;min-width:160px"></div><div class="art-pastehint">📋 이미지 복사 후 아무 데나 <b>Cmd+V</b>, 또는 파일을 여기로 <b>드래그해서 놓기</b>도 돼요</div><img id="artImgPreview" class="hidden"></div>'+
       '<div class="row" style="display:flex;gap:8px"><input id="artNewWorkYear" placeholder="연도" style="width:90px"><input id="artNewWorkGenre" placeholder="장르" style="width:120px"><input id="artNewWorkMedium" placeholder="매체/재료" style="flex:1"></div>'+
       '<label>태그</label><input id="artNewWorkTags" placeholder="쉼표로 구분 (예: 추상화, 점화)">'+
       '<label>메모</label><textarea id="artNewWorkNote" placeholder="이 그림에 대해 공부한 것…"></textarea>'+
@@ -728,11 +742,31 @@
     if(sel.type==='artist')m.innerHTML=artistViewHtml(sel.id);
     else if(sel.type==='work')m.innerHTML=workViewHtml(sel.id);
     else if(sel.type==='tag')m.innerHTML=tagViewHtml(sel.tag);
+    else if(sel.type==='unassigned')m.innerHTML=unassignedViewHtml();
     else if(sel.type==='newWork'){m.innerHTML=newWorkFormHtml(sel.artistId||'');wireNewWorkForm();}
-    else m.innerHTML='<p class="caphint">왼쪽에서 작가를 고르거나, 태그를 눌러 무드보드를 보거나, 새 작가를 추가해보세요.</p>';
+    else m.innerHTML='<p class="caphint">왼쪽에서 작가를 고르거나, 태그를 눌러 무드보드를 보거나, 새 작가/그림을 추가해보세요.</p>';
+  }
+  function resolveArtistByName(name){
+    name=(name||'').trim();if(!name)return null;
+    var artist=state.artists.filter(function(a){return a.name===name;})[0];
+    if(!artist){var now=new Date().toISOString();artist={id:'ar'+uid(),name:name,tags:[],note:'',created:now,updated:now};state.artists.push(artist);putArtist(artist);}
+    return artist;
+  }
+  function wireImageDropzone(dz,link,prev,save){
+    if(!dz)return;
+    dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover');});
+    dz.addEventListener('dragleave',function(){dz.classList.remove('dragover');});
+    dz.addEventListener('drop',function(e){
+      e.preventDefault();dz.classList.remove('dragover');
+      var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+      if(!f||f.type.indexOf('image/')!==0)return;
+      save.disabled=true;save.textContent='이미지 올리는 중…';
+      uploadArtImage(f).then(function(url){link.value=url;prev.src=url;prev.classList.remove('hidden');save.disabled=false;save.textContent='저장';})
+        .catch(function(err){showToast('이미지 업로드 실패: '+((err&&err.message)||err));save.disabled=false;save.textContent='저장';});
+    });
   }
   function wireNewWorkForm(){
-    var btn=document.getElementById('artImgBtn'),file=document.getElementById('artImgFile'),link=document.getElementById('artImgLink'),prev=document.getElementById('artImgPreview'),save=document.getElementById('artNewWorkSave');
+    var btn=document.getElementById('artImgBtn'),file=document.getElementById('artImgFile'),link=document.getElementById('artImgLink'),prev=document.getElementById('artImgPreview'),save=document.getElementById('artNewWorkSave'),dz=document.getElementById('artImgDropzone');
     if(!save)return;
     btn.addEventListener('click',function(){file.click();});
     file.addEventListener('change',function(){
@@ -742,15 +776,13 @@
         .catch(function(err){showToast('이미지 업로드 실패: '+((err&&err.message)||err));save.disabled=false;save.textContent='저장';});
     });
     link.addEventListener('input',function(){if(link.value.trim()){prev.src=link.value.trim();prev.classList.remove('hidden');}else{prev.classList.add('hidden');}});
+    wireImageDropzone(dz,link,prev,save);
     save.addEventListener('click',function(){
       var artistName=(document.getElementById('artNewWorkArtist').value||'').trim();
-      var title=(document.getElementById('artNewWorkTitle').value||'').trim();
-      if(!artistName){showToast('작가 이름을 입력해줘');return;}
-      if(!title){showToast('그림 제목을 입력해줘');return;}
-      var artist=state.artists.filter(function(a){return a.name===artistName;})[0];
-      if(!artist){var now0=new Date().toISOString();artist={id:'ar'+uid(),name:artistName,tags:[],note:'',created:now0,updated:now0};state.artists.push(artist);putArtist(artist);}
+      var title=(document.getElementById('artNewWorkTitle').value||'').trim()||'제목 없음';
+      var artist=resolveArtistByName(artistName);
       var now=new Date().toISOString();
-      var w={id:'aw'+uid(),artistId:artist.id,title:title,
+      var w={id:'aw'+uid(),artistId:artist?artist.id:null,title:title,
         year:(document.getElementById('artNewWorkYear').value||'').trim(),
         genre:(document.getElementById('artNewWorkGenre').value||'').trim(),
         medium:(document.getElementById('artNewWorkMedium').value||'').trim(),
@@ -759,7 +791,7 @@
         note:(document.getElementById('artNewWorkNote').value||'').trim(),
         favorite:false,created:now,updated:now};
       state.artworks.push(w);putWork(w);
-      state.artSel={type:'work',id:w.id};renderArt();showToast('그림을 추가했어요');
+      state.artSel={type:'work',id:w.id};renderArt();showToast('그림을 추가했어요'+(artist?'':' · 작가는 나중에 채워도 돼요'));
     });
   }
 
@@ -879,7 +911,7 @@
     else if(act==='art-tag-nav'){state.artSel={type:'tag',tag:el.dataset.tag};renderArtMain();renderArtSidebar();}
     else if(act==='art-open-work'){state.artSel={type:'work',id:el.dataset.id};renderArtMain();}
     else if(act==='art-new-work'){state.artSel={type:'newWork',artistId:el.dataset.artist||''};renderArtMain();}
-    else if(act==='art-back-artist'){var baid=el.dataset.artist;state.artSel=baid?{type:'artist',id:baid}:{type:'none'};renderArtMain();renderArtSidebar();}
+    else if(act==='art-back-artist'){var baid=el.dataset.artist;state.artSel=baid?{type:'artist',id:baid}:{type:'unassigned'};renderArtMain();renderArtSidebar();}
     else if(act==='art-del-artist'){var da=artistById(state.artSel.id);if(!da)return;var dWorks=worksOfArtist(da.id);
       var ai=state.artists.indexOf(da);if(ai>=0)state.artists.splice(ai,1);delArtistDB(da.id);
       dWorks.forEach(function(w){var wix=state.artworks.indexOf(w);if(wix>=0)state.artworks.splice(wix,1);delWorkDB(w.id);});
@@ -947,8 +979,9 @@
 
   // 그림공부 events
   document.getElementById('artistSearch').addEventListener('input',function(){renderArtSidebar();});
-  document.getElementById('artistList').addEventListener('click',function(e){var it=e.target.closest('.art-artist-item');if(!it)return;state.artSel={type:'artist',id:it.dataset.id};renderArtMain();renderArtSidebar();});
+  document.getElementById('artistList').addEventListener('click',function(e){var it=e.target.closest('.art-artist-item');if(!it)return;state.artSel=(it.dataset.id==='__unassigned__')?{type:'unassigned'}:{type:'artist',id:it.dataset.id};renderArtMain();renderArtSidebar();});
   document.getElementById('artNewArtist').addEventListener('click',function(){var nm=(prompt('새 작가 이름')||'').trim();if(!nm)return;var now=new Date().toISOString();var a={id:'ar'+uid(),name:nm,tags:[],note:'',created:now,updated:now};state.artists.push(a);putArtist(a);state.artSel={type:'artist',id:a.id};renderArt();showToast('작가를 추가했어요');});
+  document.getElementById('artQuickAdd').addEventListener('click',function(){state.artSel={type:'newWork',artistId:''};renderArtMain();renderArtSidebar();});
   var artT,ART_WORK_FIELD_MAP={artFTitle:'title',artFYear:'year',artFGenre:'genre',artFMedium:'medium',artFSource:'sourceUrl'};
   document.addEventListener('input',function(e){
     var id=e.target.id;
@@ -961,6 +994,13 @@
     if(e.isComposing||e.keyCode===229||e.key!=='Enter')return;
     if(e.target.id==='artArtistTagInput'){e.preventDefault();var a=artistById(state.artSel.id);if(!a)return;var nt=parseTagsInput(e.target.value);if(!nt.length)return;a.tags=a.tags||[];nt.forEach(function(t){if(a.tags.indexOf(t)<0)a.tags.push(t);});putArtist(a);renderArt();var bx=document.getElementById('artArtistTagInput');if(bx)bx.focus();}
     else if(e.target.id==='artWorkTagInput'){e.preventDefault();var w=workById(state.artSel.id);if(!w)return;var nt2=parseTagsInput(e.target.value);if(!nt2.length)return;w.tags=w.tags||[];nt2.forEach(function(t){if(w.tags.indexOf(t)<0)w.tags.push(t);});putWork(w);renderArtMain();renderArtSidebar();var bx2=document.getElementById('artWorkTagInput');if(bx2)bx2.focus();}
+  });
+  // 그림 상세화면에서 작가 필드 변경(선택/직접입력) → 기존 작가 매칭 또는 새 작가 생성, 비우면 미분류로
+  document.addEventListener('change',function(e){
+    if(e.target.id!=='artFArtist')return;
+    var w=workById(state.artSel.id);if(!w)return;
+    var artist=resolveArtistByName(e.target.value);
+    w.artistId=artist?artist.id:null;putWork(w);renderArt();
   });
   // 새 그림 폼이 열려있을 때 클립보드에 이미지가 있으면 바로 붙여넣기(Cmd/Ctrl+V)로 업로드
   document.addEventListener('paste',function(e){
