@@ -180,6 +180,13 @@
   .medit{display:flex;flex-direction:column;padding:18px 20px}
   .medit .mtitle{font:inherit;font-size:20px;font-weight:700;border:0;outline:none;background:transparent;color:var(--text);padding:0;margin-bottom:6px}
   .medit .mlinkbar{font-size:12px;color:var(--accent);min-height:18px;margin-bottom:10px}
+  .mimgs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .mimgs:empty{display:none}
+  .mimgs .mimg{position:relative;width:70px;height:70px;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .mimgs .mimg img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
+  .mimgs .mimg .mimgdel{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:11px;line-height:18px;padding:0;cursor:pointer}
+  .mimgadd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .mimghint{font-size:11px;color:var(--faint)}
   .mbodywrap{position:relative;flex:1;display:flex}
   .mentionpop{position:absolute;left:8px;top:26px;width:min(280px,82%);max-height:210px;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:20}
   .mentionitem .mtt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -335,7 +342,10 @@
   <div id="memo" class="hidden">
     <div class="bhead"><h2>메모</h2><div class="r"><button class="btn-s" id="newMemo">+ 새 메모</button></div></div>
     <div class="memo"><div class="mside"><div class="mfolders" id="mfolders"></div><div class="mlist" id="mlist"></div></div>
-      <div class="medit"><input class="mtitle" id="mtitle" placeholder="제목"><select class="mfolsel" id="mfolsel"></select><div class="mlinkbar" id="mlinkbar"></div><div class="mbodywrap"><textarea id="mbody" placeholder="메모를 입력하세요… (@로 할일 연결)"></textarea><div id="mentionPop" class="mentionpop hidden"></div></div></div>
+      <div class="medit"><input class="mtitle" id="mtitle" placeholder="제목"><select class="mfolsel" id="mfolsel"></select><div class="mlinkbar" id="mlinkbar"></div>
+        <div class="mimgs" id="mimgs"></div>
+        <div class="mimgadd"><button class="btn-s" id="mImgBtn" type="button">📎 사진</button><input type="file" id="mImgFile" accept="image/*" class="hidden"><span class="mimghint">또는 메모 안에 이미지 붙여넣기(Cmd/Ctrl+V)</span></div>
+        <div class="mbodywrap"><textarea id="mbody" placeholder="메모를 입력하세요… (@로 할일 연결 · [] 로 체크리스트)"></textarea><div id="mentionPop" class="mentionpop hidden"></div></div></div>
     </div>
   </div>
   <div id="done" class="hidden">
@@ -402,6 +412,7 @@
   var hasArt=false;      // art_artists/art_works 테이블이 있으면 true (그림공부, SQL 마이그레이션 후)
   var hasSketch=false;   // art_works.sketch_url 컬럼이 있으면 true (손그림 저장, SQL 마이그레이션 후)
   var hasMemoUpd=false;  // memos에 updated 컬럼이 있으면 true (정렬용)
+  var hasMemoImg=false;  // memos.images 컬럼이 있으면 true (사진 첨부, SQL 마이그레이션 후)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var flowShownProj={};  // 프로젝트별 인라인 순서도 표시 여부 (세션 한정)
   var flowShownTodo={};  // 할일별(하위항목 순서도) 인라인 표시 여부 (세션 한정)
@@ -427,8 +438,8 @@
   function normSubs(arr){return (Array.isArray(arr)?arr:[]).map(function(s){return {t:s.t||'',d:!!s.d,id:s.id||sid(),due:s.due||'',stage:(typeof s.stage==='number'?s.stage:0)};});}
   function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}if(hasDep){r.dep=(typeof t.stage==='number'?t.stage:0);}if(hasEnd){r.endd=t.endd||null;}return r;}
   function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),stage:(typeof r.dep==='number'?r.dep:0),endd:r.endd||''};}
-  function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;return r;}
-  function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',updated:r.updated||''};}
+  function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;if(hasMemoImg)r.images=m.images||[];return r;}
+  function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',images:r.images||[],updated:r.updated||''};}
   function putTodo(t){sb.from('todos').upsert(rowT(t)).then(function(r){if(r.error)console.warn('todo',r.error.message);});}
   function delTodoDB(id){sb.from('todos').delete().eq('id',id).then(function(){});}
   function putMemo(m){m.updated=new Date().toISOString();sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
@@ -486,7 +497,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -495,6 +506,7 @@
       hasMemoUpd=!(res[6]&&res[6].error);  // memos.updated 있으면 최신순 정렬 저장 켜짐
       hasArt=!(res[8]&&res[8].error);      // art_artists/art_works 테이블 있으면 그림공부 켜짐
       hasSketch=!(res[10]&&res[10].error); // art_works.sketch_url 컬럼 있으면 손그림 저장 켜짐
+      hasMemoImg=!(res[11]&&res[11].error);// memos.images 컬럼 있으면 메모 사진 첨부 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -592,8 +604,14 @@
     document.getElementById('mfolsel').innerHTML=FOLDERS.slice(1).map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
     if(cur){state.curMemo=cur.id;document.getElementById('mtitle').value=cur.title;document.getElementById('mbody').value=cur.body;document.getElementById('mfolsel').value=cur.folder;
-      document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';}
-    else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';}}
+      document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';
+      renderMemoImgs(cur);}
+    else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mimgs').innerHTML='';}}
+  function renderMemoImgs(m){
+    document.getElementById('mimgs').innerHTML=(m.images||[]).map(function(url,i){
+      return '<div class="mimg"><img src="'+esc(url)+'" data-act="mimg-view" data-i="'+i+'"><button class="mimgdel" data-act="mimg-del" data-i="'+i+'">✕</button></div>';
+    }).join('');
+  }
   function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}});}
   // ===== 순서도 (flow) : 단계 보드 + 드래그앤드롭 =====
   function flowSources(){return {projs:orderedProjects(),todos:wsTodos().filter(function(t){return (t.subs||[]).length>0;})};}
@@ -1042,6 +1060,8 @@
       showToast('그림을 지웠어요',function(){state.artworks.unshift(dw);putWork(dw);renderArt();});}
     else if(act==='art-fav'){var fw=workById(state.artSel.id);if(!fw)return;fw.favorite=!fw.favorite;putWork(fw);renderArtMain();}
     else if(act==='art-sketch'){openSketchPad(state.artSel.id);}
+    else if(act==='mimg-del'){var mm=mById(state.curMemo);if(!mm)return;mm.images=(mm.images||[]).filter(function(u,i){return i!==(+el.dataset.i);});putMemo(mm);renderMemoImgs(mm);}
+    else if(act==='mimg-view'){window.open(el.src,'_blank');}
     else if(act==='art-untag-artist'){var ua=artistById(state.artSel.id);if(!ua)return;ua.tags=(ua.tags||[]).filter(function(x){return x!==el.dataset.t;});putArtist(ua);renderArt();}
     else if(act==='art-untag-work'){var uw=workById(state.artSel.id);if(!uw)return;uw.tags=(uw.tags||[]).filter(function(x){return x!==el.dataset.t;});putWork(uw);renderArtMain();renderArtSidebar();}
   });
@@ -1142,6 +1162,19 @@
   document.getElementById('mlist').addEventListener('click',function(e){var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();});
   var memoT;
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
+  function addMemoImage(file){
+    var m=mById(state.curMemo);if(!m)return;
+    uploadArtImage(file).then(function(url){m.images=(m.images||[]).concat([url]);putMemo(m);renderMemoImgs(m);})
+      .catch(function(err){showToast('사진 업로드 실패: '+((err&&err.message)||err));});
+  }
+  document.getElementById('mImgBtn').addEventListener('click',function(){document.getElementById('mImgFile').click();});
+  document.getElementById('mImgFile').addEventListener('change',function(){var f=this.files&&this.files[0];if(f)addMemoImage(f);this.value='';});
+  document.getElementById('mbody').addEventListener('paste',function(e){
+    var items=(e.clipboardData&&e.clipboardData.items)||[];
+    for(var i=0;i<items.length;i++){
+      if(items[i].type&&items[i].type.indexOf('image/')===0){e.preventDefault();var f=items[i].getAsFile();if(f)addMemoImage(f);return;}
+    }
+  });
   document.getElementById('mbody').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.body=this.value;clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);mentionCheck(this);});
   document.getElementById('mbody').addEventListener('keydown',function(e){if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;}});
   // 리스트 자동표기 (노션/애플메모st): "- "→"• ", 엔터로 불릿·번호 자동 이어짐, 빈 줄에서 엔터로 빠져나옴
@@ -1151,12 +1184,14 @@
     var ta=this;if(ta.selectionStart!==ta.selectionEnd)return; // 선택 영역 있으면 패스
     var val=ta.value,pos=ta.selectionStart,ls=val.lastIndexOf('\n',pos-1)+1,line=val.slice(ls,pos);
     function apply(nv,caret){ta.value=nv;ta.setSelectionRange(caret,caret);ta.dispatchEvent(new Event('input'));}
-    if(e.key===' '){                                          // "- "/"* " → "• "
+    if(e.key===' '){                                          // "- "/"* " → "• ", "[]"/"[ ]" → "☐ "
       var d=line.match(/^(\s*)[-*]$/);
       if(d){e.preventDefault();var rep=d[1]+'• ';apply(val.slice(0,ls)+rep+val.slice(pos),ls+rep.length);return;}
+      var ck=line.match(/^(\s*)\[\s?\]$/);
+      if(ck){e.preventDefault();var repc=ck[1]+'☐ ';apply(val.slice(0,ls)+repc+val.slice(pos),ls+repc.length);return;}
     }
     if(e.key==='Enter'&&!e.shiftKey){
-      var b=line.match(/^(\s*)•\s+(.*)$/),n=line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+      var b=line.match(/^(\s*)•\s+(.*)$/),n=line.match(/^(\s*)(\d+)\.\s+(.*)$/),c=line.match(/^(\s*)[☐☑]\s+(.*)$/);
       if(b){e.preventDefault();
         if(b[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 불릿 → 리스트 종료
         else{var ins='\n'+b[1]+'• ';apply(val.slice(0,pos)+ins+val.slice(pos),pos+ins.length);}
@@ -1165,7 +1200,22 @@
         if(n[3].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 번호 → 리스트 종료
         else{var ins2='\n'+n[1]+(parseInt(n[2],10)+1)+'. ';apply(val.slice(0,pos)+ins2+val.slice(pos),pos+ins2.length);}
         return;}
+      if(c){e.preventDefault();
+        if(c[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 체크박스 → 리스트 종료
+        else{var ins3='\n'+c[1]+'☐ ';apply(val.slice(0,pos)+ins3+val.slice(pos),pos+ins3.length);} // 새 항목은 항상 미체크로
+        return;}
     }
+  });
+  // 체크박스(☐/☑) 글리프를 탭/클릭하면 완료 토글
+  document.getElementById('mbody').addEventListener('click',function(e){
+    var ta=this,pos=ta.selectionStart,val=ta.value,ls=val.lastIndexOf('\n',pos-1)+1;
+    var le=val.indexOf('\n',ls);if(le===-1)le=val.length;
+    var line=val.slice(ls,le),m=line.match(/^(\s*)([☐☑])(\s|$)/);
+    if(!m)return;
+    var glyphPos=ls+m[1].length;
+    if(pos<glyphPos||pos>glyphPos+2)return; // 글리프 바로 근처를 눌렀을 때만 토글(본문 클릭은 그냥 커서 이동)
+    var nv=val.slice(0,glyphPos)+(m[2]==='☐'?'☑':'☐')+val.slice(glyphPos+1);
+    ta.value=nv;ta.setSelectionRange(pos,pos);ta.dispatchEvent(new Event('input'));
   });
   document.getElementById('mbody').addEventListener('blur',function(){setTimeout(function(){document.getElementById('mentionPop').classList.add('hidden');},160);});
   var _mentionStart=-1;
