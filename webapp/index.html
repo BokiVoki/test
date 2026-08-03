@@ -641,7 +641,7 @@
     var lines=((m&&m.body)||'').split('\n'),html='',markerIdx=0;
     for(var i=0;i<lines.length;i++){
       var line=lines[i];
-      if(line.trim()===MEMO_IMG_MARKER){
+      if(isMemoImgMarkerLine(line)){
         var url=(m.images||[])[markerIdx];
         html+='<span class="mreadimg-wrap">'+(url?'<img class="mreadimg" src="'+esc(url)+'" data-act="mread-img-view">':'')+'<button class="mreadimg-del" data-act="mread-img-del" data-i="'+markerIdx+'">✕</button></span>';
         markerIdx++;
@@ -1242,15 +1242,17 @@
   var memoT;
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
   var MEMO_IMG_MARKER='📷 사진 ✕'; // 본문 속 한 줄짜리 마커. 탭하면 보기, 끝(✕)을 탭하면 삭제
+  var MEMO_IMG_MARKER_OLD='📷 사진'; // 예전 형식(✕ 없음) — 호환용
+  function isMemoImgMarkerLine(line){var t=(line||'').trim();return t===MEMO_IMG_MARKER||t===MEMO_IMG_MARKER_OLD;}
   function memoMarkerIndexAt(val,lineStart){ // lineStart 줄이 몇 번째(0-based) 마커인지
     var prior=val.slice(0,lineStart).split('\n'),n=0;
-    for(var i=0;i<prior.length;i++){if(prior[i].trim()===MEMO_IMG_MARKER)n++;}
+    for(var i=0;i<prior.length;i++){if(isMemoImgMarkerLine(prior[i]))n++;}
     return n;
   }
   function removeNthMemoMarker(text,n){ // n번째(0-based)로 등장하는 마커 줄을 지운다
     var lines=(text||'').split('\n'),count=-1;
     for(var i=0;i<lines.length;i++){
-      if(lines[i].trim()===MEMO_IMG_MARKER){count++;if(count===n){lines.splice(i,1);break;}}
+      if(isMemoImgMarkerLine(lines[i])){count++;if(count===n){lines.splice(i,1);break;}}
     }
     return lines.join('\n');
   }
@@ -1325,10 +1327,10 @@
     var ta=this,pos=ta.selectionStart,val=ta.value,ls=val.lastIndexOf('\n',pos-1)+1;
     var le=val.indexOf('\n',ls);if(le===-1)le=val.length;
     var line=val.slice(ls,le);
-    if(line.trim()===MEMO_IMG_MARKER){
+    if(isMemoImgMarkerLine(line)){
       var midx=memoMarkerIndexAt(val,ls),mm=mById(state.curMemo);if(!mm)return;
-      var offsetInLine=pos-ls;
-      if(offsetInLine>=line.length-2){ // 줄 끝(✕) 근처 탭 → 삭제
+      var offsetInLine=pos-ls,isNewFmt=(line.trim()===MEMO_IMG_MARKER);
+      if(isNewFmt&&offsetInLine>=line.length-2){ // 줄 끝(✕) 근처 탭 → 삭제(옛 형식엔 ✕가 없어서 항상 보기로)
         mm.images=(mm.images||[]).filter(function(u,i){return i!==midx;});
         mm.body=removeNthMemoMarker(mm.body||'',midx);
         ta.value=mm.body;putMemo(mm);
