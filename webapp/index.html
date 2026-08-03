@@ -193,8 +193,8 @@
   .mread.hidden{display:none}
   .mread>div{min-height:1.5em;white-space:pre-wrap}
   .mread:empty:before{content:'메모를 입력하세요… (탭해서 쓰기 시작)';color:var(--faint)}
-  .mreadimg-wrap{position:relative;display:inline-block;margin:6px 0}
-  .mreadimg{max-width:220px;max-height:220px;border-radius:8px;display:block;cursor:pointer;border:1px solid var(--line)}
+  .mreadimg-wrap{position:relative;display:block;margin:8px 0;min-width:100px;min-height:100px;max-width:220px}
+  .mreadimg{max-width:220px;max-height:220px;min-width:100px;min-height:100px;object-fit:cover;border-radius:8px;display:block;cursor:pointer;border:1px solid var(--line);background:var(--sunk);color:var(--faint);font-size:11px}
   .mreadimg-del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:12px;cursor:pointer;line-height:22px;padding:0}
   .mreadck{cursor:pointer}
   .mentionpop{position:absolute;left:8px;top:26px;width:min(280px,82%);max-height:210px;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:20}
@@ -643,7 +643,7 @@
       var line=lines[i];
       if(isMemoImgMarkerLine(line)){
         var url=(m.images||[])[markerIdx];
-        html+='<span class="mreadimg-wrap">'+(url?'<img class="mreadimg" src="'+esc(url)+'" data-act="mread-img-view">':'')+'<button class="mreadimg-del" data-act="mread-img-del" data-i="'+markerIdx+'">✕</button></span>';
+        html+='<div class="mreadimg-wrap">'+(url?'<img class="mreadimg" src="'+esc(url)+'" alt="사진을 불러오는 중…" data-act="mread-img-view" onerror="this.alt=\'⚠️ 사진을 못 불러왔어요\'">':'<div class="mreadimg" style="display:flex;align-items:center;justify-content:center">사진 없음</div>')+'<button class="mreadimg-del" data-act="mread-img-del" data-i="'+markerIdx+'">✕</button></div>';
         markerIdx++;
         continue;
       }
