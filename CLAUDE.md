@@ -10,6 +10,7 @@
 | **일정 비서봇** | 텔레그램 봇. 할일/알람/리마인더/영양제 재고/생리주기/브리핑 | Railway (BOT_ROLE 미설정) + Google Sheets | ✅ 운영 중 |
 | **인박스봇** | 텔레그램 봇. 링크/생각/사진/쇼핑/책을 옵시디언 볼트로 자동 정리 | Railway (BOT_ROLE=inbox) + GitHub 볼트 `BokiVoki/obsidian-vault`(Private) | ✅ 운영 중 (Books/Inbox/Shopping 폴더에 커밋 중). 남은 건 옵시디언 앱에서 볼트 열기(Obsidian Git) |
 | **하루(Haru) 웹앱** | 개인 업무 할일 대시보드 (미니멀·딥그린) + 그림공부(작가별 그림 태그 상속) | **Cloudflare** + Supabase, 그림은 옵시디언에도 미러링 | ✅ 운영 중 (`webapp/index.html`, `haru.lolcv1294.workers.dev`) |
+| **하루기록(Daily Log) 앱** | 매일 블로그 쓰듯 하루를 기록하는 일기 앱(사진·유튜브 삽입, 자동저장) | **Cloudflare**(별도 배포) + Supabase(하루 앱과 같은 계정, 새 테이블) | 🟡 코드 완성, **DB 마이그레이션(`dailylog/schema.sql`) 미실행 + Cloudflare 배포 미완료** |
 
 ---
 
@@ -110,10 +111,33 @@
 
 ---
 
+## 5. 하루기록(Daily Log) 앱 (`dailylog/index.html`)
+
+- **뭐냐**: 네이버 블로그처럼 그날그날 자유롭게 쓰는 일기 앱. 하루 웹앱(할일 대시보드)과는 **완전히 분리된 별도 앱**(별도 파일·별도 Cloudflare 배포)이지만, **로그인 계정과 Supabase 프로젝트는 하루 앱과 공유**(새 테이블만 추가).
+- **핵심 동작**
+  - 열면 바로 **오늘 날짜**가 상단에 뜨고, 그 아래 `contenteditable` 블로그 쓰기칸(`#editor`)에 자유롭게 기록.
+  - **자동저장**: 입력 후 900ms 디바운스로 `daily_logs`에 upsert(`scheduleSave`/`doSaveFor`). 애플 메모장처럼 저장 버튼 없음, 상단에 "저장 중…/저장됨" 표시(`#saveState`).
+  - **자정 롤오버**: 30초 간격 타이머 + 포커스/visibility 복귀 시 `checkRollover`가 날짜를 재확인 — 오늘 보던 화면이면 자동으로 다음날 빈 칸으로 전환(이전 글은 그 전에 이미 자동저장돼 있음). **내용이 비면 저장하지 않고, 이미 있던 빈 기록은 삭제**(`doSaveFor`가 텍스트 없으면 `delete`) — 그래서 빈 날짜는 DB에 절대 안 쌓임.
+  - **사진**: 우측 📷 아이콘 → 파일선택(카메라/앨범 다 가능) → `dailylog` 스토리지 버킷에 업로드 → 커서 위치(`savedRange`)에 바로 `<img>` 삽입.
+  - **유튜브 인앱 검색**: 📷 아이콘 옆 🎵 아이콘 → 검색어 입력 → **YouTube Data API v3**로 실검색 → 결과 클릭 시 반응형 `<iframe>` 임베드 카드 삽입(`contenteditable="false"` 블록이라 실수로 안 깨짐). API 키는 서버에 안 두고 **설정 화면에서 사용자가 직접 입력해 이 기기 `localStorage`에만 저장**(`dailylog_yt_key`) — 코드에 하드코딩 안 함.
+  - **왼쪽 햄버거(☰) 메뉴**: 오늘로 / 이전 기록(날짜별 미리보기 목록) / 캘린더 보기(월 그리드, 기록 있는 날 점 표시) / 설정(유튜브 API 키, 라이트·다크 전환, 로그아웃).
+- **데이터 모델(Supabase, 새 테이블)**: `daily_logs(owner uuid, date text, content text, updated timestamptz, primary key(owner,date))` — 하루에 한 행, RLS `owner=auth.uid()`. 스토리지 버킷 `dailylog`(public read, 본인 폴더에만 업로드, `art` 버킷과 같은 패턴). **마이그레이션 SQL은 `dailylog/schema.sql`** — 기존 Supabase 프로젝트(mfgiesampazjzgfliuje) SQL Editor에서 1회 실행 필요.
+- **YouTube API 키 발급 방법** (설정 화면에 붙여넣을 키):
+  1. https://console.cloud.google.com 접속 → 프로젝트 새로 만들기(또는 기존 것 선택)
+  2. 왼쪽 메뉴 "API 및 서비스" → "라이브러리" → "YouTube Data API v3" 검색 → **사용 설정**
+  3. "API 및 서비스" → "사용자 인증 정보" → **+사용자 인증 정보 만들기 → API 키**
+  4. (권장) 만들어진 키 옆 편집에서 "애플리케이션 제한사항 → HTTP 리퍼러"로 배포 도메인만 허용하도록 제한
+  5. 발급된 키를 하루기록 앱 ☰ → 설정 → "유튜브 API 키"에 붙여넣고 저장. 무료 할당량으로 하루 약 100회 검색 가능.
+- **배포**: `wrangler.toml`이 `dailylog` 이름으로 이 폴더(`dailylog/`)를 그대로 정적 배포(assets-only). 하루 웹앱과 별도 Cloudflare Workers 프로젝트라 **최초 1회 수동 설정 필요**: `cd dailylog && npx wrangler login && npx wrangler deploy` (또는 Cloudflare 대시보드에서 이 repo를 가리키는 새 Workers 프로젝트를 만들고 빌드 출력 디렉터리를 `dailylog`로 지정). 이후 자동배포를 원하면 대시보드에서 GitHub 연동 설정.
+- **남은 것**: ① `dailylog/schema.sql`을 Supabase SQL Editor에서 실행 ② Cloudflare에 최초 배포/프로젝트 연결 ③ (선택) YouTube API 키 발급해서 설정 화면에 입력.
+
+---
+
 ## 배포 / 인프라 메모
 
 - **Railway**: 봇 2개(일정봇 / 인박스봇). Procfile `worker: python start.py`, `BOT_ROLE`로 구분.
 - **Cloudflare (하루 웹앱 호스팅)**: `haru.lolcv1294.workers.dev`. `main` 브랜치 push → 자동배포. `wrangler.toml`(repo 루트)이 `webapp/` 폴더를 정적 사이트(Workers Static Assets)로 배포(`npx wrangler deploy`, assets-only). **Netlify에서 이사함**(무료 크레딧 소진으로 production deploy 멈춰서). ⚠️ 예전 Netlify는 개발 브랜치를 봤지만 Cloudflare는 `main`을 봄 → 웹앱 배포하려면 `main`에도 push해야 함.
+- **Cloudflare (하루기록 앱 호스팅)**: 하루 웹앱과 **별도의 Cloudflare Workers 프로젝트**(`dailylog/wrangler.toml`, name=`harudaily`). 아직 최초 배포/프로젝트 연결 전 — 위 "5. 하루기록 앱" 섹션의 배포 안내 참고.
 - **Google**: `GOOGLE_CREDENTIALS_JSON`(서비스계정), `GOOGLE_DRIVE_FOLDER_ID`(사진), `SPREADSHEET_ID`.
 - **개발 브랜치**: `claude/content-archive-bot-xv3nx` (봇 개발용). 웹앱 변경은 `main`에도 fast-forward push해야 Cloudflare가 배포함.
 

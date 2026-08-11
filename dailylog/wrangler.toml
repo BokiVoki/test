@@ -1,0 +1,7 @@
+name = "harudaily"
+compatibility_date = "2024-11-01"
+
+# 이 폴더(dailylog/) 자체를 정적 사이트로 배포 (Cloudflare Workers Static Assets)
+# 배포: 이 폴더 안에서 `npx wrangler deploy` (최초 1회 `npx wrangler login` 필요)
+[assets]
+directory = "."

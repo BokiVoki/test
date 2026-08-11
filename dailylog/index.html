@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>하루기록</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#FFFFFF; --panel:#FFFFFF; --sunk:#FAFAFB; --line:#EBEBED; --line-2:#DBDCDF;
+    --text:#161719; --muted:#6A6C72; --faint:#A6A8AE; --accent:#2C6A46; --accent-2:#215237; --accent-wash:#E7F1EB;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{--bg:#0E1013;--panel:#141619;--sunk:#181B1F;--line:#23262B;--line-2:#31353B;--text:#ECEDEF;--muted:#9598A0;--faint:#5F626A;--accent:#5FB088;--accent-2:#7FC6A2;--accent-wash:#14201A;}}
+  :root[data-theme="light"]{--bg:#FFFFFF;--panel:#FFFFFF;--sunk:#FAFAFB;--line:#EBEBED;--line-2:#DBDCDF;--text:#161719;--muted:#6A6C72;--faint:#A6A8AE;--accent:#2C6A46;--accent-2:#215237;--accent-wash:#E7F1EB;}
+  :root[data-theme="dark"]{--bg:#0E1013;--panel:#141619;--sunk:#181B1F;--line:#23262B;--line-2:#31353B;--text:#ECEDEF;--muted:#9598A0;--faint:#5F626A;--accent:#5FB088;--accent-2:#7FC6A2;--accent-wash:#14201A;}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .hidden{display:none!important}
+  button{font-family:inherit}
+
+  /* auth */
+  .authwrap{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:50;padding:20px}
+  .authcard{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px}
+  .authcard h1{font-size:26px;margin:0 0 4px;letter-spacing:-.03em}
+  .authcard p.sub{margin:0 0 12px;color:var(--faint);font-size:13px}
+  .authcard input{font:inherit;font-size:15px;padding:11px 12px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel);color:var(--text)}
+  .authcard input:focus{outline:none;border-color:var(--accent)}
+  .authcard .row{display:flex;gap:8px}
+  .authcard .row button{flex:1;font:inherit;font-weight:600;font-size:14px;padding:11px;border-radius:6px;cursor:pointer}
+  #loginBtn{color:#fff;background:var(--accent);border:0}
+  #signupBtn{color:var(--accent);background:none;border:1px solid var(--line-2)}
+  #authMsg{font-size:12.5px;color:var(--faint);min-height:16px;margin:2px 0 0;text-align:center}
+
+  /* app shell */
+  .app{max-width:760px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+  .topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+  .iconbtn{width:34px;height:34px;flex:none;display:grid;place-items:center;border:0;background:none;color:var(--muted);font-size:18px;border-radius:8px;cursor:pointer}
+  .iconbtn:hover{background:var(--sunk);color:var(--text)}
+  .datehead{flex:1;min-width:0}
+  .dtitle{font-size:15.5px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dsub{font-size:11.5px;color:var(--accent);margin-top:1px}
+  .dsub button{font:inherit;font-size:11.5px;color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
+  .toolbtns{display:flex;align-items:center;gap:2px;flex:none}
+  .savestate{font-size:11px;color:var(--faint);margin-right:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+  .editorwrap{flex:1;padding:22px 20px 120px}
+  .editor{outline:none;font-size:16.5px;line-height:1.85;min-height:60vh;letter-spacing:-.003em}
+  .editor.empty:before{content:attr(data-placeholder);color:var(--faint);pointer-events:none}
+  .editor div{margin:0}
+  .dl-img{max-width:100%;border-radius:9px;display:block;margin:12px 0}
+  .yt-embed{margin:12px 0}
+  .yt-frame{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:9px;background:var(--sunk)}
+  .yt-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+  /* drawer */
+  .drawerbg{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:30;opacity:0;pointer-events:none;transition:opacity .18s}
+  .drawerbg.show{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;left:0;bottom:0;width:280px;max-width:85vw;background:var(--panel);border-right:1px solid var(--line);z-index:31;transform:translateX(-100%);transition:transform .2s;display:flex;flex-direction:column}
+  .drawer.open{transform:translateX(0)}
+  .dhead{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 10px}
+  .dhead b{font-size:15px;letter-spacing:-.02em}
+  .drawernav{display:block;width:100%;text-align:left;font:inherit;font-size:14px;color:var(--text);background:none;border:0;padding:11px 16px;cursor:pointer}
+  .drawernav:hover{background:var(--sunk)}
+  .drawerbody{flex:1;overflow-y:auto;padding:6px 16px 20px;border-top:1px solid var(--line);margin-top:4px}
+  .dsecthead{font-size:11.5px;font-weight:700;color:var(--faint);letter-spacing:.03em;margin:12px 0 8px}
+  .dempty{color:var(--faint);font-size:13px;padding:14px 0}
+
+  .histitem{display:block;width:100%;text-align:left;font:inherit;background:none;border:0;border-bottom:1px solid var(--line);padding:9px 2px;cursor:pointer;color:var(--text)}
+  .histitem:hover{background:var(--sunk)}
+  .histitem.active{color:var(--accent)}
+  .hdate{font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+  .hprev{font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .calnav{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .calnav button{width:26px;height:26px;border:1px solid var(--line-2);background:var(--panel);color:var(--muted);border-radius:6px;cursor:pointer}
+  .calnav span{font-size:13px;font-weight:600}
+  .calweek{display:grid;grid-template-columns:repeat(7,1fr);font-size:10.5px;color:var(--faint);text-align:center;margin-bottom:4px}
+  .caldays{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .calday{position:relative;aspect-ratio:1;border:0;background:none;color:var(--text);font-size:12px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .calday.empty{cursor:default}
+  .calday:not(.empty):hover{background:var(--sunk)}
+  .calday.today{font-weight:700;color:var(--accent)}
+  .calday.sel{background:var(--accent-wash);color:var(--accent);font-weight:700}
+  .calday i{position:absolute;bottom:3px;width:3.5px;height:3.5px;border-radius:50%;background:var(--accent);font-style:normal}
+
+  .setgrp{margin:14px 0}
+  .setgrp label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .setgrp input{width:100%;font:inherit;font-size:13.5px;padding:9px 10px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel);color:var(--text);margin-bottom:7px}
+  .setgrp input:focus{outline:none;border-color:var(--accent)}
+  .sethint{font-size:11.5px;color:var(--faint);line-height:1.5}
+  .btn-s{font:inherit;font-size:13px;padding:8px 14px;border:1px solid var(--line-2);background:var(--panel);color:var(--text);border-radius:6px;cursor:pointer}
+  .btn-s:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-danger{font:inherit;font-size:13px;padding:8px 14px;border:1px solid var(--line-2);background:var(--panel);color:#c0392b;border-radius:6px;cursor:pointer}
+
+  /* youtube modal */
+  .modalbg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;display:grid;place-items:center;padding:16px}
+  .modal{width:100%;max-width:420px;max-height:82vh;background:var(--panel);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+  .mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .mhead b{font-size:14.5px}
+  .ytsearch{display:flex;gap:8px;padding:12px 16px}
+  .ytsearch input{flex:1;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel);color:var(--text)}
+  .ytsearch input:focus{outline:none;border-color:var(--accent)}
+  .ytsearch button{font:inherit;font-weight:600;font-size:13px;color:#fff;background:var(--accent);border:0;border-radius:6px;padding:0 16px;cursor:pointer}
+  .ytresults{overflow-y:auto;padding:0 10px 12px}
+  .ytmsg{color:var(--faint);font-size:13px;text-align:center;padding:24px 0}
+  .ytrow{display:flex;gap:10px;align-items:center;padding:8px 6px;border-radius:8px;cursor:pointer}
+  .ytrow:hover{background:var(--sunk)}
+  .ytrow img{width:70px;height:52px;object-fit:cover;border-radius:6px;flex:none;background:var(--sunk)}
+  .ytinfo{min-width:0}
+  .ytt{font-size:13px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .ytc{font-size:11.5px;color:var(--faint);margin-top:2px}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,10px);background:var(--text);color:var(--bg);font-size:13px;padding:10px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:.18s;z-index:60}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<div id="auth" class="authwrap">
+  <div class="authcard">
+    <h1>하루기록 📔</h1>
+    <p class="sub">하루 앱과 같은 계정으로 로그인하세요.</p>
+    <input id="email" type="email" placeholder="이메일" autocomplete="username">
+    <input id="pw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
+    <div class="row"><button id="loginBtn">로그인</button><button id="signupBtn">회원가입</button></div>
+    <p id="authMsg"></p>
+  </div>
+</div>
+
+<div class="app hidden" id="app">
+  <header class="topbar">
+    <button type="button" class="iconbtn" id="menuBtn" aria-label="메뉴" title="메뉴">☰</button>
+    <div class="datehead">
+      <div class="dtitle" id="dTitle"></div>
+      <div class="dsub" id="dSub"></div>
+    </div>
+    <div class="toolbtns">
+      <span class="savestate" id="saveState"></span>
+      <button type="button" class="iconbtn" id="photoBtn" aria-label="사진 추가" title="사진 추가">📷</button>
+      <button type="button" class="iconbtn" id="ytBtn" aria-label="노래 검색" title="노래 검색">🎵</button>
+    </div>
+  </header>
+  <input type="file" id="photoInput" accept="image/*" multiple hidden>
+  <div class="editorwrap">
+    <div id="editor" class="editor empty" contenteditable="true" data-placeholder="오늘 하루는 어땠나요?"></div>
+  </div>
+</div>
+
+<div class="drawerbg hidden" id="drawerBg"></div>
+<div class="drawer" id="drawer">
+  <div class="dhead"><b>하루기록</b><button type="button" class="iconbtn" id="drawerClose" aria-label="닫기">✕</button></div>
+  <button type="button" class="drawernav" id="navToday">🏠 오늘로</button>
+  <button type="button" class="drawernav" id="navHistory">📚 이전 기록</button>
+  <button type="button" class="drawernav" id="navCal">📅 캘린더 보기</button>
+  <button type="button" class="drawernav" id="navSettings">⚙️ 설정</button>
+  <div class="drawerbody" id="drawerBody"></div>
+</div>
+
+<div class="modalbg hidden" id="ytModalBg">
+  <div class="modal">
+    <div class="mhead"><b>노래·영상 검색</b><button type="button" class="iconbtn" id="ytClose" aria-label="닫기">✕</button></div>
+    <div class="ytsearch">
+      <input id="ytQ" placeholder="노래·영상 검색" autocomplete="off">
+      <button type="button" id="ytGo">검색</button>
+    </div>
+    <div id="ytResults" class="ytresults"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"><span id="toastMsg"></span></div>
+
+<script>
+(function(){
+  "use strict";
+  var SUPA_URL='https://mfgiesampazjzgfliuje.supabase.co';
+  var SUPA_KEY='sb_publishable_QBlLIrJ8coqH3I-Ij-Q7SA_OUB7KVwV';
+  var sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'dailylog_session'}});
+  var DOW=['일','월','화','수','목','금','토'];
+
+  function saveCreds(c){try{localStorage.setItem('dailylog_creds',JSON.stringify(c));}catch(e){}}
+  function loadCreds(){try{return JSON.parse(localStorage.getItem('dailylog_creds')||'null');}catch(e){return null;}}
+  function pad(n){return (n<10?'0':'')+n;}
+  function todayISO(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  function parseDate(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+  function fmtTitle(s){var d=parseDate(s);return d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 '+DOW[d.getDay()]+'요일';}
+  function fmtShort(s){var d=parseDate(s);return (d.getMonth()+1)+'월 '+d.getDate()+'일 ('+DOW[d.getDay()]+')';}
+  function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function ytApiKey(){try{return localStorage.getItem('dailylog_yt_key')||'';}catch(e){return '';}}
+
+  var uid=null, todayStr=todayISO(), viewingDate=todayStr, entryDates={}, calYear=(new Date()).getFullYear(), calMonth=(new Date()).getMonth();
+  var saveTimer=null, savedRange=null;
+
+  // theme
+  try{var savedTheme=localStorage.getItem('dailylog_theme');if(savedTheme)document.documentElement.setAttribute('data-theme',savedTheme);}catch(e){}
+  function toggleTheme(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    var dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+    var next = cur==='dark' ? 'light' : (cur==='light' ? 'dark' : (dark?'light':'dark'));
+    document.documentElement.setAttribute('data-theme',next);
+    try{localStorage.setItem('dailylog_theme',next);}catch(e){}
+  }
+
+  // toast
+  var toastEl=document.getElementById('toast'), toastMsg=document.getElementById('toastMsg'), tHide;
+  function showToast(msg){toastMsg.textContent=msg;toastEl.classList.add('show');clearTimeout(tHide);tHide=setTimeout(function(){toastEl.classList.remove('show');},2200);}
+
+  // ===== AUTH =====
+  var authEl=document.getElementById('auth'), appEl=document.getElementById('app'), authMsg=document.getElementById('authMsg');
+  function showApp(){authEl.classList.add('hidden');appEl.classList.remove('hidden');sb.auth.getUser().then(function(u){uid=(u.data&&u.data.user)?u.data.user.id:null;init();});}
+  function showAuth(){appEl.classList.add('hidden');authEl.classList.remove('hidden');}
+  document.getElementById('loginBtn').addEventListener('click',doLogin);
+  document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)doLogin();});
+  document.getElementById('signupBtn').addEventListener('click',doSignup);
+  function creds(){return {email:document.getElementById('email').value.trim(),password:document.getElementById('pw').value};}
+  function doLogin(){var c=creds();if(!c.email||!c.password){authMsg.textContent='이메일과 비밀번호를 입력하세요';return;}authMsg.textContent='로그인 중…';
+    sb.auth.signInWithPassword(c).then(function(r){if(r.error){authMsg.textContent='로그인 실패: '+r.error.message;}else{saveCreds(c);showApp();}});}
+  function doSignup(){var c=creds();if(!c.email||c.password.length<6){authMsg.textContent='이메일 + 6자 이상 비밀번호';return;}authMsg.textContent='가입 중…';
+    sb.auth.signUp(c).then(function(r){if(r.error){authMsg.textContent='가입 실패: '+r.error.message;}
+      else if(r.data.session){saveCreds(c);showApp();}
+      else{authMsg.textContent='가입됨! 이제 로그인을 눌러주세요.';}});}
+  var saved=loadCreds();
+  if(saved){document.getElementById('email').value=saved.email||'';document.getElementById('pw').value=saved.password||'';}
+  sb.auth.getSession().then(function(r){
+    if(r.data.session){showApp();}
+    else if(saved&&saved.email&&saved.password){authMsg.textContent='자동 로그인 중…';
+      sb.auth.signInWithPassword(saved).then(function(rr){if(rr.error){showAuth();authMsg.textContent='다시 로그인해주세요';}else{showApp();}});}
+    else{showAuth();}
+  });
+
+  // ===== EDITOR =====
+  var editor=document.getElementById('editor'), dTitle=document.getElementById('dTitle'), dSub=document.getElementById('dSub'), saveState=document.getElementById('saveState');
+
+  function setSaveState(t){saveState.textContent=t;}
+  function updatePlaceholderState(){
+    var empty=!editor.textContent.trim() && !editor.querySelector('img,.yt-embed');
+    editor.classList.toggle('empty',empty);
+  }
+  function captureRange(){
+    var sel=window.getSelection();
+    if(sel && sel.rangeCount && editor.contains(sel.anchorNode)) savedRange=sel.getRangeAt(0).cloneRange();
+  }
+  editor.addEventListener('keyup',captureRange);
+  editor.addEventListener('mouseup',captureRange);
+  editor.addEventListener('blur',captureRange);
+  editor.addEventListener('input',function(){captureRange();updatePlaceholderState();scheduleSave();});
+
+  function insertAtCaret(html){
+    editor.focus();
+    var sel=window.getSelection();
+    if(savedRange && editor.contains(savedRange.startContainer)){
+      sel.removeAllRanges();sel.addRange(savedRange);
+    }else if(!sel.rangeCount || !editor.contains(sel.anchorNode)){
+      var r=document.createRange();r.selectNodeContents(editor);r.collapse(false);
+      sel.removeAllRanges();sel.addRange(r);
+    }
+    document.execCommand('insertHTML',false,html);
+    if(sel.rangeCount) savedRange=sel.getRangeAt(0).cloneRange();
+    updatePlaceholderState();
+    scheduleSave();
+  }
+
+  function loadEntry(date){
+    editor.innerHTML='';
+    updatePlaceholderState();
+    sb.from('daily_logs').select('content').eq('date',date).maybeSingle().then(function(r){
+      if(date!==viewingDate) return;
+      editor.innerHTML=(r.data && r.data.content) || '';
+      updatePlaceholderState();
+    });
+  }
+
+  function doSaveFor(date,html,text){
+    var plain=(text||'').replace(/\s+/g,'');
+    if(!plain){
+      sb.from('daily_logs').delete().eq('date',date).then(function(){entryDates[date]=false;if(date===viewingDate)setSaveState('');});
+      return;
+    }
+    sb.from('daily_logs').upsert({owner:uid,date:date,content:html,updated:new Date().toISOString()},{onConflict:'owner,date'}).then(function(r){
+      if(r.error){if(date===viewingDate)setSaveState('저장 실패');console.warn('daily_logs',r.error.message);return;}
+      entryDates[date]=true;
+      if(date===viewingDate){setSaveState('저장됨');setTimeout(function(){if(saveState.textContent==='저장됨')setSaveState('');},1500);}
+    });
+  }
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    setSaveState('저장 중…');
+    var d=viewingDate, html=editor.innerHTML, text=editor.textContent;
+    saveTimer=setTimeout(function(){doSaveFor(d,html,text);},900);
+  }
+  function flushSave(){
+    if(!saveTimer) return;
+    clearTimeout(saveTimer);saveTimer=null;
+    doSaveFor(viewingDate,editor.innerHTML,editor.textContent);
+  }
+
+  function updateHeader(){
+    dTitle.textContent=fmtTitle(viewingDate);
+    if(viewingDate===todayStr){dSub.innerHTML='';}
+    else{
+      dSub.innerHTML='<button type="button" id="backToday">◀ 오늘로 가기</button>';
+      document.getElementById('backToday').addEventListener('click',function(){switchDate(todayStr);});
+    }
+  }
+  function switchDate(date){
+    if(date===viewingDate) return;
+    flushSave();
+    viewingDate=date;
+    loadEntry(date);
+    updateHeader();
+  }
+  function checkRollover(){
+    var now=todayISO();
+    if(now===todayStr) return;
+    var wasToday=(viewingDate===todayStr);
+    flushSave();
+    todayStr=now;
+    if(wasToday){viewingDate=now;loadEntry(now);}
+    updateHeader();
+  }
+  setInterval(checkRollover,30000);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)checkRollover();});
+  window.addEventListener('focus',checkRollover);
+  window.addEventListener('beforeunload',flushSave);
+
+  function loadEntryDates(){
+    sb.from('daily_logs').select('date').then(function(r){
+      entryDates={};
+      (r.data||[]).forEach(function(row){entryDates[row.date]=true;});
+    });
+  }
+
+  function init(){
+    todayStr=todayISO();viewingDate=todayStr;
+    loadEntryDates();
+    loadEntry(viewingDate);
+    updateHeader();
+  }
+
+  // ===== PHOTO =====
+  var photoInput=document.getElementById('photoInput');
+  document.getElementById('photoBtn').addEventListener('click',function(){captureRange();photoInput.value='';photoInput.click();});
+  function uploadPhoto(file){
+    var path=(uid||'anon')+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,6)+'_'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    return sb.storage.from('dailylog').upload(path,file,{upsert:false}).then(function(r){if(r.error)throw r.error;return sb.storage.from('dailylog').getPublicUrl(path).data.publicUrl;});
+  }
+  photoInput.addEventListener('change',function(){
+    var files=Array.prototype.slice.call(photoInput.files||[]);
+    if(!files.length) return;
+    setSaveState('사진 업로드 중…');
+    var chain=Promise.resolve();
+    files.forEach(function(file){
+      chain=chain.then(function(){return uploadPhoto(file);}).then(function(url){insertAtCaret('<img class="dl-img" src="'+url+'"><div><br></div>');});
+    });
+    chain.then(function(){setSaveState('');}).catch(function(e){setSaveState('');showToast('사진 업로드 실패: '+((e&&e.message)||''));});
+  });
+
+  // ===== YOUTUBE =====
+  var ytModalBg=document.getElementById('ytModalBg'), ytQ=document.getElementById('ytQ'), ytResults=document.getElementById('ytResults');
+  document.getElementById('ytBtn').addEventListener('click',function(){
+    captureRange();
+    if(!ytApiKey()){showToast('설정에서 유튜브 API 키를 먼저 입력해주세요');openDrawer();renderSettings();return;}
+    ytQ.value='';ytResults.innerHTML='';ytModalBg.classList.remove('hidden');setTimeout(function(){ytQ.focus();},50);
+  });
+  document.getElementById('ytClose').addEventListener('click',closeYtModal);
+  ytModalBg.addEventListener('click',function(e){if(e.target===ytModalBg)closeYtModal();});
+  function closeYtModal(){ytModalBg.classList.add('hidden');}
+  document.getElementById('ytGo').addEventListener('click',function(){var q=ytQ.value.trim();if(q)ytSearch(q);});
+  ytQ.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();var q=ytQ.value.trim();if(q)ytSearch(q);}});
+  function ytSearch(q){
+    var k=ytApiKey();
+    ytResults.innerHTML='<div class="ytmsg">검색 중…</div>';
+    fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q='+encodeURIComponent(q)+'&key='+encodeURIComponent(k))
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if(data.error){ytResults.innerHTML='<div class="ytmsg">오류: '+esc((data.error&&data.error.message)||'검색 실패')+'</div>';return;}
+        var items=data.items||[];
+        if(!items.length){ytResults.innerHTML='<div class="ytmsg">결과 없음</div>';return;}
+        ytResults.innerHTML='';
+        items.forEach(function(it){
+          if(!it.id || !it.id.videoId) return;
+          var id=it.id.videoId, sn=it.snippet||{};
+          var thumb=(sn.thumbnails&&(sn.thumbnails.default||sn.thumbnails.medium)||{}).url||'';
+          var row=document.createElement('div');row.className='ytrow';
+          row.innerHTML='<img src="'+esc(thumb)+'"><div class="ytinfo"><div class="ytt">'+esc(sn.title||'')+'</div><div class="ytc">'+esc(sn.channelTitle||'')+'</div></div>';
+          row.addEventListener('click',function(){insertYouTube(id,sn.title);closeYtModal();});
+          ytResults.appendChild(row);
+        });
+      }).catch(function(){ytResults.innerHTML='<div class="ytmsg">검색 실패 (네트워크)</div>';});
+  }
+  function insertYouTube(id,title){
+    insertAtCaret('<div class="yt-embed" contenteditable="false"><div class="yt-frame"><iframe src="https://www.youtube.com/embed/'+id+'" title="'+esc(title||'')+'" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div></div><div><br></div>');
+  }
+
+  // ===== DRAWER =====
+  var drawerBg=document.getElementById('drawerBg'), drawer=document.getElementById('drawer'), drawerBody=document.getElementById('drawerBody');
+  function openDrawer(){drawerBg.classList.remove('hidden');requestAnimationFrame(function(){drawerBg.classList.add('show');drawer.classList.add('open');});}
+  function closeDrawer(){drawerBg.classList.remove('show');drawer.classList.remove('open');setTimeout(function(){drawerBg.classList.add('hidden');},180);}
+  document.getElementById('menuBtn').addEventListener('click',function(){drawerBody.innerHTML='';openDrawer();});
+  document.getElementById('drawerClose').addEventListener('click',closeDrawer);
+  drawerBg.addEventListener('click',closeDrawer);
+  document.getElementById('navToday').addEventListener('click',function(){switchDate(todayStr);closeDrawer();});
+  document.getElementById('navHistory').addEventListener('click',renderHistory);
+  document.getElementById('navCal').addEventListener('click',renderCalendar);
+  document.getElementById('navSettings').addEventListener('click',renderSettings);
+
+  function renderHistory(){
+    drawerBody.innerHTML='<div class="dsecthead">이전 기록</div><div id="histList" class="dempty">불러오는 중…</div>';
+    sb.from('daily_logs').select('date,content').order('date',{ascending:false}).then(function(r){
+      var el=document.getElementById('histList');if(!el)return;
+      var rows=r.data||[];
+      if(!rows.length){el.innerHTML='<div class="dempty">아직 기록이 없어요</div>';return;}
+      el.className='';el.innerHTML='';
+      rows.forEach(function(row){
+        var tmp=document.createElement('div');tmp.innerHTML=row.content||'';
+        var preview=(tmp.textContent||'').trim().slice(0,60)||'(사진·영상만 있음)';
+        var item=document.createElement('button');item.type='button';item.className='histitem'+(row.date===viewingDate?' active':'');
+        item.innerHTML='<div class="hdate">'+fmtShort(row.date)+'</div><div class="hprev">'+esc(preview)+'</div>';
+        item.addEventListener('click',function(){switchDate(row.date);closeDrawer();});
+        el.appendChild(item);
+      });
+    });
+  }
+
+  function renderCalendar(){
+    var d=parseDate(viewingDate);calYear=d.getFullYear();calMonth=d.getMonth();
+    drawerBody.innerHTML='<div class="dsecthead">캘린더</div><div class="calnav"><button type="button" id="calPrev">‹</button><span id="calYM"></span><button type="button" id="calNext">›</button></div><div id="calGrid"></div>';
+    document.getElementById('calPrev').addEventListener('click',function(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}drawCalGrid();});
+    document.getElementById('calNext').addEventListener('click',function(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}drawCalGrid();});
+    drawCalGrid();
+  }
+  function drawCalGrid(){
+    document.getElementById('calYM').textContent=calYear+'년 '+(calMonth+1)+'월';
+    var grid=document.getElementById('calGrid');
+    var first=new Date(calYear,calMonth,1), startDow=first.getDay();
+    var days=new Date(calYear,calMonth+1,0).getDate();
+    var html='<div class="calweek">'+DOW.map(function(x){return '<span>'+x+'</span>';}).join('')+'</div><div class="caldays">';
+    for(var i=0;i<startDow;i++) html+='<span class="calday empty"></span>';
+    for(var dd=1;dd<=days;dd++){
+      var dateStr=calYear+'-'+pad(calMonth+1)+'-'+pad(dd);
+      var has=!!entryDates[dateStr], isToday=(dateStr===todayStr), isSel=(dateStr===viewingDate);
+      html+='<button type="button" class="calday'+(isToday?' today':'')+(isSel?' sel':'')+'" data-date="'+dateStr+'">'+dd+(has?'<i></i>':'')+'</button>';
+    }
+    html+='</div>';
+    grid.innerHTML=html;
+    Array.prototype.forEach.call(grid.querySelectorAll('.calday[data-date]'),function(btn){
+      btn.addEventListener('click',function(){switchDate(btn.getAttribute('data-date'));closeDrawer();});
+    });
+  }
+
+  function renderSettings(){
+    drawerBody.innerHTML='<div class="dsecthead">설정</div>'+
+      '<div class="setgrp"><label>유튜브 API 키 (YouTube Data API v3)</label><input id="ytKeyInput" placeholder="AIza..." value="'+esc(ytApiKey())+'"><button type="button" class="btn-s" id="ytKeySave">저장</button><div class="sethint">Google Cloud Console → 사용자 인증 정보에서 API 키를 발급받아 붙여넣으세요. 이 기기에만 저장돼요.</div></div>'+
+      '<div class="setgrp"><label>화면</label><button type="button" class="btn-s" id="themeToggle">라이트 / 다크 전환</button></div>'+
+      '<div class="setgrp"><label>계정</label><button type="button" class="btn-danger" id="logoutBtn">로그아웃</button></div>';
+    document.getElementById('ytKeySave').addEventListener('click',function(){
+      var v=document.getElementById('ytKeyInput').value.trim();
+      try{localStorage.setItem('dailylog_yt_key',v);}catch(e){}
+      showToast('저장했어요');
+    });
+    document.getElementById('themeToggle').addEventListener('click',toggleTheme);
+    document.getElementById('logoutBtn').addEventListener('click',function(){
+      try{localStorage.removeItem('dailylog_creds');}catch(e){}
+      sb.auth.signOut().then(function(){location.reload();});
+    });
+  }
+
+})();
+</script>
+</body>
+</html>
