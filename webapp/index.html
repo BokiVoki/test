@@ -192,11 +192,16 @@
   .mread{flex:1;font-size:14px;line-height:1.65;color:var(--text);cursor:text;overflow-y:auto;word-break:break-word}
   .mread.hidden{display:none}
   .mread>div{min-height:1.5em;white-space:pre-wrap}
+  .mtoggle-body>div:not(.mreadimg-wrap):not(.mtoggle-row){min-height:1.5em}
   .mread:empty:before{content:'메모를 입력하세요… (탭해서 쓰기 시작)';color:var(--faint)}
   .mreadimg-wrap{position:relative;display:block;margin:8px 0;min-width:100px;min-height:100px;max-width:220px}
   .mreadimg{max-width:220px;max-height:220px;min-width:100px;min-height:100px;object-fit:cover;border-radius:8px;display:block;cursor:pointer;border:1px solid var(--line);background:var(--sunk);color:var(--faint);font-size:11px}
   .mreadimg-del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:12px;cursor:pointer;line-height:22px;padding:0}
   .mreadck{cursor:pointer}
+  .mtoggle-row{display:flex;align-items:flex-start;gap:5px;cursor:pointer;min-height:1.5em}
+  .mtoggle-arrow{flex:none;width:14px;color:var(--muted);user-select:none}
+  .mtoggle-body{margin:0 0 2px 17px;padding-left:8px;border-left:2px solid var(--line-2)}
+  .mtoggle-body.hidden{display:none}
   .mentionpop{position:fixed;max-height:44vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:9px;box-shadow:0 -4px 24px rgba(0,0,0,.25);z-index:60}
   .mentionitem .mtt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mentionitem .mhit{font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -637,21 +642,38 @@
       if(!memoEditingId||memoEditingId!==cur.id){document.getElementById('mbody').classList.add('hidden');document.getElementById('mbodyRead').classList.remove('hidden');renderMemoRead(cur);}}
     else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyRead').innerHTML='';}}
   var memoEditingId=null; // 지금 편집(raw textarea) 중인 메모 id, 아니면 null(읽기뷰)
-  function renderMemoRead(m){
-    var lines=((m&&m.body)||'').split('\n'),html='',markerIdx=0;
-    for(var i=0;i<lines.length;i++){
+  function memoLineIndent(line){return (line.match(/^(\s*)/)||['',''])[1].length;}
+  function renderMemoLines(m,lines,start,end,ctr){
+    var html='',i=start;
+    while(i<end){
       var line=lines[i];
       if(isMemoImgMarkerLine(line)){
-        var url=(m.images||[])[markerIdx];
-        html+='<div class="mreadimg-wrap">'+(url?'<img class="mreadimg" src="'+esc(url)+'" alt="사진을 불러오는 중…" data-act="mread-img-view" onerror="this.alt=\'⚠️ 사진을 못 불러왔어요\'">':'<div class="mreadimg" style="display:flex;align-items:center;justify-content:center">사진 없음</div>')+'<button class="mreadimg-del" data-act="mread-img-del" data-i="'+markerIdx+'">✕</button></div>';
-        markerIdx++;
-        continue;
+        var url=(m.images||[])[ctr.markerIdx];
+        html+='<div class="mreadimg-wrap">'+(url?'<img class="mreadimg" src="'+esc(url)+'" alt="사진을 불러오는 중…" data-act="mread-img-view" onerror="this.alt=\'⚠️ 사진을 못 불러왔어요\'">':'<div class="mreadimg" style="display:flex;align-items:center;justify-content:center">사진 없음</div>')+'<button class="mreadimg-del" data-act="mread-img-del" data-i="'+ctr.markerIdx+'">✕</button></div>';
+        ctr.markerIdx++;i++;continue;
+      }
+      var tg=line.match(/^(\s*)([▸▾])(\s+)(.*)$/);
+      if(tg){
+        var indent=tg[1].length,collapsed=tg[2]==='▸',j=i+1;
+        while(j<end){
+          if(lines[j].trim()===''){var k=j;while(k<end&&lines[k].trim()==='')k++;if(k<end&&memoLineIndent(lines[k])>indent){j=k;continue;}break;}
+          if(memoLineIndent(lines[j])>indent){j++;continue;}
+          break;
+        }
+        html+='<div class="mtoggle-row" data-act="mread-toggle" data-line="'+i+'"><span class="mtoggle-arrow">'+(collapsed?'▸':'▾')+'</span><span>'+esc(tg[4])+'</span></div>';
+        if(j>i+1)html+='<div class="mtoggle-body'+(collapsed?' hidden':'')+'">'+renderMemoLines(m,lines,i+1,j,ctr)+'</div>';
+        i=j;continue;
       }
       var ck=line.match(/^(\s*)([☐☑])(\s+)(.*)$/);
       if(ck){html+='<div><span class="mreadck" data-act="mread-ck-toggle" data-line="'+i+'">'+ck[2]+'</span> '+esc(ck[4])+'</div>';}
       else{html+='<div>'+esc(line)+'</div>';}
+      i++;
     }
-    document.getElementById('mbodyRead').innerHTML=html;
+    return html;
+  }
+  function renderMemoRead(m){
+    var lines=((m&&m.body)||'').split('\n');
+    document.getElementById('mbodyRead').innerHTML=renderMemoLines(m,lines,0,lines.length,{markerIdx:0});
   }
   function startMemoEdit(){
     var m=mById(state.curMemo);if(!m)return;
@@ -1136,6 +1158,12 @@
       rm2.body=rlines.join('\n');
       document.getElementById('mbody').value=rm2.body;
       putMemo(rm2);renderMemoRead(rm2);}
+    else if(act==='mread-toggle'){var rm3=mById(state.curMemo);if(!rm3)return;
+      var tlines=(rm3.body||'').split('\n'),tli=+el.dataset.line;
+      if(tlines[tli])tlines[tli]=tlines[tli].replace(/[▸▾]/,function(g){return g==='▸'?'▾':'▸';});
+      rm3.body=tlines.join('\n');
+      document.getElementById('mbody').value=rm3.body;
+      putMemo(rm3);renderMemoRead(rm3);}
     else if(act==='art-untag-artist'){var ua=artistById(state.artSel.id);if(!ua)return;ua.tags=(ua.tags||[]).filter(function(x){return x!==el.dataset.t;});putArtist(ua);renderArt();}
     else if(act==='art-untag-work'){var uw=workById(state.artSel.id);if(!uw)return;uw.tags=(uw.tags||[]).filter(function(x){return x!==el.dataset.t;});putWork(uw);renderArtMain();renderArtSidebar();}
   });
@@ -1307,9 +1335,11 @@
       if(d){e.preventDefault();var rep=d[1]+'• ';apply(val.slice(0,ls)+rep+val.slice(pos),ls+rep.length);return;}
       var ck=line.match(/^(\s*)\[\s?\]$/);
       if(ck){e.preventDefault();var repc=ck[1]+'☐ ';apply(val.slice(0,ls)+repc+val.slice(pos),ls+repc.length);return;}
+      var tg0=line.match(/^(\s*)>$/);                          // "> " → "▾ " (접기 토글)
+      if(tg0){e.preventDefault();var rept=tg0[1]+'▾ ';apply(val.slice(0,ls)+rept+val.slice(pos),ls+rept.length);return;}
     }
     if(e.key==='Enter'&&!e.shiftKey){
-      var b=line.match(/^(\s*)•\s+(.*)$/),n=line.match(/^(\s*)(\d+)\.\s+(.*)$/),c=line.match(/^(\s*)[☐☑]\s+(.*)$/);
+      var b=line.match(/^(\s*)•\s+(.*)$/),n=line.match(/^(\s*)(\d+)\.\s+(.*)$/),c=line.match(/^(\s*)[☐☑]\s+(.*)$/),tg=line.match(/^(\s*)[▸▾]\s+(.*)$/);
       if(b){e.preventDefault();
         if(b[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 불릿 → 리스트 종료
         else{var ins='\n'+b[1]+'• ';apply(val.slice(0,pos)+ins+val.slice(pos),pos+ins.length);}
@@ -1321,6 +1351,15 @@
       if(c){e.preventDefault();
         if(c[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 체크박스 → 리스트 종료
         else{var ins3='\n'+c[1]+'☐ ';apply(val.slice(0,pos)+ins3+val.slice(pos),pos+ins3.length);} // 새 항목은 항상 미체크로
+        return;}
+      if(tg){e.preventDefault();
+        if(tg[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);           // 빈 토글 제목 → 종료
+        else{var ins4='\n'+tg[1]+'  ';apply(val.slice(0,pos)+ins4+val.slice(pos),pos+ins4.length);} // 토글 하위(자식) 줄 시작, 들여쓰기 +2
+        return;}
+      var childIndent=line.match(/^(\s+)(.*)$/);                                 // 토글 하위 등, 들여써진 일반 줄
+      if(childIndent&&!/^(\s*)([•☐☑▸▾]|\d+\.)\s/.test(line)){e.preventDefault();
+        if(childIndent[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);  // 빈 줄 → 들여쓰기 종료
+        else{var ins5='\n'+childIndent[1];apply(val.slice(0,pos)+ins5+val.slice(pos),pos+ins5.length);}
         return;}
     }
   });
