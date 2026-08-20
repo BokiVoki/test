@@ -627,11 +627,11 @@
   function orderedProjects(){var names=projectNames();var ord=(state.settings.projOrder&&state.settings.projOrder[state.ws])||[];var a=ord.filter(function(n){return names.indexOf(n)>=0;});var rest=names.filter(function(n){return a.indexOf(n)<0;});return a.concat(rest);}
   function fmtDone(iso){if(!iso)return '—';var d=new Date(iso);if(isNaN(d.getTime()))return '—';return (d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
   function renderInbox(){var body=document.getElementById('inboxBody');
-    var list=wsTodos().filter(function(t){return t.bucket==='inbox';});
+    var list=wsTodos().filter(function(t){return !t.project;});          // 프로젝트 없으면 무조건 주머니(어떤 bucket이든 갈 곳이 있게)
     var opts=projectNames().map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
     document.getElementById('capCount').textContent=list.length;document.getElementById('inBadge').textContent='미분류 '+list.length;
-    if(!list.length){body.innerHTML='<tr><td colspan="2" class="empty">주머니 비었어요 ✓</td></tr>';return;}
-    body.innerHTML=list.map(function(t){return '<tr data-id="'+t.id+'"><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td><div class="tri"><button data-act="t-today">오늘</button><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>';}).join('');}
+    if(!list.length){body.innerHTML='<tr><td colspan="3" class="empty">주머니 비었어요 ✓</td></tr>';return;}
+    body.innerHTML=list.map(function(t){return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td><div class="tri"><button data-act="t-today">오늘</button><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>';}).join('');}
   function renderProjects(){var wrap=document.getElementById('projAll'),names=orderedProjects();
     if(!names.length){wrap.innerHTML='<p class="empty">프로젝트가 아직 없어요 · 주머니에서 항목을 프로젝트로 분류해보세요</p>';return;}
     wrap.innerHTML=names.map(function(name){var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox';}).sort(function(a,b){var sa=(a.stage||0)||1e9,sb=(b.stage||0)||1e9;return sa!==sb?sa-sb:(a.sort||0)-(b.sort||0);});
