@@ -195,17 +195,16 @@
   .mimgadd{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
   .mimghint{font-size:11px;color:var(--faint)}
   .mbodywrap{position:relative;flex:1;display:flex}
-  .mread{flex:1;font-size:14px;line-height:1.65;color:var(--text);cursor:text;overflow-y:auto;word-break:break-word}
-  .mread.hidden{display:none}
-  .mread>div{min-height:1.5em;white-space:pre-wrap}
-  .mtoggle-body>div:not(.mreadimg-wrap):not(.mtoggle-row){min-height:1.5em}
-  .mread:empty:before{content:'메모를 입력하세요… (탭해서 쓰기 시작)';color:var(--faint)}
+  .mtree{flex:1;font-size:14px;line-height:1.65;color:var(--text);overflow-y:auto;word-break:break-word;min-height:320px}
+  .mtree:empty:before{content:'메모를 입력하세요… (@로 할일 연결 · [] 로 체크리스트 · > 로 접기 토글)';color:var(--faint)}
+  textarea.mseg{display:block;width:100%;font:inherit;font-size:14px;line-height:1.65;color:var(--text);border:0;outline:none;resize:none;background:transparent;padding:0;margin:0;overflow:hidden;min-height:1.5em}
+  textarea.mseg.dragover{outline:2px dashed var(--accent);outline-offset:-2px;background:var(--accent-wash)}
   .mreadimg-wrap{position:relative;display:block;margin:8px 0;min-width:100px;min-height:100px;max-width:220px}
   .mreadimg{max-width:220px;max-height:220px;min-width:100px;min-height:100px;object-fit:cover;border-radius:8px;display:block;cursor:pointer;border:1px solid var(--line);background:var(--sunk);color:var(--faint);font-size:11px}
   .mreadimg-del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:12px;cursor:pointer;line-height:22px;padding:0}
-  .mreadck{cursor:pointer}
-  .mtoggle-row{display:flex;align-items:flex-start;gap:5px;cursor:pointer;min-height:1.5em}
-  .mtoggle-arrow{flex:none;width:14px;color:var(--muted);user-select:none}
+  .mtoggle-row{display:flex;align-items:flex-start;gap:5px;min-height:1.5em}
+  .mtoggle-arrow{flex:none;width:14px;color:var(--muted);user-select:none;cursor:pointer}
+  .mtoggle-row textarea.mseg-header{flex:1}
   .mtoggle-body{margin:0 0 2px 17px;padding-left:8px;border-left:2px solid var(--line-2)}
   .mtoggle-body.hidden{display:none}
   .mentionpop{position:fixed;max-height:44vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:9px;box-shadow:0 -4px 24px rgba(0,0,0,.25);z-index:60}
@@ -217,8 +216,6 @@
   .mentionitem.empty{color:var(--faint);cursor:default}
   .mentionitem .mtag{margin-left:auto;font-size:11px;color:var(--faint);white-space:nowrap}
   .medit .mlinkbar span{cursor:pointer;border-bottom:1px dashed var(--accent)}
-  .medit textarea{flex:1;font:inherit;font-size:14px;line-height:1.65;border:0;outline:none;resize:none;background:transparent;color:var(--text);min-height:320px}
-  .medit textarea.dragover{outline:2px dashed var(--accent);outline-offset:-2px;background:var(--accent-wash)}
   .medit textarea::placeholder,.medit .mtitle::placeholder{color:var(--faint)}
   .mtoprow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
   .medit .mfolsel{font:inherit;font-size:12px;color:var(--muted);background:var(--sunk);border:1px solid var(--line-2);border-radius:4px;padding:3px 6px;align-self:flex-start}
@@ -371,7 +368,7 @@
     <div class="memo"><div class="mside"><div class="mfolders" id="mfolders"></div><div class="mlist" id="mlist"></div></div>
       <div class="medit"><button class="mBackBtn" id="mBackBtn" type="button">‹ 메모 목록</button><input class="mtitle" id="mtitle" placeholder="제목"><div class="mtoprow"><select class="mfolsel" id="mfolsel"></select><button class="btn-s" id="mDelBtn">🗑 삭제</button></div><div class="mlinkbar" id="mlinkbar"></div>
         <div class="mimgadd"><button class="btn-s" id="mImgBtn" type="button">📎 사진</button><input type="file" id="mImgFile" accept="image/*" multiple class="hidden"><span class="mimghint">또는 메모에 붙여넣기(Cmd/Ctrl+V) · 드래그해서 놓기 — 본문 속 📷 사진 줄을 탭하면 사진이 열리고, 끝의 ✕를 탭하면 지워져요</span></div>
-        <div class="mbodywrap"><div class="mread" id="mbodyRead"></div><textarea id="mbody" class="hidden" placeholder="메모를 입력하세요… (@로 할일 연결 · [] 로 체크리스트)"></textarea><div id="mentionPop" class="mentionpop hidden"></div></div></div>
+        <div class="mbodywrap"><div class="mtree" id="mbodyTree"></div><div id="mentionPop" class="mentionpop hidden"></div></div></div>
     </div>
   </div>
   <div id="done" class="hidden">
@@ -486,7 +483,6 @@
     var linked=state.todos.filter(function(t){return t.memoId===m.id;});
     state.memos.splice(idx,1);delMemoDB(m.id);
     linked.forEach(function(t){t.memoId=null;putTodo(t);});
-    if(memoEditingId===m.id)memoEditingId=null;
     state.curMemo=null;renderMemos();renderProjects();renderToday();
     showToast('메모를 삭제했어요',function(){
       state.memos.unshift(m);putMemo(m);
@@ -657,20 +653,64 @@
     document.getElementById('mlist').innerHTML=list.map(function(m){return '<div class="mitem" data-id="'+m.id+'"'+(state.curMemo===m.id?' aria-selected="true"':'')+'><div class="mt">'+esc(m.title||'제목 없음')+'</div><div class="mp">'+esc((m.body||'').replace(/\n/g,' ').slice(0,42)||'내용 없음')+'</div>'+(m.link?'<div class="ml">🔗 '+esc(m.link)+'</div>':'')+'</div>';}).join('')||'<div class="empty">메모 없음</div>';
     document.getElementById('mfolsel').innerHTML=FOLDERS.slice(1).map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
-    if(cur){state.curMemo=cur.id;document.getElementById('mtitle').value=cur.title;document.getElementById('mbody').value=cur.body;document.getElementById('mfolsel').value=cur.folder;
+    if(cur){state.curMemo=cur.id;document.getElementById('mtitle').value=cur.title;document.getElementById('mfolsel').value=cur.folder;
       document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';
-      if(!memoEditingId||memoEditingId!==cur.id){document.getElementById('mbody').classList.add('hidden');document.getElementById('mbodyRead').classList.remove('hidden');renderMemoRead(cur);}}
-    else{document.getElementById('mtitle').value='';document.getElementById('mbody').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyRead').innerHTML='';}}
-  var memoEditingId=null; // 지금 편집(raw textarea) 중인 메모 id, 아니면 null(읽기뷰)
+      if(curTreeMemoId!==cur.id)renderMemoTree(cur);}
+    else{document.getElementById('mtitle').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyTree').innerHTML='';curTreeMemoId=null;}}
+  // ===== 메모 라이브 블록 에디터 (토글/체크박스/불릿은 그대로 텍스트, 토글만 실제 접기/펼치기 가능한 블록) =====
+  var memoTree=[],curTreeMemoId=null;
   function memoLineIndent(line){return (line.match(/^(\s*)/)||['',''])[1].length;}
-  function renderMemoLines(m,lines,start,end,ctr){
-    var html='',i=start;
+  function autoGrow(ta){ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';}
+  function buildTextSegment(text){
+    var ta=document.createElement('textarea');ta.className='mseg';ta.rows=1;ta.value=text;
+    return {t:'text',el:ta};
+  }
+  function buildToggleSegment(indent,collapsed,headerText){
+    var row=document.createElement('div');row.className='mtoggle-row';
+    var arrow=document.createElement('span');arrow.className='mtoggle-arrow';arrow.textContent=collapsed?'▸':'▾';
+    var headerTa=document.createElement('textarea');headerTa.className='mseg mseg-header';headerTa.rows=1;headerTa.value=headerText;
+    row.appendChild(arrow);row.appendChild(headerTa);
+    var bodyWrap=document.createElement('div');bodyWrap.className='mtoggle-body'+(collapsed?' hidden':'');
+    var seg={t:'toggle',indent:indent,collapsed:collapsed,rowEl:row,arrowEl:arrow,headerEl:headerTa,bodyWrap:bodyWrap,children:[]};
+    arrow.addEventListener('click',function(){
+      seg.collapsed=!seg.collapsed;
+      bodyWrap.classList.toggle('hidden',seg.collapsed);
+      arrow.textContent=seg.collapsed?'▸':'▾';
+      syncAndSaveMemo();
+    });
+    return seg;
+  }
+  function buildImgSegment(m,idx){
+    var wrap=document.createElement('div');wrap.className='mreadimg-wrap';
+    var url=(m.images||[])[idx];
+    if(url){var img=document.createElement('img');img.className='mreadimg';img.src=url;img.alt='사진을 불러오는 중…';
+      img.addEventListener('error',function(){img.alt='⚠️ 사진을 못 불러왔어요';});
+      img.addEventListener('click',function(){window.open(url,'_blank');});
+      wrap.appendChild(img);
+    }else{var ph=document.createElement('div');ph.className='mreadimg';ph.style.display='flex';ph.style.alignItems='center';ph.style.justifyContent='center';ph.textContent='사진 없음';wrap.appendChild(ph);}
+    var del=document.createElement('button');del.className='mreadimg-del';del.type='button';del.textContent='✕';
+    del.addEventListener('click',function(){deleteImgSegment(seg);});
+    wrap.appendChild(del);
+    var seg={t:'img',idx:idx,wrapEl:wrap};
+    return seg;
+  }
+  function deleteImgSegment(seg){
+    var m=mById(state.curMemo);if(!m)return;
+    syncBodyFromTree();                                  // 지우기 전에 다른 편집 내용부터 먼저 저장 반영
+    var lines=(m.body||'').split('\n'),count=-1;
+    for(var i=0;i<lines.length;i++){if(isMemoImgMarkerLine(lines[i])){count++;if(count===seg.idx){lines.splice(i,1);break;}}}
+    m.body=lines.join('\n');
+    m.images=(m.images||[]).filter(function(u,i2){return i2!==seg.idx;});
+    putMemo(m);renderMemoTree(m);
+  }
+  function buildSegmentsInto(m,lines,start,end,ctr,container,parentList,stripIndent){
+    stripIndent=stripIndent||0;
+    var i=start;
     while(i<end){
       var line=lines[i];
       if(isMemoImgMarkerLine(line)){
-        var url=(m.images||[])[ctr.markerIdx];
-        html+='<div class="mreadimg-wrap">'+(url?'<img class="mreadimg" src="'+esc(url)+'" alt="사진을 불러오는 중…" data-act="mread-img-view" onerror="this.alt=\'⚠️ 사진을 못 불러왔어요\'">':'<div class="mreadimg" style="display:flex;align-items:center;justify-content:center">사진 없음</div>')+'<button class="mreadimg-del" data-act="mread-img-del" data-i="'+ctr.markerIdx+'">✕</button></div>';
-        ctr.markerIdx++;i++;continue;
+        var iseg=buildImgSegment(m,ctr.markerIdx++);
+        container.appendChild(iseg.wrapEl);parentList.push(iseg);i++;continue;
       }
       var tg=line.match(/^(\s*)([▸▾])(\s+)(.*)$/);
       if(tg){
@@ -680,33 +720,48 @@
           if(memoLineIndent(lines[j])>indent){j++;continue;}
           break;
         }
-        html+='<div class="mtoggle-row" data-act="mread-toggle" data-line="'+i+'"><span class="mtoggle-arrow">'+(collapsed?'▸':'▾')+'</span><span>'+esc(tg[4])+'</span></div>';
-        if(j>i+1)html+='<div class="mtoggle-body'+(collapsed?' hidden':'')+'">'+renderMemoLines(m,lines,i+1,j,ctr)+'</div>';
-        i=j;continue;
+        var tseg=buildToggleSegment(indent,collapsed,tg[4]);
+        container.appendChild(tseg.rowEl);container.appendChild(tseg.bodyWrap);
+        buildSegmentsInto(m,lines,i+1,j,ctr,tseg.bodyWrap,tseg.children,indent+2); // 자식 줄은 토글 들여쓰기+2만큼 벗겨서 보여줌(저장할 때 다시 붙임)
+        parentList.push(tseg);i=j;continue;
       }
-      var ck=line.match(/^(\s*)([☐☑])(\s+)(.*)$/);
-      if(ck){html+='<div><span class="mreadck" data-act="mread-ck-toggle" data-line="'+i+'">'+ck[2]+'</span> '+esc(ck[4])+'</div>';}
-      else{html+='<div>'+esc(line)+'</div>';}
-      i++;
+      var k2=i+1;
+      while(k2<end&&!isMemoImgMarkerLine(lines[k2])&&!/^\s*[▸▾]\s/.test(lines[k2]))k2++;
+      var sseg=buildTextSegment(lines.slice(i,k2).map(function(l){return l.slice(stripIndent);}).join('\n'));
+      container.appendChild(sseg.el);parentList.push(sseg);i=k2;
     }
-    return html;
   }
-  function renderMemoRead(m){
-    var lines=((m&&m.body)||'').split('\n');
-    document.getElementById('mbodyRead').innerHTML=renderMemoLines(m,lines,0,lines.length,{markerIdx:0});
+  function renderMemoTree(m){
+    var container=document.getElementById('mbodyTree');
+    container.innerHTML='';memoTree=[];curTreeMemoId=m?m.id:null;
+    if(!m)return;
+    var lines=(m.body||'').split('\n');
+    buildSegmentsIntoTagged(m,lines,0,lines.length,{markerIdx:0},container,memoTree);
+    var tas=container.querySelectorAll('textarea.mseg');
+    for(var i=0;i<tas.length;i++)autoGrow(tas[i]);
   }
-  function startMemoEdit(){
-    var m=mById(state.curMemo);if(!m)return;
-    memoEditingId=m.id;
-    document.getElementById('mbodyRead').classList.add('hidden');
-    var ta=document.getElementById('mbody');ta.classList.remove('hidden');ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
+  function serializeSegs(segs,depth){
+    depth=depth||0;
+    var pad=new Array(depth*2+1).join(' '); // 들여쓰기는 트리 깊이로만 계산(세그먼트 자체엔 안 남기고 저장할 때만 재구성 — 재파싱 때 자식 인식이 여기 들여쓰기에 달려있음)
+    var out=[];
+    segs.forEach(function(s){
+      if(s.t==='text')out=out.concat(s.el.value.split('\n').map(function(l){return pad+l;}));
+      else if(s.t==='img')out.push(pad+MEMO_IMG_MARKER);
+      else if(s.t==='toggle'){
+        out.push(pad+(s.collapsed?'▸':'▾')+' '+s.headerEl.value);
+        out=out.concat(serializeSegs(s.children,depth+1));
+      }
+    });
+    return out;
   }
-  function endMemoEdit(){
-    memoEditingId=null;
-    var m=mById(state.curMemo);
-    document.getElementById('mbody').classList.add('hidden');
-    document.getElementById('mbodyRead').classList.remove('hidden');
-    if(m)renderMemoRead(m);
+  function syncBodyFromTree(){
+    var m=mById(state.curMemo);if(!m||curTreeMemoId!==m.id)return m;
+    m.body=serializeSegs(memoTree).join('\n');
+    return m;
+  }
+  function syncAndSaveMemo(){
+    var m=syncBodyFromTree();if(!m)return;
+    clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);
   }
   function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}
     (t.subs||[]).forEach(function(s){if(s.memoId){var m2=mById(s.memoId);if(m2)m2.link=t.title+' ↳ '+s.t;}});});}
@@ -1167,24 +1222,6 @@
     else if(act==='art-fav'){var fw=workById(state.artSel.id);if(!fw)return;fw.favorite=!fw.favorite;putWork(fw);renderArtMain();}
     else if(act==='art-sketch'){openSketchPad(state.artSel.id);}
     else if(act==='art-sketch-view'){window.open(el.src,'_blank');}
-    else if(act==='mread-img-view'){window.open(el.src,'_blank');}
-    else if(act==='mread-img-del'){var rm=mById(state.curMemo);if(!rm)return;var ridx=+el.dataset.i;
-      rm.images=(rm.images||[]).filter(function(u,i){return i!==ridx;});
-      rm.body=removeNthMemoMarker(rm.body||'',ridx);
-      document.getElementById('mbody').value=rm.body;
-      putMemo(rm);renderMemoRead(rm);}
-    else if(act==='mread-ck-toggle'){var rm2=mById(state.curMemo);if(!rm2)return;
-      var rlines=(rm2.body||'').split('\n'),rli=+el.dataset.line;
-      if(rlines[rli])rlines[rli]=rlines[rli].replace(/[☐☑]/,function(g){return g==='☐'?'☑':'☐';});
-      rm2.body=rlines.join('\n');
-      document.getElementById('mbody').value=rm2.body;
-      putMemo(rm2);renderMemoRead(rm2);}
-    else if(act==='mread-toggle'){var rm3=mById(state.curMemo);if(!rm3)return;
-      var tlines=(rm3.body||'').split('\n'),tli=+el.dataset.line;
-      if(tlines[tli])tlines[tli]=tlines[tli].replace(/[▸▾]/,function(g){return g==='▸'?'▾':'▸';});
-      rm3.body=tlines.join('\n');
-      document.getElementById('mbody').value=rm3.body;
-      putMemo(rm3);renderMemoRead(rm3);}
     else if(act==='art-untag-artist'){var ua=artistById(state.artSel.id);if(!ua)return;ua.tags=(ua.tags||[]).filter(function(x){return x!==el.dataset.t;});putArtist(ua);renderArt();}
     else if(act==='art-untag-work'){var uw=workById(state.artSel.id);if(!uw)return;uw.tags=(uw.tags||[]).filter(function(x){return x!==el.dataset.t;});putWork(uw);renderArtMain();renderArtSidebar();}
   });
@@ -1285,81 +1322,157 @@
   var memoEl=document.querySelector('.memo');
   document.getElementById('mlist').addEventListener('click',function(e){var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();memoEl.classList.add('mob-edit');});
   document.getElementById('mBackBtn').addEventListener('click',function(){memoEl.classList.remove('mob-edit');});
-  document.getElementById('mbodyRead').addEventListener('click',function(e){if(e.target.closest('[data-act]'))return;startMemoEdit();});
-  document.getElementById('mbody').addEventListener('blur',function(){
-    var ta=this;
-    setTimeout(function(){if(document.activeElement!==ta)endMemoEdit();},180);
-  });
   var memoT;
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
-  var MEMO_IMG_MARKER='📷 사진 ✕'; // 본문 속 한 줄짜리 마커. 탭하면 보기, 끝(✕)을 탭하면 삭제
-  var MEMO_IMG_MARKER_OLD='📷 사진'; // 예전 형식(✕ 없음) — 호환용
+  var MEMO_IMG_MARKER='📷 사진 ✕'; // 본문 속 한 줄짜리 마커. 이미지 세그먼트로 렌더링됨
+  var MEMO_IMG_MARKER_OLD='📷 사진'; // 예전 형식(X 없음) - 호환용
   function isMemoImgMarkerLine(line){var t=(line||'').trim();return t===MEMO_IMG_MARKER||t===MEMO_IMG_MARKER_OLD;}
-  function memoMarkerIndexAt(val,lineStart){ // lineStart 줄이 몇 번째(0-based) 마커인지
-    var prior=val.slice(0,lineStart).split('\n'),n=0;
-    for(var i=0;i<prior.length;i++){if(isMemoImgMarkerLine(prior[i]))n++;}
-    return n;
+  var mbodyTreeEl=document.getElementById('mbodyTree');
+  // 세그먼트 찾기: 이벤트가 발생한 textarea가 속한 세그먼트/부모 리스트/컨테이너를 얻는다(빌드 시 textarea에 역참조를 심어둠)
+  function segFor(ta){return ta&&ta._seg;}
+  function insertSegAt(container,seg,refEl){
+    if(seg.t==='text'){container.insertBefore(seg.el,refEl);autoGrow(seg.el);}
+    else if(seg.t==='toggle'){container.insertBefore(seg.rowEl,refEl);container.insertBefore(seg.bodyWrap,refEl);autoGrow(seg.headerEl);}
+    else if(seg.t==='img'){container.insertBefore(seg.wrapEl,refEl);}
   }
-  function removeNthMemoMarker(text,n){ // n번째(0-based)로 등장하는 마커 줄을 지운다
-    var lines=(text||'').split('\n'),count=-1;
-    for(var i=0;i<lines.length;i++){
-      if(isMemoImgMarkerLine(lines[i])){count++;if(count===n){lines.splice(i,1);break;}}
+  // 세그먼트에 컨테이너/부모리스트/역참조를 붙인다(런타임에 새로 만든 세그먼트에도 동일하게 적용)
+  function attachSeg(seg,container,list){
+    seg.container=container;seg.parentList=list;
+    if(seg.t==='text')seg.el._seg=seg;
+    else if(seg.t==='toggle')seg.headerEl._seg=seg;
+  }
+  function tagChildrenDeep(tseg){
+    tseg.children.forEach(function(cs){attachSeg(cs,tseg.bodyWrap,tseg.children);if(cs.t==='toggle')tagChildrenDeep(cs);});
+  }
+  function buildSegmentsIntoTagged(m,lines,start,end,ctr,container,parentList){
+    var before=parentList.length;
+    buildSegmentsInto(m,lines,start,end,ctr,container,parentList);
+    for(var i=before;i<parentList.length;i++){
+      var s=parentList[i];attachSeg(s,container,parentList);
+      if(s.t==='toggle')tagChildrenDeep(s);
     }
-    return lines.join('\n');
   }
-  function addMemoImages(fileList){
+  // "> "로 방금 토글이 된 줄을 실제 토글 세그먼트로 쪼갠다(본문 텍스트 세그먼트를 앞/토글/뒤로 분리)
+  function splitTextSegIntoToggle(seg,ls,pos,indent){
+    var val=seg.el.value,before=val.slice(0,ls),after=val.slice(pos);
+    var refEl=seg.el.nextSibling,container=seg.container,list=seg.parentList,idx=list.indexOf(seg);
+    var newSegs=[];
+    if(before.length)newSegs.push(buildTextSegment(before.replace(/\n$/,'')));
+    var tseg=buildToggleSegment(indent.length,false,'');
+    newSegs.push(tseg);
+    if(after.length)newSegs.push(buildTextSegment(after.replace(/^\n/,'')));
+    seg.el.remove();
+    newSegs.forEach(function(ns){attachSeg(ns,container,list);insertSegAt(container,ns,refEl);});
+    list.splice.apply(list,[idx,1].concat(newSegs));
+    tseg.headerEl.focus();
+    syncAndSaveMemo();
+  }
+  function addMemoImages(fileList,taHint){
     var m=mById(state.curMemo);if(!m)return;
     var files=[];for(var k=0;k<fileList.length;k++){var f=fileList[k];if(f&&f.type&&f.type.indexOf('image/')===0)files.push(f);}
     if(!files.length)return;
-    var ta=document.getElementById('mbody');
-    var insertPos=(document.activeElement===ta)?ta.selectionStart:ta.value.length;
+    var ta=taHint||document.activeElement;
+    var seg=(ta&&ta.classList&&ta.classList.contains('mseg'))?segFor(ta):null;
+    var insertPos=seg?ta.selectionStart:0;
     Promise.all(files.map(function(f){return uploadArtImage(f);})).then(function(urls){
+      syncBodyFromTree();
+      var startIdx=(m.images||[]).length;
       m.images=(m.images||[]).concat(urls);
-      var val=ta.value,before=val.slice(0,insertPos),after=val.slice(insertPos);
-      var lead=(before.length&&before.slice(-1)!=='\n')?'\n':'';
-      var trail=(after.length&&after.slice(0,1)!=='\n')?'\n':'';
-      var markers=urls.map(function(){return MEMO_IMG_MARKER;}).join('\n');
-      var block=lead+markers+'\n'+trail;
-      var nv=before+block+after,caret=before.length+block.length;
-      ta.value=nv;m.body=nv;
-      if(document.activeElement===ta)ta.setSelectionRange(caret,caret);
-      putMemo(m);
-      if(memoEditingId!==m.id)renderMemoRead(m);
+      if(seg&&seg.t==='text'){
+        var val=seg.el.value,before=val.slice(0,insertPos),after=val.slice(insertPos);
+        var container=seg.container,list=seg.parentList,idx=list.indexOf(seg),refEl=seg.el.nextSibling;
+        var newSegs=[];
+        if(before.length)newSegs.push(buildTextSegment(before));
+        urls.forEach(function(u,i){var iseg=buildImgSegment(m,startIdx+i);newSegs.push(iseg);});
+        if(after.length)newSegs.push(buildTextSegment(after));
+        seg.el.remove();
+        newSegs.forEach(function(ns){attachSeg(ns,container,list);insertSegAt(container,ns,refEl);});
+        list.splice.apply(list,[idx,1].concat(newSegs));
+      }else{ // 포커스된 세그먼트가 없으면 맨 끝에 추가
+        urls.forEach(function(u,i){var iseg=buildImgSegment(m,startIdx+i);attachSeg(iseg,mbodyTreeEl,memoTree);insertSegAt(mbodyTreeEl,iseg,null);memoTree.push(iseg);});
+      }
+      syncAndSaveMemo();
     }).catch(function(err){showToast('사진 업로드 실패: '+((err&&err.message)||err));});
   }
   document.getElementById('mImgBtn').addEventListener('click',function(){document.getElementById('mImgFile').click();});
   document.getElementById('mImgFile').addEventListener('change',function(){addMemoImages(this.files);this.value='';});
-  document.getElementById('mbody').addEventListener('paste',function(e){
+  mbodyTreeEl.addEventListener('paste',function(e){
+    var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;
     var items=(e.clipboardData&&e.clipboardData.items)||[],files=[];
     for(var i=0;i<items.length;i++){
       if(items[i].type&&items[i].type.indexOf('image/')===0){var f=items[i].getAsFile();if(f)files.push(f);}
     }
-    if(files.length){e.preventDefault();addMemoImages(files);return;}
+    if(files.length){e.preventDefault();addMemoImages(files,ta);return;}
     var text=e.clipboardData&&e.clipboardData.getData('text/plain');
     if(text)text=text.replace(/\r\n|\r|\u2028|\u2029/g,'\n');    // 출처마다 다른 줄바꿈(CRLF/CR 등)을 전부 \n으로 통일
-    if(!text||text.indexOf('\n')<0)return;                      // 한 줄이면 기본 붙여넣기로 충분
-    var ta=this,val=ta.value,pos=ta.selectionStart,end=ta.selectionEnd;
-    var ls=val.lastIndexOf('\n',pos-1)+1,line=val.slice(ls,pos);
-    var indent=(line.match(/^\s*/)||[''])[0];
-    if(!indent)return;                                          // 들여쓰기 없는 줄이면 기본 동작
+    if(!text)return;
+    var hasStructure=/^\s*[▸▾]\s/m.test(text)||text.indexOf(MEMO_IMG_MARKER)>=0||text.indexOf(MEMO_IMG_MARKER_OLD)>=0; // 붙여넣은 텍스트에 토글/사진 마커가 섞여있으면 전체 재구성
+    if(hasStructure){
+      e.preventDefault();
+      var seg=segFor(ta);if(!seg)return;
+      var val=ta.value,pos=ta.selectionStart,end=ta.selectionEnd;
+      var before=val.slice(0,pos),after=val.slice(end);
+      var lead=(before.length&&before.slice(-1)!=='\n')?'\n':'';   // 토글/사진 마커는 줄 맨 앞이어야 다시 인식되므로 줄 경계 확보
+      var trail=(after.length&&after.slice(0,1)!=='\n')?'\n':'';
+      var nv=before+lead+text+trail+after;
+      ta.value=nv;
+      var m=syncBodyFromTree();if(!m)return;
+      putMemo(m);renderMemoTree(m);
+      showToast('토글/사진이 포함된 내용이라 다시 정리했어요');
+      return;
+    }
+    if(text.indexOf('\n')<0)return;                             // 한 줄이면 기본 붙여넣기로 충분
+    var ta2=ta,val2=ta2.value,pos2=ta2.selectionStart,end2=ta2.selectionEnd;
+    var ls2=val2.lastIndexOf('\n',pos2-1)+1,line2=val2.slice(ls2,pos2);
+    var indent2=(line2.match(/^\s*/)||[''])[0];
+    if(!indent2)return;                                         // 들여쓰기 없는 줄이면 기본 동작
     e.preventDefault();                                         // 토글/하위 들여쓰기 안에 붙여넣을 땐 모든 줄에 같은 들여쓰기 유지(안 끊기고 다 안으로)
-    var lines=text.split('\n'),ins=lines.map(function(l,i){return i===0?l:indent+l;}).join('\n');
-    var nv=val.slice(0,pos)+ins+val.slice(end);
-    ta.value=nv;var caret=pos+ins.length;ta.setSelectionRange(caret,caret);ta.dispatchEvent(new Event('input'));
+    var lines2=text.split('\n'),ins2=lines2.map(function(l,i){return i===0?l:indent2+l;}).join('\n');
+    var nv2=val2.slice(0,pos2)+ins2+val2.slice(end2);
+    ta2.value=nv2;var caret2=pos2+ins2.length;ta2.setSelectionRange(caret2,caret2);ta2.dispatchEvent(new Event('input'));
   });
-  document.getElementById('mbody').addEventListener('dragover',function(e){e.preventDefault();this.classList.add('dragover');});
-  document.getElementById('mbody').addEventListener('dragleave',function(){this.classList.remove('dragover');});
-  document.getElementById('mbody').addEventListener('drop',function(e){
-    e.preventDefault();this.classList.remove('dragover');
-    if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length)addMemoImages(e.dataTransfer.files);
+  mbodyTreeEl.addEventListener('dragover',function(e){var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;e.preventDefault();ta.classList.add('dragover');});
+  mbodyTreeEl.addEventListener('dragleave',function(e){var ta=e.target;if(ta.classList)ta.classList.remove('dragover');});
+  mbodyTreeEl.addEventListener('drop',function(e){
+    var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;
+    e.preventDefault();ta.classList.remove('dragover');
+    if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length)addMemoImages(e.dataTransfer.files,ta);
   });
-  document.getElementById('mbody').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.body=this.value;clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);mentionCheck(this);});
-  document.getElementById('mbody').addEventListener('keydown',function(e){if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;}});
-  // 리스트 자동표기 (노션/애플메모st): "- "→"• ", 엔터로 불릿·번호 자동 이어짐, 빈 줄에서 엔터로 빠져나옴
-  document.getElementById('mbody').addEventListener('keydown',function(e){
+  mbodyTreeEl.addEventListener('input',function(e){
+    var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;
+    autoGrow(ta);syncAndSaveMemo();mentionCheck(ta);
+  });
+  // 리스트/토글 자동표기 (노션/애플메모st): "- "→"• ", 엔터로 불릿·번호·토글 자동 이어짐, 빈 줄에서 엔터로 빠져나옴
+  mbodyTreeEl.addEventListener('keydown',function(e){
+    var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;
+    if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;return;}
     if(e.isComposing||e.keyCode===229)return;                 // 한글 조합 중이면 건드리지 않음
     if(!document.getElementById('mentionPop').classList.contains('hidden'))return; // @연결 팝업 중이면 양보
-    var ta=this;if(ta.selectionStart!==ta.selectionEnd)return; // 선택 영역 있으면 패스
+    var isHeader=ta.classList.contains('mseg-header');
+    var seg=segFor(ta);
+    if(isHeader){                                              // 토글 제목 줄: 엔터로 하위 시작/빈 제목 종료만 처리
+      if(e.key==='Enter'){e.preventDefault();
+        if(ta.value.trim()===''&&(!seg||!seg.children.length)){ // 빈 제목 → 토글 자체를 빈 줄로 되돌림
+          if(!seg)return;
+          var container=seg.container,list=seg.parentList,idx=list.indexOf(seg),refEl=seg.bodyWrap.nextSibling;
+          var empty=buildTextSegment('');
+          seg.rowEl.remove();seg.bodyWrap.remove();
+          attachSeg(empty,container,list);insertSegAt(container,empty,refEl);
+          list.splice(idx,1,empty);
+          empty.el.focus();syncAndSaveMemo();
+        }else{ // 하위(자식) 줄 새로 시작, 항상 펼침
+          if(!seg)return;
+          if(seg.collapsed){seg.collapsed=false;seg.bodyWrap.classList.remove('hidden');seg.arrowEl.textContent='▾';}
+          var child=buildTextSegment('');
+          attachSeg(child,seg.bodyWrap,seg.children);
+          insertSegAt(seg.bodyWrap,child,seg.bodyWrap.firstChild);
+          seg.children.unshift(child);
+          child.el.focus();syncAndSaveMemo();
+        }
+      }
+      return;
+    }
+    if(ta.selectionStart!==ta.selectionEnd)return;             // 선택 영역 있으면 패스
     var val=ta.value,pos=ta.selectionStart,ls=val.lastIndexOf('\n',pos-1)+1,line=val.slice(ls,pos);
     function apply(nv,caret){ta.value=nv;ta.setSelectionRange(caret,caret);ta.dispatchEvent(new Event('input'));}
     if(e.key===' '){                                          // "- "/"* " → "• ", "[]"/"[ ]" → "☐ "
@@ -1367,11 +1480,11 @@
       if(d){e.preventDefault();var rep=d[1]+'• ';apply(val.slice(0,ls)+rep+val.slice(pos),ls+rep.length);return;}
       var ck=line.match(/^(\s*)\[\s?\]$/);
       if(ck){e.preventDefault();var repc=ck[1]+'☐ ';apply(val.slice(0,ls)+repc+val.slice(pos),ls+repc.length);return;}
-      var tg0=line.match(/^(\s*)>$/);                          // "> " → "▾ " (접기 토글)
-      if(tg0){e.preventDefault();var rept=tg0[1]+'▾ ';apply(val.slice(0,ls)+rept+val.slice(pos),ls+rept.length);return;}
+      var tg0=line.match(/^(\s*)>$/);                          // "> " → 실제 토글 세그먼트로 쪼갬(접기 가능)
+      if(tg0){e.preventDefault();if(seg)splitTextSegIntoToggle(seg,ls,pos,tg0[1]);return;}
     }
     if(e.key==='Enter'&&!e.shiftKey){
-      var b=line.match(/^(\s*)•\s+(.*)$/),n=line.match(/^(\s*)(\d+)\.\s+(.*)$/),c=line.match(/^(\s*)[☐☑]\s+(.*)$/),tg=line.match(/^(\s*)[▸▾]\s+(.*)$/);
+      var b=line.match(/^(\s*)•\s+(.*)$/),n=line.match(/^(\s*)(\d+)\.\s+(.*)$/),c=line.match(/^(\s*)[☐☑]\s+(.*)$/);
       if(b){e.preventDefault();
         if(b[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 불릿 → 리스트 종료
         else{var ins='\n'+b[1]+'• ';apply(val.slice(0,pos)+ins+val.slice(pos),pos+ins.length);}
@@ -1384,34 +1497,19 @@
         if(c[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 체크박스 → 리스트 종료
         else{var ins3='\n'+c[1]+'☐ ';apply(val.slice(0,pos)+ins3+val.slice(pos),pos+ins3.length);} // 새 항목은 항상 미체크로
         return;}
-      if(tg){e.preventDefault();
-        if(tg[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);           // 빈 토글 제목 → 종료
-        else{var ins4='\n'+tg[1]+'  ';apply(val.slice(0,pos)+ins4+val.slice(pos),pos+ins4.length);} // 토글 하위(자식) 줄 시작, 들여쓰기 +2
-        return;}
-      var childIndent=line.match(/^(\s+)(.*)$/);                                 // 토글 하위 등, 들여써진 일반 줄
-      if(childIndent&&!/^(\s*)([•☐☑▸▾]|\d+\.)\s/.test(line)){e.preventDefault();
+      var childIndent=line.match(/^(\s+)(.*)$/);                                 // 들여써진 일반 줄(세그먼트 내부 하위 들여쓰기)
+      if(childIndent&&!/^(\s*)([•☐☑]|\d+\.)\s/.test(line)){e.preventDefault();
         if(childIndent[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);  // 빈 줄 → 들여쓰기 종료
         else{var ins5='\n'+childIndent[1];apply(val.slice(0,pos)+ins5+val.slice(pos),pos+ins5.length);}
         return;}
     }
   });
-  // 체크박스(☐/☑) 글리프 탭 → 완료 토글, 📷 사진 마커 줄 탭 → 보기(끝의 ✕는 삭제)
-  document.getElementById('mbody').addEventListener('click',function(e){
-    var ta=this,pos=ta.selectionStart,val=ta.value,ls=val.lastIndexOf('\n',pos-1)+1;
+  // 체크박스(☐/☑) 글리프 탭 → 완료 토글
+  mbodyTreeEl.addEventListener('click',function(e){
+    var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg')||ta.classList.contains('mseg-header'))return;
+    var pos=ta.selectionStart,val=ta.value,ls=val.lastIndexOf('\n',pos-1)+1;
     var le=val.indexOf('\n',ls);if(le===-1)le=val.length;
     var line=val.slice(ls,le);
-    if(isMemoImgMarkerLine(line)){
-      var midx=memoMarkerIndexAt(val,ls),mm=mById(state.curMemo);if(!mm)return;
-      var offsetInLine=pos-ls,isNewFmt=(line.trim()===MEMO_IMG_MARKER);
-      if(isNewFmt&&offsetInLine>=line.length-2){ // 줄 끝(✕) 근처 탭 → 삭제(옛 형식엔 ✕가 없어서 항상 보기로)
-        mm.images=(mm.images||[]).filter(function(u,i){return i!==midx;});
-        mm.body=removeNthMemoMarker(mm.body||'',midx);
-        ta.value=mm.body;putMemo(mm);
-      }else{ // 그 외(📷 사진 부분) 탭 → 보기
-        var url=(mm.images||[])[midx];if(url)window.open(url,'_blank');
-      }
-      return;
-    }
     var m=line.match(/^(\s*)([☐☑])(\s|$)/);
     if(!m)return;
     var glyphPos=ls+m[1].length;
@@ -1419,15 +1517,15 @@
     var nv=val.slice(0,glyphPos)+(m[2]==='☐'?'☑':'☐')+val.slice(glyphPos+1);
     ta.value=nv;ta.setSelectionRange(pos,pos);ta.dispatchEvent(new Event('input'));
   });
-  document.getElementById('mbody').addEventListener('blur',function(){setTimeout(function(){document.getElementById('mentionPop').classList.add('hidden');},160);});
-  var _mentionStart=-1;
+  mbodyTreeEl.addEventListener('focusout',function(){setTimeout(function(){document.getElementById('mentionPop').classList.add('hidden');},160);});
+  var _mentionStart=-1,_mentionTa=null;
   function positionMention(ta,pop){var vv=window.visualViewport;
     var gap=vv?Math.max(0,window.innerHeight-(vv.height+vv.offsetTop)):0;
     pop.style.left='12px';pop.style.right='12px';pop.style.width='auto';pop.style.top='';
     pop.style.bottom=(gap+12)+'px';}
   function mentionCheck(ta){var pos=ta.selectionStart,before=ta.value.slice(0,pos),mm=before.match(/@([^\s@]{0,30})$/),pop=document.getElementById('mentionPop');
     if(!mm){_mentionStart=-1;pop.classList.add('hidden');return;}
-    _mentionStart=pos-mm[0].length;var q=norm(mm[1]);
+    _mentionTa=ta;_mentionStart=pos-mm[0].length;var q=norm(mm[1]);
     var rows=[];
     state.todos.forEach(function(t){if(t.archived)return;
       if(norm(t.title+' '+(t.project||'')).indexOf(q)>=0)rows.push({id:t.id,sub:'',label:t.title,tag:t.ws+(t.project?' · '+t.project:'')});
@@ -1441,21 +1539,23 @@
     pop.classList.remove('hidden');positionMention(ta,pop);}
   document.getElementById('mentionPop').addEventListener('mousedown',function(e){e.preventDefault();});
   document.getElementById('mentionPop').addEventListener('click',function(e){var it=e.target.closest('.mentionitem[data-id]');if(!it)return;
-    var t=tById(it.dataset.id),m=mById(state.curMemo),ta=document.getElementById('mbody');if(!t||!m||_mentionStart<0)return;
+    var t=tById(it.dataset.id),m=mById(state.curMemo),ta=_mentionTa;if(!t||!m||!ta||_mentionStart<0)return;
     var subId=it.dataset.sub,label=t.title,sub=null;
     if(subId){sub=(t.subs||[]).filter(function(s){return s.id===subId;})[0];if(sub)label=t.title+' ↳ '+sub.t;}
     var pos=ta.selectionStart,ins='@'+label+' ',start=_mentionStart,newVal=ta.value.slice(0,start)+ins+ta.value.slice(pos);
-    m.body=newVal;m.link=label;
+    ta.value=newVal;autoGrow(ta);
+    var caret=start+ins.length;
+    m.link=label;syncBodyFromTree();
     if(sub)sub.memoId=m.id;else t.memoId=m.id;
     putTodo(t);putMemo(m);
     this.classList.add('hidden');_mentionStart=-1;renderMemos();renderToday();renderProjects();
-    var mb=document.getElementById('mbody'),caret=start+ins.length;mb.focus();mb.setSelectionRange(caret,caret);
+    ta.focus();ta.setSelectionRange(caret,caret);
     showToast('할일 연결: '+label);});
   document.getElementById('mfolsel').addEventListener('change',function(){var m=mById(state.curMemo);if(m){m.folder=this.value;putMemo(m);renderMemos();}});
   document.getElementById('mlinkbar').addEventListener('click',function(e){
     if(e.target.hasAttribute('data-unlink')){var m=mById(state.curMemo);if(m){state.todos.forEach(function(t){var ch=false;if(t.memoId===m.id){t.memoId=null;ch=true;}(t.subs||[]).forEach(function(s){if(s.memoId===m.id){s.memoId=null;ch=true;}});if(ch)putTodo(t);});m.link='';putMemo(m);renderAll();renderMemos();showToast('연결을 해제했어요');}return;}
     if(e.target.hasAttribute('data-back')){var mm=mById(state.curMemo);var lt=mm&&state.todos.filter(function(t){return t.memoId===mm.id||(t.subs||[]).some(function(s){return s.memoId===mm.id;});})[0];if(lt&&lt.ws!==state.ws){state.ws=lt.ws;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});savePrefs();renderAll();}switchTab('dash');showToast('연결된 할일로 이동');}});
-  document.getElementById('newMemo').addEventListener('click',function(){var f=state.curFolder==='전체'?'업무':state.curFolder;var m={id:'m'+uid(),folder:f,title:'',body:'',link:''};state.memos.unshift(m);putMemo(m);state.curMemo=m.id;memoEditingId=m.id;renderMemos();document.getElementById('mbodyRead').classList.add('hidden');document.getElementById('mbody').classList.remove('hidden');memoEl.classList.add('mob-edit');document.getElementById('mtitle').focus();showToast('새 메모 · '+f);});
+  document.getElementById('newMemo').addEventListener('click',function(){var f=state.curFolder==='전체'?'업무':state.curFolder;var m={id:'m'+uid(),folder:f,title:'',body:'',link:''};state.memos.unshift(m);putMemo(m);state.curMemo=m.id;renderMemos();memoEl.classList.add('mob-edit');document.getElementById('mtitle').focus();showToast('새 메모 · '+f);});
   document.getElementById('mDelBtn').addEventListener('click',function(){var m=mById(state.curMemo);if(m)removeMemo(m);});
 })();
 </script>
