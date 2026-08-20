@@ -1475,6 +1475,18 @@
     if(ta.selectionStart!==ta.selectionEnd)return;             // 선택 영역 있으면 패스
     var val=ta.value,pos=ta.selectionStart,ls=val.lastIndexOf('\n',pos-1)+1,line=val.slice(ls,pos);
     function apply(nv,caret){ta.value=nv;ta.setSelectionRange(caret,caret);ta.dispatchEvent(new Event('input'));}
+    if(e.key==='Tab'){                                        // 탭으로 현재 줄 들여쓰기(불릿/체크박스 하위 항목 만들 때), Shift+탭으로 내어쓰기
+      e.preventDefault();
+      var le=val.indexOf('\n',ls);if(le===-1)le=val.length;
+      var fullLine=val.slice(ls,le);
+      if(e.shiftKey){
+        var cut=fullLine.slice(0,2)==='  '?2:(fullLine.slice(0,1)===' '?1:0);
+        if(cut)apply(val.slice(0,ls)+fullLine.slice(cut)+val.slice(le),Math.max(ls,pos-cut));
+      }else{
+        apply(val.slice(0,ls)+'  '+val.slice(ls),pos+2);
+      }
+      return;
+    }
     if(e.key===' '){                                          // "- "/"* " → "• ", "[]"/"[ ]" → "☐ "
       var d=line.match(/^(\s*)[-*]$/);
       if(d){e.preventDefault();var rep=d[1]+'• ';apply(val.slice(0,ls)+rep+val.slice(pos),ls+rep.length);return;}
