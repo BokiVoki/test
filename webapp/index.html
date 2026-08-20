@@ -1336,6 +1336,7 @@
     }
     if(files.length){e.preventDefault();addMemoImages(files);return;}
     var text=e.clipboardData&&e.clipboardData.getData('text/plain');
+    if(text)text=text.replace(/\r\n|\r|\u2028|\u2029/g,'\n');    // 출처마다 다른 줄바꿈(CRLF/CR 등)을 전부 \n으로 통일
     if(!text||text.indexOf('\n')<0)return;                      // 한 줄이면 기본 붙여넣기로 충분
     var ta=this,val=ta.value,pos=ta.selectionStart,end=ta.selectionEnd;
     var ls=val.lastIndexOf('\n',pos-1)+1,line=val.slice(ls,pos);
