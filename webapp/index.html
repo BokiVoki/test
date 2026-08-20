@@ -1334,7 +1334,17 @@
     for(var i=0;i<items.length;i++){
       if(items[i].type&&items[i].type.indexOf('image/')===0){var f=items[i].getAsFile();if(f)files.push(f);}
     }
-    if(files.length){e.preventDefault();addMemoImages(files);}
+    if(files.length){e.preventDefault();addMemoImages(files);return;}
+    var text=e.clipboardData&&e.clipboardData.getData('text/plain');
+    if(!text||text.indexOf('\n')<0)return;                      // 한 줄이면 기본 붙여넣기로 충분
+    var ta=this,val=ta.value,pos=ta.selectionStart,end=ta.selectionEnd;
+    var ls=val.lastIndexOf('\n',pos-1)+1,line=val.slice(ls,pos);
+    var indent=(line.match(/^\s*/)||[''])[0];
+    if(!indent)return;                                          // 들여쓰기 없는 줄이면 기본 동작
+    e.preventDefault();                                         // 토글/하위 들여쓰기 안에 붙여넣을 땐 모든 줄에 같은 들여쓰기 유지(안 끊기고 다 안으로)
+    var lines=text.split('\n'),ins=lines.map(function(l,i){return i===0?l:indent+l;}).join('\n');
+    var nv=val.slice(0,pos)+ins+val.slice(end);
+    ta.value=nv;var caret=pos+ins.length;ta.setSelectionRange(caret,caret);ta.dispatchEvent(new Event('input'));
   });
   document.getElementById('mbody').addEventListener('dragover',function(e){e.preventDefault();this.classList.add('dragover');});
   document.getElementById('mbody').addEventListener('dragleave',function(){this.classList.remove('dragover');});
