@@ -220,6 +220,7 @@
   .mtoprow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
   .medit .mfolsel{font:inherit;font-size:12px;color:var(--muted);background:var(--sunk);border:1px solid var(--line-2);border-radius:4px;padding:3px 6px;align-self:flex-start}
   .btn-s{font:inherit;font-size:12.5px;color:var(--accent);background:none;border:1px solid var(--line-2);border-radius:4px;padding:5px 11px;cursor:pointer}
+  .btn-s:disabled{color:var(--faint);cursor:default;opacity:.55}
   .btn-s:hover{border-color:var(--accent)}
   .hidden{display:none!important}
   .foot{margin-top:20px;text-align:center;font-size:12px;color:var(--faint)}
@@ -366,7 +367,7 @@
   <div id="memo" class="hidden">
     <div class="bhead"><h2>메모</h2><div class="r"><button class="btn-s" id="newMemo">+ 새 메모</button></div></div>
     <div class="memo"><div class="mside"><div class="mfolders" id="mfolders"></div><div class="mlist" id="mlist"></div></div>
-      <div class="medit"><button class="mBackBtn" id="mBackBtn" type="button">‹ 메모 목록</button><input class="mtitle" id="mtitle" placeholder="제목"><div class="mtoprow"><select class="mfolsel" id="mfolsel"></select><button class="btn-s" id="mDelBtn">🗑 삭제</button></div><div class="mlinkbar" id="mlinkbar"></div>
+      <div class="medit"><button class="mBackBtn" id="mBackBtn" type="button">‹ 메모 목록</button><input class="mtitle" id="mtitle" placeholder="제목"><div class="mtoprow"><select class="mfolsel" id="mfolsel"></select><button class="btn-s" id="mUndoBtn" type="button" disabled>↺ 실행취소</button><button class="btn-s" id="mDelBtn">🗑 삭제</button></div><div class="mlinkbar" id="mlinkbar"></div>
         <div class="mimgadd"><button class="btn-s" id="mImgBtn" type="button">📎 사진</button><input type="file" id="mImgFile" accept="image/*" multiple class="hidden"><span class="mimghint">또는 메모에 붙여넣기(Cmd/Ctrl+V) · 드래그해서 놓기 — 본문 속 📷 사진 줄을 탭하면 사진이 열리고, 끝의 ✕를 탭하면 지워져요</span></div>
         <div class="mbodywrap"><div class="mtree" id="mbodyTree"></div><div id="mentionPop" class="mentionpop hidden"></div></div></div>
     </div>
@@ -655,8 +656,8 @@
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
     if(cur){state.curMemo=cur.id;document.getElementById('mtitle').value=cur.title;document.getElementById('mfolsel').value=cur.folder;
       document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';
-      if(curTreeMemoId!==cur.id)renderMemoTree(cur);}
-    else{document.getElementById('mtitle').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyTree').innerHTML='';curTreeMemoId=null;}}
+      if(curTreeMemoId!==cur.id){resetMemoUndo();renderMemoTree(cur);}}
+    else{document.getElementById('mtitle').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyTree').innerHTML='';curTreeMemoId=null;resetMemoUndo();}}
   // ===== 메모 라이브 블록 에디터 (토글/체크박스/불릿은 그대로 텍스트, 토글만 실제 접기/펼치기 가능한 블록) =====
   var memoTree=[],curTreeMemoId=null;
   function memoLineIndent(line){return (line.match(/^(\s*)/)||['',''])[1].length;}
@@ -697,6 +698,7 @@
   function deleteImgSegment(seg){
     var m=mById(state.curMemo);if(!m)return;
     syncBodyFromTree();                                  // 지우기 전에 다른 편집 내용부터 먼저 저장 반영
+    checkpointMemoUndo(m);memoUndoBurstOpen=false;        // 삭제는 그 자체로 하나의 되돌리기 단위
     var lines=(m.body||'').split('\n'),count=-1;
     for(var i=0;i<lines.length;i++){if(isMemoImgMarkerLine(lines[i])){count++;if(count===seg.idx){lines.splice(i,1);break;}}}
     m.body=lines.join('\n');
@@ -759,9 +761,31 @@
     m.body=serializeSegs(memoTree).join('\n');
     return m;
   }
+  var memoUndoStack=[],memoUndoBurstOpen=false; // 메모 편집 되돌리기: 지금 열려있는 메모의 본문+사진 스냅샷 스택
+  function resetMemoUndo(){memoUndoStack=[];memoUndoBurstOpen=false;updateMemoUndoBtn();}
+  function checkpointMemoUndo(m){
+    if(memoUndoBurstOpen)return;
+    memoUndoStack.push({body:m.body,images:(m.images||[]).slice()});
+    if(memoUndoStack.length>50)memoUndoStack.shift();
+    memoUndoBurstOpen=true;
+    updateMemoUndoBtn();
+  }
+  function updateMemoUndoBtn(){var b=document.getElementById('mUndoBtn');if(b)b.disabled=!memoUndoStack.length;}
+  function doMemoUndo(){
+    var m=mById(state.curMemo);if(!m||!memoUndoStack.length)return;
+    clearTimeout(memoT);
+    var snap=memoUndoStack.pop();
+    m.body=snap.body;m.images=snap.images;
+    memoUndoBurstOpen=false;
+    putMemo(m);renderMemoTree(m);
+    updateMemoUndoBtn();showToast('실행취소');
+  }
+  document.getElementById('mUndoBtn').addEventListener('click',doMemoUndo);
   function syncAndSaveMemo(){
-    var m=syncBodyFromTree();if(!m)return;
-    clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);
+    var m=mById(state.curMemo);if(!m)return;
+    checkpointMemoUndo(m);
+    syncBodyFromTree();
+    clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);memoUndoBurstOpen=false;},600);
   }
   function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}
     (t.subs||[]).forEach(function(s){if(s.memoId){var m2=mById(s.memoId);if(m2)m2.link=t.title+' ↳ '+s.t;}});});}
@@ -1376,6 +1400,7 @@
     var insertPos=seg?ta.selectionStart:0;
     Promise.all(files.map(function(f){return uploadArtImage(f);})).then(function(urls){
       syncBodyFromTree();
+      checkpointMemoUndo(m);memoUndoBurstOpen=false;        // 사진 추가도 그 자체로 하나의 되돌리기 단위(타이핑 묶음과 안 섞이게)
       var startIdx=(m.images||[]).length;
       m.images=(m.images||[]).concat(urls);
       if(seg&&seg.t==='text'){
@@ -1391,7 +1416,7 @@
       }else{ // 포커스된 세그먼트가 없으면 맨 끝에 추가
         urls.forEach(function(u,i){var iseg=buildImgSegment(m,startIdx+i);attachSeg(iseg,mbodyTreeEl,memoTree);insertSegAt(mbodyTreeEl,iseg,null);memoTree.push(iseg);});
       }
-      syncAndSaveMemo();
+      syncBodyFromTree();memoUndoBurstOpen=false;clearTimeout(memoT);putMemo(m);
     }).catch(function(err){showToast('사진 업로드 실패: '+((err&&err.message)||err));});
   }
   document.getElementById('mImgBtn').addEventListener('click',function(){document.getElementById('mImgFile').click();});
@@ -1447,6 +1472,7 @@
     var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;
     if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;return;}
     if(e.isComposing||e.keyCode===229)return;                 // 한글 조합 중이면 건드리지 않음
+    if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();doMemoUndo();return;} // Cmd/Ctrl+Z — 자체 되돌리기 스택 사용(직접 .value를 건드려서 브라우저 기본 undo가 깨지기 때문)
     if(!document.getElementById('mentionPop').classList.contains('hidden'))return; // @연결 팝업 중이면 양보
     var isHeader=ta.classList.contains('mseg-header');
     var seg=segFor(ta);
@@ -1554,6 +1580,7 @@
     var t=tById(it.dataset.id),m=mById(state.curMemo),ta=_mentionTa;if(!t||!m||!ta||_mentionStart<0)return;
     var subId=it.dataset.sub,label=t.title,sub=null;
     if(subId){sub=(t.subs||[]).filter(function(s){return s.id===subId;})[0];if(sub)label=t.title+' ↳ '+sub.t;}
+    checkpointMemoUndo(m);memoUndoBurstOpen=false;
     var pos=ta.selectionStart,ins='@'+label+' ',start=_mentionStart,newVal=ta.value.slice(0,start)+ins+ta.value.slice(pos);
     ta.value=newVal;autoGrow(ta);
     var caret=start+ins.length;
