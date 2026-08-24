@@ -76,6 +76,8 @@
   .tri{display:flex;flex-wrap:wrap;gap:2px;justify-content:flex-end}
   .tri button{font:inherit;font-size:11.5px;color:var(--faint);background:none;border:0;padding:3px 7px;cursor:pointer;border-radius:3px}
   .tri button:hover{color:var(--accent);background:var(--accent-wash)}
+  .tri button.inbdue.has{color:var(--accent);font-family:var(--mono)}
+  .tri button.inbdue.over{color:var(--text);font-weight:700}
   .tri select{font:inherit;font-size:11.5px;color:var(--faint);background:var(--panel);border:1px solid var(--line-2);border-radius:3px;padding:2px 4px}
   .pjsec{border-bottom:1px solid var(--line-2)}
   .pjtog{width:100%;display:flex;align-items:center;gap:8px;font:inherit;font-size:14.5px;font-weight:700;color:var(--text);background:none;border:0;cursor:pointer;padding:13px 4px;text-align:left}
@@ -202,6 +204,11 @@
   .mreadimg-wrap{position:relative;display:block;margin:8px 0;min-width:100px;min-height:100px;max-width:220px}
   .mreadimg{max-width:220px;max-height:220px;min-width:100px;min-height:100px;object-fit:cover;border-radius:8px;display:block;cursor:pointer;border:1px solid var(--line);background:var(--sunk);color:var(--faint);font-size:11px}
   .mreadimg-del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:12px;cursor:pointer;line-height:22px;padding:0}
+  .mreadimg-mv{position:absolute;left:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:10px;cursor:pointer;line-height:22px;padding:0}
+  .mreadimg-mv.up{top:5px}.mreadimg-mv.down{top:31px}
+  .mreadimg-wrap{cursor:grab}
+  .mreadimg-wrap.imgdragging{opacity:.4}
+  .imgdropbefore{box-shadow:0 -2px 0 0 var(--accent)}
   .mtoggle-row{display:flex;align-items:flex-start;gap:5px;min-height:1.5em}
   .mtoggle-arrow{flex:none;width:14px;color:var(--muted);user-select:none;cursor:pointer}
   .mtoggle-row textarea.mseg-header{flex:1}
@@ -628,7 +635,8 @@
     var opts=projectNames().map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
     document.getElementById('capCount').textContent=list.length;document.getElementById('inBadge').textContent='미분류 '+list.length;
     if(!list.length){body.innerHTML='<tr><td colspan="3" class="empty">주머니 비었어요 ✓</td></tr>';return;}
-    body.innerHTML=list.map(function(t){return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td><div class="tri"><button data-act="t-today">오늘</button><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>';}).join('');}
+    body.innerHTML=list.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
+      return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td><div class="tri"><button data-act="t-today">오늘</button><button class="inbdue'+(t.due?' has':'')+(over?' over':'')+'" data-act="due">'+(t.due?'📅 '+mmdd(t.due):'📅 날짜')+'</button><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>';}).join('');}
   function renderProjects(){var wrap=document.getElementById('projAll'),names=orderedProjects();
     if(!names.length){wrap.innerHTML='<p class="empty">프로젝트가 아직 없어요 · 주머니에서 항목을 프로젝트로 분류해보세요</p>';return;}
     wrap.innerHTML=names.map(function(name){var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox';}).sort(function(a,b){var sa=(a.stage||0)||1e9,sb=(b.stage||0)||1e9;return sa!==sb?sa-sb:(a.sort||0)-(b.sort||0);});
@@ -659,7 +667,7 @@
       if(curTreeMemoId!==cur.id){resetMemoUndo();renderMemoTree(cur);}}
     else{document.getElementById('mtitle').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyTree').innerHTML='';curTreeMemoId=null;resetMemoUndo();}}
   // ===== 메모 라이브 블록 에디터 (토글/체크박스/불릿은 그대로 텍스트, 토글만 실제 접기/펼치기 가능한 블록) =====
-  var memoTree=[],curTreeMemoId=null;
+  var memoTree=[],curTreeMemoId=null,imgDragSeg=null;
   function memoLineIndent(line){return (line.match(/^(\s*)/)||['',''])[1].length;}
   function autoGrow(ta){ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';}
   function buildTextSegment(text){
@@ -682,9 +690,9 @@
     return seg;
   }
   function buildImgSegment(m,idx){
-    var wrap=document.createElement('div');wrap.className='mreadimg-wrap';
+    var wrap=document.createElement('div');wrap.className='mreadimg-wrap';wrap.draggable=true;
     var url=(m.images||[])[idx];
-    if(url){var img=document.createElement('img');img.className='mreadimg';img.src=url;img.alt='사진을 불러오는 중…';
+    if(url){var img=document.createElement('img');img.className='mreadimg';img.src=url;img.alt='사진을 불러오는 중…';img.draggable=false;
       img.addEventListener('error',function(){img.alt='⚠️ 사진을 못 불러왔어요';});
       img.addEventListener('click',function(){window.open(url,'_blank');});
       wrap.appendChild(img);
@@ -692,9 +700,60 @@
     var del=document.createElement('button');del.className='mreadimg-del';del.type='button';del.textContent='✕';
     del.addEventListener('click',function(){deleteImgSegment(seg);});
     wrap.appendChild(del);
+    var up=document.createElement('button');up.className='mreadimg-mv up';up.type='button';up.textContent='▲';up.title='위로';
+    up.addEventListener('click',function(){moveImgLine(seg,-1);});
+    var dn=document.createElement('button');dn.className='mreadimg-mv down';dn.type='button';dn.textContent='▼';dn.title='아래로';
+    dn.addEventListener('click',function(){moveImgLine(seg,1);});
+    wrap.appendChild(up);wrap.appendChild(dn);
     var seg={t:'img',idx:idx,wrapEl:wrap};
+    wrap._seg=seg;
+    wrap.addEventListener('dragstart',function(e){imgDragSeg=seg;wrap.classList.add('imgdragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain','img');}catch(x){}}});
+    wrap.addEventListener('dragend',function(){imgDragSeg=null;wrap.classList.remove('imgdragging');clearImgDropMarks();});
     return seg;
   }
+  // 사진 한 칸(줄) 위/아래로 이동 — 본문 줄 단위라 모바일에서도 버튼으로 정확히 옮길 수 있음
+  function moveImgLine(seg,dir){
+    var m=mById(state.curMemo);if(!m)return;
+    syncBodyFromTree();
+    var lines=(m.body||'').split('\n'),count=-1,li=-1;
+    for(var i=0;i<lines.length;i++){if(isMemoImgMarkerLine(lines[i])){count++;if(count===seg.idx){li=i;break;}}}
+    if(li<0)return;
+    var to=li+dir;if(to<0||to>=lines.length)return;
+    checkpointMemoUndo(m);memoUndoBurstOpen=false;
+    var swappedWithMarker=isMemoImgMarkerLine(lines[to]);   // 마커끼리 자리를 바꾸면 images 배열 순서도 같이 바꿔야 함
+    var tmp=lines[li];lines[li]=lines[to];lines[to]=tmp;
+    m.body=lines.join('\n');
+    if(swappedWithMarker){var imgs=(m.images||[]).slice(),a=seg.idx,b=seg.idx+dir,t2=imgs[a];imgs[a]=imgs[b];imgs[b]=t2;m.images=imgs;}
+    putMemo(m);renderMemoTree(m);
+  }
+  function collectImgSegs(segs,out){segs.forEach(function(s){if(s.t==='img')out.push(s);else if(s.t==='toggle')collectImgSegs(s.children,out);});return out;}
+  // 드래그로 옮기기: 놓은 세그먼트 바로 앞으로 사진을 이동
+  function moveImgSegBefore(seg,targetSeg){
+    if(!targetSeg||seg===targetSeg)return;
+    var m=mById(state.curMemo);if(!m)return;
+    syncBodyFromTree();checkpointMemoUndo(m);memoUndoBurstOpen=false;
+    var oldImages=(m.images||[]).slice();
+    var list=seg.parentList,idx=list.indexOf(seg);if(idx<0)return;
+    list.splice(idx,1);seg.wrapEl.remove();
+    var tlist=targetSeg.parentList,tidx=tlist.indexOf(targetSeg);if(tidx<0)return;
+    var refEl=targetSeg.t==='text'?targetSeg.el:(targetSeg.t==='toggle'?targetSeg.rowEl:targetSeg.wrapEl);
+    seg.container=targetSeg.container;seg.parentList=tlist;
+    targetSeg.container.insertBefore(seg.wrapEl,refEl);
+    tlist.splice(tidx,0,seg);
+    var ordered=collectImgSegs(memoTree,[]);                // 새 순서대로 images 배열 재정렬(마커 순서와 항상 1:1)
+    m.images=ordered.map(function(s){return oldImages[s.idx];});
+    syncBodyFromTree();
+    putMemo(m);renderMemoTree(m);
+  }
+  function segFromDropTarget(el){
+    if(!el)return null;
+    var w=el.closest?el.closest('.mreadimg-wrap'):null;if(w&&w._seg)return w._seg;
+    var row=el.closest?el.closest('.mtoggle-row'):null;
+    if(row){var h=row.querySelector('.mseg-header');if(h&&h._seg)return h._seg;}
+    var ta=el.closest?el.closest('textarea.mseg'):null;if(ta&&ta._seg)return ta._seg;
+    return null;
+  }
+  function clearImgDropMarks(){var els=document.querySelectorAll('.imgdropbefore');for(var i=0;i<els.length;i++)els[i].classList.remove('imgdropbefore');}
   function deleteImgSegment(seg){
     var m=mById(state.curMemo);if(!m)return;
     syncBodyFromTree();                                  // 지우기 전에 다른 편집 내용부터 먼저 저장 반영
@@ -1403,19 +1462,22 @@
       checkpointMemoUndo(m);memoUndoBurstOpen=false;        // 사진 추가도 그 자체로 하나의 되돌리기 단위(타이핑 묶음과 안 섞이게)
       var startIdx=(m.images||[]).length;
       m.images=(m.images||[]).concat(urls);
+      var tail; // 사진 뒤에 이어지는(또는 새로 만든) 빈 텍스트 세그먼트 — 다음 붙여넣기가 여기 포커스를 정확히 따라가게 함(안 그러면 포커스가 날아가서 다음 사진이 순서 밖으로 끼어드는 버그가 있었음)
       if(seg&&seg.t==='text'){
         var val=seg.el.value,before=val.slice(0,insertPos),after=val.slice(insertPos);
         var container=seg.container,list=seg.parentList,idx=list.indexOf(seg),refEl=seg.el.nextSibling;
         var newSegs=[];
         if(before.length)newSegs.push(buildTextSegment(before));
         urls.forEach(function(u,i){var iseg=buildImgSegment(m,startIdx+i);newSegs.push(iseg);});
-        if(after.length)newSegs.push(buildTextSegment(after));
+        tail=buildTextSegment(after);newSegs.push(tail);
         seg.el.remove();
         newSegs.forEach(function(ns){attachSeg(ns,container,list);insertSegAt(container,ns,refEl);});
         list.splice.apply(list,[idx,1].concat(newSegs));
       }else{ // 포커스된 세그먼트가 없으면 맨 끝에 추가
         urls.forEach(function(u,i){var iseg=buildImgSegment(m,startIdx+i);attachSeg(iseg,mbodyTreeEl,memoTree);insertSegAt(mbodyTreeEl,iseg,null);memoTree.push(iseg);});
+        tail=buildTextSegment('');attachSeg(tail,mbodyTreeEl,memoTree);insertSegAt(mbodyTreeEl,tail,null);memoTree.push(tail);
       }
+      tail.el.focus();tail.el.setSelectionRange(0,0);
       syncBodyFromTree();memoUndoBurstOpen=false;clearTimeout(memoT);putMemo(m);
     }).catch(function(err){showToast('사진 업로드 실패: '+((err&&err.message)||err));});
   }
@@ -1456,9 +1518,25 @@
     var nv2=val2.slice(0,pos2)+ins2+val2.slice(end2);
     ta2.value=nv2;var caret2=pos2+ins2.length;ta2.setSelectionRange(caret2,caret2);ta2.dispatchEvent(new Event('input'));
   });
-  mbodyTreeEl.addEventListener('dragover',function(e){var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;e.preventDefault();ta.classList.add('dragover');});
+  mbodyTreeEl.addEventListener('dragover',function(e){
+    if(imgDragSeg){                                          // 메모 안 사진을 옮기는 중 — 놓을 자리 표시
+      var tseg=segFromDropTarget(e.target);
+      if(!tseg||tseg===imgDragSeg)return;
+      e.preventDefault();clearImgDropMarks();
+      var mark=tseg.t==='text'?tseg.el:(tseg.t==='toggle'?tseg.rowEl:tseg.wrapEl);
+      mark.classList.add('imgdropbefore');
+      return;
+    }
+    var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;e.preventDefault();ta.classList.add('dragover');});
   mbodyTreeEl.addEventListener('dragleave',function(e){var ta=e.target;if(ta.classList)ta.classList.remove('dragover');});
   mbodyTreeEl.addEventListener('drop',function(e){
+    if(imgDragSeg){
+      var tseg=segFromDropTarget(e.target);
+      e.preventDefault();clearImgDropMarks();
+      var moving=imgDragSeg;imgDragSeg=null;
+      if(tseg&&tseg!==moving)moveImgSegBefore(moving,tseg);
+      return;
+    }
     var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;
     e.preventDefault();ta.classList.remove('dragover');
     if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length)addMemoImages(e.dataTransfer.files,ta);
