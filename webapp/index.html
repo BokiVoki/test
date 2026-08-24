@@ -58,11 +58,13 @@
   .num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
   th.num{text-align:right}
   .ttl{letter-spacing:-.01em;cursor:text}
+  .subctx{color:var(--faint);font-size:11.5px;margin-left:6px}
   .pj{color:var(--faint);font-size:12.5px;white-space:nowrap}
   .due{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
   .due.over{color:var(--text);font-weight:700}
   .imp{color:var(--accent);font-size:9px;letter-spacing:2px;white-space:nowrap;cursor:pointer;user-select:none}
   .cad{font-size:11px;color:var(--accent);margin-left:7px;cursor:pointer;border-bottom:1px dashed var(--accent);padding-bottom:1px}
+  .donen{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-left:5px}
   .grp td{font-size:10.5px;color:var(--faint);font-weight:600;padding:12px 10px 5px;letter-spacing:.03em;border-bottom:1px solid var(--line)}
   .est{cursor:text;border-bottom:1px dashed transparent}tr:hover .est{border-bottom-color:var(--line-2)}.est:focus{outline:none;border-bottom-color:var(--accent)}
   .empty{padding:18px 10px;text-align:center;color:var(--faint);font-size:13px}
@@ -404,6 +406,7 @@
   var hasSketch=false;   // art_works.sketch_url 컬럼이 있으면 true (손그림 저장, SQL 마이그레이션 후)
   var hasMemoUpd=false;  // memos에 updated 컬럼이 있으면 true (정렬용)
   var hasMemoImg=false;  // memos.images 컬럼이 있으면 true (사진 첨부, SQL 마이그레이션 후)
+  var hasDoneLog=false;  // todos.donelog 컬럼이 있으면 true (고정업무 완료 이력, SQL 마이그레이션 후)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var nestSource=null;   // '하위로 이동' 중인 할일 id
   var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'dash',q:'',artists:[],artworks:[],artSel:{type:'none'}};
@@ -436,8 +439,8 @@
     });
     state.settings.todayResetDate=ti;putSettings();
   }
-  function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}if(hasDep){r.dep=(typeof t.stage==='number'?t.stage:0);}if(hasEnd){r.endd=t.endd||null;}return r;}
-  function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),stage:(typeof r.dep==='number'?r.dep:0),endd:r.endd||''};}
+  function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}if(hasDep){r.dep=(typeof t.stage==='number'?t.stage:0);}if(hasEnd){r.endd=t.endd||null;}if(hasDoneLog){r.donelog=t.doneLog||[];}return r;}
+  function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),stage:(typeof r.dep==='number'?r.dep:0),endd:r.endd||'',doneLog:Array.isArray(r.donelog)?r.donelog:[]};}
   function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;if(hasMemoImg)r.images=m.images||[];return r;}
   function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',images:r.images||[],updated:r.updated||''};}
   function putTodo(t){sb.from('todos').upsert(rowT(t)).then(function(r){if(r.error)console.warn('todo',r.error.message);});}
@@ -510,16 +513,17 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
-      hasDep=!(res[5]&&res[5].error);      // dep 컬럼이 있으면 프로젝트 순서도 저장 켜짐
+      hasDep=!(res[5]&&res[5].error);      // dep 컬럼이 있으면 true (하위호환용, 더 이상 UI에서 안 씀)
       hasEnd=!(res[7]&&res[7].error);      // endd 컬럼이 있으면 기간 일정 표시 켜짐
       hasMemoUpd=!(res[6]&&res[6].error);  // memos.updated 있으면 최신순 정렬 저장 켜짐
       hasArt=!(res[8]&&res[8].error);      // art_artists/art_works 테이블 있으면 그림공부 켜짐
       hasSketch=!(res[10]&&res[10].error); // art_works.sketch_url 컬럼 있으면 손그림 저장 켜짐
       hasMemoImg=!(res[11]&&res[11].error);// memos.images 컬럼 있으면 메모 사진 첨부 켜짐
+      hasDoneLog=!(res[12]&&res[12].error);// todos.donelog 컬럼 있으면 고정업무 완료 이력 저장 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -547,6 +551,7 @@
     return false;}
   function repLabel(t){if(t.repeat==='daily')return '매일';if(t.repeat==='weekly')return '매주 '+(DAY[+t.repDay]||'')+'요일';if(t.repeat==='monthly')return t.repDay==='last'?'매월 말일':'매월 '+t.repDay+'일';return '';}
   function priority(t){var s=t.imp*25,d=daysTo(t.due);if(d!==null){if(d<0)s+=100;else if(d<=1)s+=60;else if(d<=3)s+=30;}if(t.est&&t.est<=20)s+=10;return s;}
+  function repDoneCount(t){return (t.doneLog||[]).length;}
   function dots(n){return '●●●'.slice(0,n);}
 
   function subTogHtml(t){var s=t.subs||[],open=!!expanded[t.id];
@@ -557,7 +562,7 @@
     return '<tr class="subrow" data-id="'+t.id+'"><td colspan="'+cols+'"><div class="subwrap">'+items+'<input class="subnew" data-act="subnew" placeholder="+ 하위 항목 추가 후 Enter" aria-label="하위 항목 추가"></div></td></tr>';}
   function taskRow(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
     return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td>'+
-      '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로 설정">🔁</button>')+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td>'+
+      '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>'+(repDoneCount(t)?'<span class="donen" title="지금까지 완료한 횟수">'+repDoneCount(t)+'회</span>':''):'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로 설정">🔁</button>')+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td>'+
       '<td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td>'+
       '<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,6);}
   function renderToday(){
@@ -580,10 +585,16 @@
     aa.classList.toggle('hidden',!dn);aa.textContent='완료한 '+dn+'개 → 완료함';
   }
   function renderDue(){var body=document.getElementById('dueBody');
-    var list=wsTodos().filter(function(t){return t.due&&!t.done;}).sort(function(a,b){return a.due<b.due?-1:1;}).slice(0,12);
+    var list=[];
+    wsTodos().forEach(function(t){
+      if(t.due&&!t.done)list.push({t:t,due:t.due,sub:null,i:-1});
+      if(!t.done)(t.subs||[]).forEach(function(s,i){if(s.due&&!s.d)list.push({t:t,due:s.due,sub:s,i:i});});
+    });
+    list.sort(function(a,b){return a.due<b.due?-1:1;});list=list.slice(0,12);
     if(!list.length){body.innerHTML='<tr><td colspan="6" class="empty">마감 있는 할일이 없어요</td></tr>';return;}
-    body.innerHTML=list.map(function(t){var d=daysTo(t.due),over=d<0;var stat=over?('<span style="color:var(--text);font-weight:700">'+(-d)+'일 지남</span>'):(d===0?'오늘':d+'일 남음');
-      return '<tr data-id="'+t.id+'"><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num">'+stat+'</td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>';}).join('');}
+    body.innerHTML=list.map(function(x){var t=x.t,s=x.sub,d=daysTo(x.due),over=d<0;var stat=over?('<span style="color:var(--text);font-weight:700">'+(-d)+'일 지남</span>'):(d===0?'오늘':d+'일 남음');
+      if(!s)return '<tr data-id="'+t.id+'"><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(x.due)+'</td><td class="num">'+stat+'</td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>';
+      return '<tr data-id="'+t.id+'"><td class="ckcell"><span class="sck" data-act="subck" data-i="'+x.i+'" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="stt" data-act="subedit" data-i="'+x.i+'">'+esc(s.t)+'</span><span class="subctx">↳ '+esc(t.title)+'</span></td><td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="subdue" data-i="'+x.i+'">'+mmdd(x.due)+'</td><td class="num">'+stat+'</td><td class="imp">—</td></tr>';}).join('');}
   function projectNames(){var s={};wsTodos().forEach(function(t){if(t.project)s[t.project]=1;});return Object.keys(s);}
   function orderedProjects(){var names=projectNames();var ord=(state.settings.projOrder&&state.settings.projOrder[state.ws])||[];var a=ord.filter(function(n){return names.indexOf(n)>=0;});var rest=names.filter(function(n){return a.indexOf(n)<0;});return a.concat(rest);}
   function fmtDone(iso){if(!iso)return '—';var d=new Date(iso);if(isNaN(d.getTime()))return '—';return (d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
@@ -1109,13 +1120,13 @@
   document.addEventListener('click',function(e){
     if(nestSource){var cx=e.target.closest('#nestCancel');if(cx){cancelNest();return;}var tr=e.target.closest('tr[data-id]');if(tr&&!tr.classList.contains('subrow')&&tr.dataset.id!==nestSource){doNest(nestSource,tr.dataset.id);return;}cancelNest();return;}
     var el=e.target.closest('[data-act]');if(!el||!appEl.contains(el))return;var act=el.dataset.act,id=rowId(el),t=id?tById(id):null;
-    if(act==='done'&&t){if(t.repeat!=='none'){t.lastDone=todayISO();}else{t.done=!t.done;t.doneAt=t.done?new Date().toISOString():'';}putTodo(t);renderAll();}
+    if(act==='done'&&t){if(t.repeat!=='none'){var _ti2=todayISO();if(t.lastDone!==_ti2){t.doneLog=t.doneLog||[];t.doneLog.push(_ti2);if(t.doneLog.length>400)t.doneLog=t.doneLog.slice(-400);}t.lastDone=_ti2;}else{t.done=!t.done;t.doneAt=t.done?new Date().toISOString():'';}putTodo(t);renderAll();}
     else if(act==='archive'&&t){t.archived=true;putTodo(t);renderAll();showToast('완료함으로 옮겼어요',function(){t.archived=false;putTodo(t);renderAll();});}
     else if(act==='unarchive'&&t){t.archived=false;t.done=false;t.doneAt='';t.bucket=t.project?'active':'inbox';putTodo(t);renderAll();showToast('되돌렸어요 · 체크 해제된 상태로 돌아가요');}
     else if(act==='archive-all'){var dn=wsTodos().filter(function(x){return x.done&&x.repeat==='none';});if(!dn.length)return;dn.forEach(function(x){x.archived=true;putTodo(x);});renderAll();showToast(dn.length+'개 완료함으로 정리했어요');}
     else if(act==='subtog'&&t){expanded[t.id]=!expanded[t.id];renderToday();renderProjects();}
-    else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();}}
-    else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();}}
+    else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();renderDue();}}
+    else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();renderDue();}}
     else if(act==='nest'&&t){startNest(t.id);}
     else if(act==='proj-rename'){e.stopPropagation();var oldn=el.dataset.proj,nn=(prompt('프로젝트 이름 변경',oldn)||'').trim();if(!nn||nn===oldn)return;
       state.todos.filter(function(x){return x.ws===state.ws&&x.project===oldn;}).forEach(function(x){x.project=nn;putTodo(x);});
@@ -1128,7 +1139,7 @@
       if(t.repeat==='monthly'){var md=prompt('매월 며칠? (1~31, 또는 last=말일)',t.repDay||'last');if(md!==null&&(md||'').trim())t.repDay=(md).trim();else if(!t.repDay)t.repDay='last';}
       putTodo(t);renderAll();showToast(t.repeat==='none'?'반복 해제':'고정업무: '+repLabel(t));}
     else if(act==='toggle-today'&&t){t.today=!t.today;if(t.today)t.bucket='active';putTodo(t);renderAll();showToast(t.today?'오늘의 집중에 넣었어요':'오늘에서 뺐어요');}
-    else if(act==='subdue'&&t){var di=+el.dataset.i;if(t.subs&&t.subs[di]){var cur=t.subs[di].due?mmdd(t.subs[di].due):'';var v=prompt('하위 항목 날짜 (예: 8/5, 비우면 없음)',cur);if(v!==null){t.subs[di].due=parseDue(v);putTodo(t);renderToday();renderProjects();}}return;}
+    else if(act==='subdue'&&t){var di=+el.dataset.i;if(t.subs&&t.subs[di]){var cur=t.subs[di].due?mmdd(t.subs[di].due):'';var v=prompt('하위 항목 날짜 (예: 8/5, 비우면 없음)',cur);if(v!==null){t.subs[di].due=parseDue(v);putTodo(t);renderToday();renderProjects();renderDue();}}return;}
     else if(act==='subtoday'&&t){var sti=+el.dataset.i;if(t.subs&&t.subs[sti]){var sw=t.subs[sti];sw.today=!sw.today;putTodo(t);renderToday();renderProjects();showToast(sw.today?'오늘의 집중에 넣었어요':'오늘에서 뺐어요');}return;}
     else if(act==='imp'&&t){t.imp=(t.imp%3)+1;putTodo(t);renderAll();}
     else if(act==='memo'&&t&&t.memoId){state.curMemo=t.memoId;switchTab('memo');renderMemos();}
@@ -1196,7 +1207,7 @@
   document.addEventListener('dblclick',function(e){var el=e.target.closest('.ttl[data-act="edit"]');if(!el)return;var t=tById(rowId(el));if(!t)return;var v=prompt('할일 수정',t.title);if(v!==null&&v.trim()){t.title=v.trim();if(t.memoId){var m=mById(t.memoId);if(m){m.link=t.title;putMemo(m);}}putTodo(t);renderAll();}});
   // 하위 항목: 추가(Enter) · 수정(더블클릭)
   document.addEventListener('keydown',function(e){var el=e.target.closest('input.subnew');if(!el)return;if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;var t=tById(rowId(el));if(!t)return;var v=el.value.trim();if(!v)return;t.subs=t.subs||[];t.subs.push({t:v,d:false});expanded[t.id]=true;putTodo(t);renderToday();renderProjects();var box=document.querySelector('.subrow[data-id="'+t.id+'"] .subnew');if(box)box.focus();});
-  document.addEventListener('dblclick',function(e){var el=e.target.closest('[data-act="subedit"]');if(!el)return;var t=tById(rowId(el));if(!t)return;var i=+el.dataset.i;if(!t.subs||!t.subs[i])return;var v=prompt('하위 항목 수정',t.subs[i].t);if(v!==null&&v.trim()){t.subs[i].t=v.trim();putTodo(t);renderToday();renderProjects();}});
+  document.addEventListener('dblclick',function(e){var el=e.target.closest('[data-act="subedit"]');if(!el)return;var t=tById(rowId(el));if(!t)return;var i=+el.dataset.i;if(!t.subs||!t.subs[i])return;var v=prompt('하위 항목 수정',t.subs[i].t);if(v!==null&&v.trim()){t.subs[i].t=v.trim();putTodo(t);renderToday();renderProjects();renderDue();}});
 
   function removeTodo(t,msg){var idx=state.todos.indexOf(t);if(idx<0)return;state.todos.splice(idx,1);delTodoDB(t.id);renderAll();showToast(msg,function(){state.todos.unshift(t);putTodo(t);});}
   function parseDue(v){v=(v||'').trim();if(!v)return '';var p=v.split(/[\/\-.]/);if(p.length>=2){var mo=+p[p.length-2],da=+p[p.length-1];if(mo&&da)return state.calYear+'-'+pad(mo)+'-'+pad(da);}return '';}
