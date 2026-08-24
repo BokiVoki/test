@@ -1542,18 +1542,31 @@
         return;}
     }
   });
-  // 체크박스(☐/☑) 글리프 탭 → 완료 토글
+  var MEMO_URL_RE=/(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+)/g; // 체크박스 탭/링크 탭 둘 다 이 핸들러에서 처리
+  // 체크박스(☐/☑) 글리프 탭 → 완료 토글, 링크 탭 → 새 탭으로 열기
   mbodyTreeEl.addEventListener('click',function(e){
     var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg')||ta.classList.contains('mseg-header'))return;
     var pos=ta.selectionStart,val=ta.value,ls=val.lastIndexOf('\n',pos-1)+1;
     var le=val.indexOf('\n',ls);if(le===-1)le=val.length;
     var line=val.slice(ls,le);
     var m=line.match(/^(\s*)([☐☑])(\s|$)/);
-    if(!m)return;
-    var glyphPos=ls+m[1].length;
-    if(pos<glyphPos||pos>glyphPos+2)return; // 글리프 바로 근처를 눌렀을 때만 토글(본문 클릭은 그냥 커서 이동)
-    var nv=val.slice(0,glyphPos)+(m[2]==='☐'?'☑':'☐')+val.slice(glyphPos+1);
-    ta.value=nv;ta.setSelectionRange(pos,pos);ta.dispatchEvent(new Event('input'));
+    if(m){
+      var glyphPos=ls+m[1].length;
+      if(pos>=glyphPos&&pos<=glyphPos+2){ // 글리프 바로 근처를 눌렀을 때만 토글(본문 클릭은 그냥 커서 이동)
+        var nv=val.slice(0,glyphPos)+(m[2]==='☐'?'☑':'☐')+val.slice(glyphPos+1);
+        ta.value=nv;ta.setSelectionRange(pos,pos);ta.dispatchEvent(new Event('input'));
+        return;
+      }
+    }
+    var offsetInLine=pos-ls,mm2;MEMO_URL_RE.lastIndex=0;
+    while((mm2=MEMO_URL_RE.exec(line))){
+      var uStart=mm2.index,uEnd=uStart+mm2[0].length;
+      if(offsetInLine>=uStart&&offsetInLine<=uEnd){
+        var href=mm2[0];if(!/^https?:\/\//i.test(href))href='https://'+href;
+        window.open(href,'_blank');
+        return;
+      }
+    }
   });
   mbodyTreeEl.addEventListener('focusout',function(){setTimeout(function(){document.getElementById('mentionPop').classList.add('hidden');},160);});
   var _mentionStart=-1,_mentionTa=null;
