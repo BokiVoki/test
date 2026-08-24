@@ -59,14 +59,14 @@
 
 - **스택**: 단일 HTML 파일 + Supabase (DB+Auth) + Netlify 호스팅. 빌드 없음.
 - **디자인**: 미니멀·샤프, 딥 포레스트 그린 단일 포인트(`#2C6A46`/dark `#5FB088`), 엑셀st 표, 라이트/다크.
-- **탭**: 대시보드 / 주머니·프로젝트 / 캘린더 / 메모 / 완료함 / 순서도
+- **탭**: 대시보드 / 주머니·프로젝트 / 캘린더 / 메모 / 완료함 / 그림공부
 - **탭 순서 변경**: 상단 탭 자체를 드래그로 재정렬(localStorage `tabOrder`, `applyTabOrder`).
 - **모바일 전체화면(아이폰 메모st)**: 680px 이하에서 그림공부/메모 둘 다 "목록 vs 상세" 중 하나만 보임 — 뭔가 선택하면(작가/그림/태그/미분류, 또는 메모) 사이드바·목록이 숨고 내용이 화면 전체를 채우는 고정 오버레이로 뜸(`art-mob-detail`/`mob-edit` 클래스, `renderArtMain`/`#mBackBtn`에서 토글). 각 화면 위 **‹ 목록** 링크(`art-back-list`)나 **‹ 메모 목록** 버튼(`#mBackBtn`)으로 되돌아감. 데스크톱(680px 초과)에선 원래대로 사이드바+본문 동시에 보임(CSS 미디어쿼리 안에서만 의미있는 클래스라 무해).
 - **되돌리기**: 토스트 "되돌리기" + **Cmd/Ctrl+Z**(입력창 focus 아닐 때). `undoHist` 스택, `doUndo()`. (되돌리기 옵션 있는 액션만 — 삭제/완료함/nest/프로젝트삭제 등)
-- **프로젝트 이름 변경**: 헤더 hover **✎**(`proj-rename`) → 해당 ws 모든 할일 `project` 갱신 + projOrder/flowShownProj/flowSel 키 이동.
+- **프로젝트 이름 변경**: 헤더 hover **✎**(`proj-rename`) → 해당 ws 모든 할일 `project` 갱신 + projOrder 키 이동.
 - **메모 정렬**: 최신순(`memos.updated` text, `putMemo`가 `new Date().toISOString()` 기록). 새 메모/수정 메모가 위로(목록 새로고침 시). 컬럼 없으면 `hasMemoUpd`로 방어.
 - **전체 검색**: 헤더 아래 검색바(`#q`) — 모든 탭/워크스페이스 걸쳐 할일(제목·하위항목·프로젝트)+메모 검색. **띄어쓰기 무시**(`norm()`=공백 제거+소문자). 결과 클릭 시 해당 위치로 이동. (`runSearch`, `#searchView`)
-  - **대시보드**: 빠른 담기 + 오늘의 집중(자동 우선순위 + 가용시간 · **오늘 찍음 or 오늘 마감 자동 포함**, 밀린 건 마감 섹션에만) + 마감 임박 + 오늘 흐름 토글. 진짜 할일만. 빠른담기 옆 **오늘** 버튼=오늘의 집중 바로 담기(Shift+Enter도). 행 hover **🔁**=고정업무(none→매일→매주(요일)→매월(일)→none), 프로젝트 행 hover **오늘** 토글, 하위 항목 hover **＋날짜**(`subdue`, sub.due) · **오늘**(`subtoday`, sub.today — 하위 항목도 오늘의 집중에 개별 지정 가능, 마감 안 잡아도 됨). **오늘 지정은 자정 지나면 자동 리셋**(`dailyResetToday`, 매일 첫 로드 때 `settings.todayResetDate`가 오늘과 다르면 부모·하위 `today` 플래그 전부 끄고 오늘 날짜로 갱신 — 컬럼 추가 없이 settings에 리셋한 날짜만 기록해서 판별). **오늘의 집중 포함 조건**: 부모가 `today`거나 마감이 오늘이거나, **하위 항목 중 하나라도 `today`거나 마감이 오늘**이면(완료 제외) 그 부모가 통째로 올라옴.
+  - **대시보드**: 빠른 담기 + 오늘의 집중(자동 우선순위 + 가용시간 · **오늘 찍음 or 오늘 마감 자동 포함**, 밀린 건 마감 섹션에만) + 마감 임박. 진짜 할일만. 빠른담기 옆 **오늘** 버튼=오늘의 집중 바로 담기(Shift+Enter도). 행 hover **🔁**=고정업무(none→매일→매주(요일)→매월(일)→none), 프로젝트 행 hover **오늘** 토글, 하위 항목 hover **＋날짜**(`subdue`, sub.due) · **오늘**(`subtoday`, sub.today — 하위 항목도 오늘의 집중에 개별 지정 가능, 마감 안 잡아도 됨). **오늘 지정은 자정 지나면 자동 리셋**(`dailyResetToday`, 매일 첫 로드 때 `settings.todayResetDate`가 오늘과 다르면 부모·하위 `today` 플래그 전부 끄고 오늘 날짜로 갱신 — 컬럼 추가 없이 settings에 리셋한 날짜만 기록해서 판별). **오늘의 집중 포함 조건**: 부모가 `today`거나 마감이 오늘이거나, **하위 항목 중 하나라도 `today`거나 마감이 오늘**이면(완료 제외) 그 부모가 통째로 올라옴.
   - **주머니·프로젝트**: 주머니 분류(오늘/프로젝트/나중/메모/버림) + 프로젝트 아코디언. **주머니 표시 기준은 `bucket==='inbox'`가 아니라 `!project`**(프로젝트가 없으면 무조건 주머니) — "오늘" 버튼으로 바로 오늘의 집중에 던진 항목(`bucket='active'`, project 없음)이 다음날 `dailyResetToday`로 오늘 지정이 풀리면 프로젝트도 없고 bucket도 inbox가 아니라서 주머니/프로젝트 어디에도 안 보이고 마감임박에만 뜨는 유령 상태가 되던 버그 → 모든 할일이 항상 주머니 또는 프로젝트 중 하나에는 걸리게 통일. 주머니 행에도 체크박스(완료) 추가. **주머니 행에 마감일 지정 버튼**(`📅 날짜`, `inbdue`, `due` act 재사용)도 추가 — 프로젝트 없이 주머니에만 있는 항목도 마감을 오늘로 잡으면 오늘의 집중에 바로 뜸(대시보드 필터가 이미 `daysTo(t.due)===0`을 bucket 상관없이 보고 있어서 버튼만 추가하면 됨).
   - **캘린더**: 월 그리드, 드래그로 마감일 변경. **기간 일정**(`todos.endd`)이면 시작~종료 모든 날에 바 표시(시작일=제목, 이후=`.evcont` 연속 바). 구캘 일정이 여기 뜸.
   - **메모**: 애플 메모st, 폴더, 할일 연결(📝). **라이브 블록 에디터**(`#mbodyTree`) — 예전엔 편집(raw textarea) ↔ 읽기(렌더링) 뷰를 탭해서 전환했는데(리치 에디터로 교체하면서 폐기), 지금은 **읽기/편집 구분 없이 하나의 화면**에서 불릿·체크박스·토글·사진이 실시간으로 그 모양 그대로 보이고 바로 고칠 수 있음(노션st). 저장 형식(마커 붙은 순수 텍스트, `m.body`)은 그대로라 옵시디언 연동 안 하기로 한 결정과도 무관하고 마이그레이션도 필요 없음.
@@ -85,11 +85,7 @@
   - **프로젝트**: 헤더 ⠿ 핸들 드래그로 순서 변경(→ `settings.projOrder[ws]`), ✕로 삭제(할일은 주머니로 이동, 삭제 아님). 프로젝트 안 **할일 행 ⠿ 드래그로 순서 변경**(→ `todos.sort`, `reorderTodo`), **하위 항목 ⠿ 드래그로 순서 변경**(subs 배열 재정렬, `reorderSub`).
   - **⤵하위로(nest) 연결 모드 주의**: 모드 진입 후 아무 데나 클릭하면 취소됨(예전엔 유효 대상 아니면 무시→전체 먹통 버그였음, 수정됨), Esc로도 취소.
   - **하위 항목(서브태스크)**: 할일 제목 옆 `▸ n/m` 칩(또는 hover 시 `＋하위`) → 토글로 체크리스트 펼침. 오늘의 집중·프로젝트 뷰에서만. `todos.subs jsonb`(`[{t,d}]`)에 저장. 기존 할일은 hover `⤵하위로` → 대상 할일 탭하면 그 밑으로 이동(원본 삭제, 자식의 subs도 함께 흡수, 되돌리기 지원).
-  - **순서도(flow) — 단계 보드**: 대상(프로젝트 or 하위항목 있는 할일) 선택 → 카드를 **단계 칼럼(미배치·1·2…·＋새단계)으로 드래그앤드롭**. 같은 칼럼=같은 순서(병렬 가능), 미배치=잡일. 상태색 done/next(다음=앞 단계 다 끝남)/blocked, 상위 마감일 표시, "다음 할 일" 하이라이트. **의존성 화살표 방식은 폐기**(탭-탭 불편+순환 이슈 → 단계 방식으로 교체, mermaid도 제거). 하위 단계=`subs[].stage`, 프로젝트 단계=`todos.dep`(숫자 재활용). 대시보드 오늘 흐름=`#todayFlow`(토글 `#flowToggle`, pref `showTodayFlow`). `renderFlow`/`renderFlowBoard`/`renderTodayFlow`.
-    - **순서도 → 프로젝트 리스트 반영**: 프로젝트 할일 정렬 = 단계 우선(미배치=뒤) → 그다음 `sort`. 행에 단계 배지(`.stbadge`).
-    - **상위 마감 → 하위 자동 분배**(`flowDistribute`, 순서도 헤더 `📅 하위 마감 자동 분배` 버튼, todo-source+상위 due 있을 때): 오늘~상위마감을 단계 수로 나눠 각 단계 하위 항목에 마감 배정(마지막 단계=상위마감, 미배치는 제외).
-    - **보드 개선**: 카드에 마감 표시(`.fcdue`), **단계-대-단계**를 화살표 SVG 곡선 1개로 연결(`drawFlowLines`, 칼럼 gap 32px, 화살촉 marker). 인라인 순서도 두 종류: 프로젝트 섹션 헤더 **🔀**(`proj-flow`, `flowShownProj`, `.projflow`)=프로젝트 할일 순서도, 하위 있는 할일 행 **🔀**(`row-flow`, `flowShownTodo`, `.rowflow`/`.flowsubrow`)=그 할일 하위 순서도. 둘 다 읽기전용. 프로젝트 행은 제목 옆에 하위토글이 먼저.
-  - **DB 추가**: `todos.doneat text`, `todos.archived bool`, `todos.subs jsonb`(각 sub `{t,d,id,due,stage}`), `todos.dep jsonb`(프로젝트 순서도 단계 숫자), `todos.endd text`(기간 일정 종료일), `settings(owner uuid pk, data jsonb)` 테이블(RLS `owner=auth.uid()`). 코드는 `hasArchive`/`hasSubs`/`hasDep`/`hasEnd` 플래그로 컬럼 없어도 안 깨지게 방어.
+  - **DB 추가**: `todos.doneat text`, `todos.archived bool`, `todos.subs jsonb`(각 sub `{t,d,id,due}`), `todos.endd text`(기간 일정 종료일), `settings(owner uuid pk, data jsonb)` 테이블(RLS `owner=auth.uid()`). 코드는 `hasArchive`/`hasSubs`/`hasEnd` 플래그로 컬럼 없어도 안 깨지게 방어.
 - **우선순위 점수**: `중요도*25 + 마감임박도(지남100/오늘·내일60/3일내30) + 빠른완수(≤20분)10`
 - **Supabase**
   - Project URL: `https://mfgiesampazjzgfliuje.supabase.co`

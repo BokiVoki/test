@@ -107,35 +107,7 @@
   .subnew{margin-top:5px;width:100%;max-width:320px;font:inherit;font-size:12.5px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);padding:4px 0;outline:none}
   .subnew:focus{border-bottom-color:var(--accent)}
   .subitem.flash{background:var(--accent-wash);outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px;transition:background .2s}
-  #flowSel{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line-2);border-radius:5px;background:none;color:var(--text);max-width:60vw}
-  .flowmeta{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:2px 0 14px}
-  .flowdue{font-family:var(--mono);font-size:12px;color:var(--text)}
-  .flownext{font-size:13px;color:var(--accent);font-weight:600}
-  .flowdiagram{overflow-x:auto;padding:4px 2px 10px;margin-bottom:6px}
-  .flowboard{display:flex;align-items:stretch;gap:32px;min-width:min-content;position:relative}
-  .flowlines{position:absolute;top:0;left:0;pointer-events:none;z-index:0;overflow:visible}
-  .flowlines path{fill:none;stroke:var(--accent);stroke-width:1.6;opacity:.55}
-  .flowarrowfill{fill:var(--accent);opacity:.55}
-  .fcdue{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:6px}
-  .flowcard.next .fcdue{color:var(--accent)}.flowcard.done .fcdue{opacity:.85}
-  .pjflow{cursor:pointer;font-size:12px;padding:0 5px;opacity:0}.pjsec:hover .pjflow{opacity:.9}
   .pjren{cursor:pointer;font-size:12px;padding:0 4px;opacity:0}.pjsec:hover .pjren{opacity:.9}
-  .projflow{padding:6px 2px 12px;overflow-x:auto}
-  .flowstage{min-width:148px;border:1px solid var(--line-2);border-radius:8px;display:flex;flex-direction:column}
-  .flowstage.isnew{border-style:dashed;opacity:.9}
-  .flowstage.over{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-wash) inset}
-  .flowstagehd{font-size:11px;color:var(--faint);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-  .flowstagebody{padding:8px;display:flex;flex-direction:column;gap:7px;min-height:54px}
-  .flowcard{border:1px solid var(--line-2);border-radius:6px;padding:8px 10px;font-size:13px;background:var(--panel);cursor:grab;word-break:break-word;position:relative;z-index:1}
-  .flowcard.dragging{opacity:.4}
-  .flowcard.done{background:#dff0e6;border-color:var(--accent);color:var(--accent);text-decoration:line-through}
-  .flowcard.next{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset;font-weight:600}
-  .flowcard.blocked{color:var(--faint)}
-  .flowchev{display:flex;align-items:center;color:var(--faint);font-size:15px;padding:0 1px}
-  .flowempty{font-size:11px;color:var(--faint);text-align:center;padding:9px 2px;line-height:1.45}
-  .flowrowline{display:flex;align-items:center;gap:4px;flex-wrap:wrap;overflow-x:auto}
-  .flowrowline .flowcard{cursor:default;white-space:nowrap}
-  #todayFlow{margin:4px 0 8px}
   .rowbtn{font:inherit;font-size:11px;color:var(--faint);background:none;border:0;cursor:pointer;opacity:0;padding-left:7px}tr:hover .rowbtn{opacity:.7}.rowbtn:hover{color:var(--accent)}
   .sdue2{font-family:var(--mono);font-size:10.5px;color:var(--faint);cursor:pointer;margin-left:auto;opacity:0;padding:0 4px}.subitem:hover .sdue2{opacity:1}.sdue2.has{opacity:.9;color:var(--accent)}
   .stoday{font-family:var(--mono);font-size:10.5px;color:var(--faint);cursor:pointer;margin-left:auto;opacity:0;padding:0 4px}.subitem:hover .stoday{opacity:1}.stoday.has{opacity:.9;color:var(--accent)}
@@ -143,7 +115,6 @@
   tr.rowdragging{opacity:.4}tr.rowdropbefore>td{box-shadow:inset 0 2px 0 var(--accent)}
   .subdrag{cursor:grab;color:var(--faint);font-size:11px;opacity:0;user-select:none}.subitem:hover .subdrag{opacity:.55}
   .subitem.subdragging{opacity:.4}
-  .stbadge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-right:5px;border-radius:8px;background:var(--accent-wash);color:var(--accent);font-size:10px;font-weight:700;font-family:var(--mono);vertical-align:middle}
   .nest{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;padding-left:8px;border:0;background:none;font-family:inherit}tr:hover .nest{opacity:.7}.nest:hover{color:var(--accent)}
   .nestbar{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:9px 14px;border-radius:5px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;gap:10px}
   .nestbar button{margin-left:auto;font:inherit;font-size:12px;background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:4px;padding:4px 11px;cursor:pointer}
@@ -333,7 +304,6 @@
       <button role="tab" aria-selected="false" data-tab="cal">캘린더</button>
       <button role="tab" aria-selected="false" data-tab="memo">메모</button>
       <button role="tab" aria-selected="false" data-tab="done">완료함</button>
-      <button role="tab" aria-selected="false" data-tab="flow">순서도</button>
       <button role="tab" aria-selected="false" data-tab="art">그림공부</button>
     </nav>
     <div class="right">
@@ -352,8 +322,7 @@
     <div class="capture"><input id="capIn" placeholder="머릿속에 있는 거, 일단 여기 다 던져…" aria-label="빠른 캡처"><button id="capBtn">담기</button><button id="capToday" class="btn-s" title="오늘의 집중으로 바로">오늘</button></div>
     <p class="caphint">뭐든 던지면 <a class="goPocket" id="goPocket">주머니(<span id="capCount">0</span>)</a>에 쌓여요 · 대시보드엔 진짜 할일만</p>
     <section class="blk">
-      <div class="bhead"><h2>오늘의 집중</h2><div class="r">오늘 <input class="hours" id="hours" type="number" min="0" max="16" value="4">시간 <span class="budget" id="budget"></span> <button class="btn-s" id="flowToggle" style="margin-left:8px">🔀 흐름</button> <button class="btn-s hidden" id="archAll" data-act="archive-all"></button></div></div>
-      <div id="todayFlow" class="flowdiagram hidden"></div>
+      <div class="bhead"><h2>오늘의 집중</h2><div class="r">오늘 <input class="hours" id="hours" type="number" min="0" max="16" value="4">시간 <span class="budget" id="budget"></span> <button class="btn-s hidden" id="archAll" data-act="archive-all"></button></div></div>
       <table class="tbl"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody id="todayBody"></tbody></table>
     </section>
     <section class="blk">
@@ -383,15 +352,6 @@
     <div class="bhead"><h2>완료함</h2><div class="r" id="doneCount"></div></div>
     <p class="caphint">완료한 할일이 여기 쌓여요 · 완료 시점도 함께 기록돼요 · 되돌리기 가능</p>
     <div id="doneList"></div>
-  </div>
-  <div id="flow" class="hidden">
-    <div class="bhead"><h2>순서도</h2><div class="r">
-      <select id="flowSel" aria-label="순서도 대상"></select>
-    </div></div>
-    <p class="caphint" id="flowHint">프로젝트나 하위 항목이 있는 할일을 골라 일의 순서를 짜보세요 · 카드를 <b>단계 칼럼으로 드래그</b>해서 순서 지정 (같은 칼럼 = 같은 순서, 잡일은 <b>미배치</b>에 두기)</p>
-    <div id="flowDeadline"></div>
-    <div id="flowDiagram" class="flowdiagram"></div>
-    <div id="flowEditor"></div>
   </div>
   <div id="art" class="hidden">
     <div id="artNoTable" class="hidden"><p class="caphint">⚠️ 그림공부 테이블이 아직 없어요 — Supabase에 SQL 마이그레이션을 먼저 실행해주세요.</p></div>
@@ -445,14 +405,12 @@
   var hasMemoUpd=false;  // memos에 updated 컬럼이 있으면 true (정렬용)
   var hasMemoImg=false;  // memos.images 컬럼이 있으면 true (사진 첨부, SQL 마이그레이션 후)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
-  var flowShownProj={};  // 프로젝트별 인라인 순서도 표시 여부 (세션 한정)
-  var flowShownTodo={};  // 할일별(하위항목 순서도) 인라인 표시 여부 (세션 한정)
   var nestSource=null;   // '하위로 이동' 중인 할일 id
-  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'dash',q:'',flowSel:null,artists:[],artworks:[],artSel:{type:'none'}};
+  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'dash',q:'',artists:[],artworks:[],artSel:{type:'none'}};
 
   // prefs (local only)
-  function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder','showTodayFlow','tabOrder'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
-  function savePrefs(){try{localStorage.setItem('haru_prefs',JSON.stringify({ws:state.ws,hours:state.hours,theme:state.theme,calMonth:state.calMonth,calYear:state.calYear,curFolder:state.curFolder,showTodayFlow:state.showTodayFlow,tabOrder:state.tabOrder}));}catch(e){}}
+  function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder','tabOrder'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
+  function savePrefs(){try{localStorage.setItem('haru_prefs',JSON.stringify({ws:state.ws,hours:state.hours,theme:state.theme,calMonth:state.calMonth,calYear:state.calYear,curFolder:state.curFolder,tabOrder:state.tabOrder}));}catch(e){}}
   loadPrefs();
   if(state.theme)document.documentElement.setAttribute('data-theme',state.theme);
 
@@ -620,7 +578,6 @@
     bd.innerHTML='· 예상 <b>'+fmtEst(mins)+'</b> / '+(+state.hours||0)+'h';bd.classList.toggle('over',mins>cap&&cap>0);
     var dn=wsTodos().filter(function(t){return t.done&&t.repeat==='none';}).length,aa=document.getElementById('archAll');
     aa.classList.toggle('hidden',!dn);aa.textContent='완료한 '+dn+'개 → 완료함';
-    renderTodayFlow(pick);
   }
   function renderDue(){var body=document.getElementById('dueBody');
     var list=wsTodos().filter(function(t){return t.due&&!t.done;}).sort(function(a,b){return a.due<b.due?-1:1;}).slice(0,12);
@@ -639,12 +596,10 @@
       return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td><div class="tri"><button data-act="t-today">오늘</button><button class="inbdue'+(t.due?' has':'')+(over?' over':'')+'" data-act="due">'+(t.due?'📅 '+mmdd(t.due):'📅 날짜')+'</button><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>';}).join('');}
   function renderProjects(){var wrap=document.getElementById('projAll'),names=orderedProjects();
     if(!names.length){wrap.innerHTML='<p class="empty">프로젝트가 아직 없어요 · 주머니에서 항목을 프로젝트로 분류해보세요</p>';return;}
-    wrap.innerHTML=names.map(function(name){var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox';}).sort(function(a,b){var sa=(a.stage||0)||1e9,sb=(b.stage||0)||1e9;return sa!==sb?sa-sb:(a.sort||0)-(b.sort||0);});
+    wrap.innerHTML=names.map(function(name){var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox';}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
-        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span>'+((t.stage||0)>0?'<span class="stbadge" title="순서도 단계">'+t.stage+'</span>':'')+'<span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+subTogHtml(t)+(((t.subs||[]).length>0)?'<button class="rowbtn" data-act="row-flow" data-node="'+t.id+'" title="하위 순서도 보기">🔀</button>':'')+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로">🔁</button>')+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,5)+(((t.subs||[]).length>0&&flowShownTodo[t.id])?'<tr class="flowsubrow" data-id="'+t.id+'"><td colspan="5"><div class="rowflow" data-id="'+t.id+'"></div></td></tr>':'');}).join('');
-      return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+items.length+'</span><span class="pjflow" data-act="proj-flow" data-proj="'+esc(name)+'" title="순서도 보기">🔀</span><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+rows+'</tbody></table><div class="projflow'+(flowShownProj[name]?'':' hidden')+'" data-proj="'+esc(name)+'"></div></div></div>';}).join('');
-    [].forEach.call(wrap.querySelectorAll('.projflow'),function(div){var nm=div.dataset.proj;if(!flowShownProj[nm])return;var pm=projectFlowModel(nm);if(!pm.nodes.length){div.innerHTML='<p class="empty" style="padding:6px">할일이 없어요</p>';return;}renderFlowBoard(pm,flowStatus(pm.nodes),div,true);});
-    [].forEach.call(wrap.querySelectorAll('.rowflow'),function(div){var id=div.dataset.id;var pm=todoFlowModel(id);if(!pm||!pm.nodes.length){div.innerHTML='<p class="empty" style="padding:6px">하위 항목이 없어요</p>';return;}renderFlowBoard(pm,flowStatus(pm.nodes),div,true);});}
+        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+subTogHtml(t)+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로">🔁</button>')+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,5);}).join('');
+      return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+items.length+'</span><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';}).join('');}
   function renderDone(){var wrap=document.getElementById('doneList');var list=wsArchived().slice().sort(function(a,b){return (b.doneAt||'')<(a.doneAt||'')?-1:((b.doneAt||'')>(a.doneAt||'')?1:0);});
     document.getElementById('doneCount').textContent=list.length+'개';
     if(!list.length){wrap.innerHTML='<p class="empty">완료함이 비었어요 · 완료한 할일을 여기로 보낼 수 있어요</p>';return;}
@@ -848,104 +803,6 @@
   }
   function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}
     (t.subs||[]).forEach(function(s){if(s.memoId){var m2=mById(s.memoId);if(m2)m2.link=t.title+' ↳ '+s.t;}});});}
-  // ===== 순서도 (flow) : 단계 보드 + 드래그앤드롭 =====
-  function flowSources(){return {projs:orderedProjects(),todos:wsTodos().filter(function(t){return (t.subs||[]).length>0;})};}
-  function projectFlowModel(name){
-    var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox';});
-    return {kind:'project',title:name,due:null,
-      nodes:items.map(function(t){return {id:t.id,label:t.title,done:!!t.done,stage:t.stage||0,due:t.due};}),
-      setStage:function(id,st){var t=tById(id);if(t){t.stage=st;putTodo(t);}}};
-  }
-  function todoFlowModel(id){
-    var pt=tById(id);if(!pt)return null;var subs=pt.subs||[];
-    return {kind:'todo',title:pt.title,due:pt.due,
-      nodes:subs.map(function(s){return {id:s.id,label:s.t,done:!!s.d,stage:s.stage||0,due:s.due};}),
-      setStage:function(id2,st){var s=(pt.subs||[]).filter(function(x){return x.id===id2;})[0];if(s){s.stage=st;putTodo(pt);}}};
-  }
-  function flowModel(){var sel=state.flowSel;if(!sel)return null;return sel.type==='project'?projectFlowModel(sel.key):todoFlowModel(sel.key);}
-  function flowStatus(nodes){
-    return nodes.map(function(n){
-      if(n.done)return {n:n,status:'done'};
-      var blocked=nodes.some(function(o){return o.stage>0&&o.stage<n.stage&&!o.done;});
-      return {n:n,status:blocked?'blocked':'next'};
-    });
-  }
-  function flowCard(n,status,drag){return '<div class="flowcard '+status+'"'+(drag?' draggable="true"':'')+' data-node="'+n.id+'">'+esc(n.label||'제목없음')+(n.due?'<span class="fcdue">~'+mmdd(n.due)+'</span>':'')+'</div>';}
-  function renderFlowBoard(model,statuses,container,readonly){
-    var stMap={};statuses.forEach(function(s){stMap[s.n.id]=s.status;});
-    var maxStage=model.nodes.reduce(function(m,n){return Math.max(m,n.stage||0);},0);
-    var cols=[{stage:0,label:'미배치 · 잡일'}];
-    for(var s=1;s<=maxStage;s++)cols.push({stage:s,label:'단계 '+s});
-    if(!readonly)cols.push({stage:maxStage+1,label:'＋ 새 단계',isNew:true});
-    var html=cols.map(function(c){
-      var ns=model.nodes.filter(function(n){return (n.stage||0)===c.stage;});
-      var cards=ns.map(function(n){return flowCard(n,stMap[n.id],!readonly);}).join('');
-      if(!cards)cards='<div class="flowempty">'+(c.isNew?'여기로 끌어<br>새 단계':(readonly?'—':'여기로 끌기'))+'</div>';
-      return '<div class="flowstage'+(c.isNew?' isnew':'')+'" data-stage="'+c.stage+'"><div class="flowstagehd">'+esc(c.label)+'</div><div class="flowstagebody">'+cards+'</div></div>';
-    }).join('');
-    container.innerHTML='<div class="flowboard">'+html+'</div>';
-    drawFlowLines(container);
-  }
-  function drawFlowLines(container){
-    var board=container.querySelector('.flowboard');if(!board)return;
-    if(!board.offsetWidth)return; // 숨겨져 있으면 스킵
-    var brect=board.getBoundingClientRect();
-    // 단계-대-단계: 순서가 있는(>=1) 단계 칼럼 덩어리끼리 하나씩 연결
-    var stages=[].slice.call(board.querySelectorAll('.flowstage')).filter(function(st){return +st.dataset.stage>=1&&!st.classList.contains('isnew')&&st.querySelector('.flowcard');});
-    stages.sort(function(a,b){return (+a.dataset.stage)-(+b.dataset.stage);});
-    if(stages.length<2)return;
-    var paths='';
-    function bodyRect(st){return (st.querySelector('.flowstagebody')||st).getBoundingClientRect();}
-    for(var i=0;i<stages.length-1;i++){
-      var a=bodyRect(stages[i]),b=bodyRect(stages[i+1]);
-      var x1=a.right-brect.left,y1=a.top-brect.top+a.height/2,x2=b.left-brect.left,y2=b.top-brect.top+b.height/2,mx=(x1+x2)/2;
-      paths+='<path d="M'+x1.toFixed(1)+' '+y1.toFixed(1)+' C'+mx.toFixed(1)+' '+y1.toFixed(1)+' '+mx.toFixed(1)+' '+y2.toFixed(1)+' '+x2.toFixed(1)+' '+y2.toFixed(1)+'" marker-end="url(#flowarrow)"/>';
-    }
-    board.insertAdjacentHTML('afterbegin','<svg class="flowlines" width="'+board.offsetWidth+'" height="'+board.offsetHeight+'"><defs><marker id="flowarrow" markerWidth="8" markerHeight="8" refX="6.5" refY="3" orient="auto"><path d="M0 0L6 3L0 6z" class="flowarrowfill"/></marker></defs>'+paths+'</svg>');
-  }
-  function renderFlow(){
-    var selEl=document.getElementById('flowSel');if(!selEl)return;
-    var src=flowSources();
-    var opts='<option value="">— 대상 선택 —</option>';
-    if(src.projs.length)opts+='<optgroup label="프로젝트">'+src.projs.map(function(p){return '<option value="p:'+esc(p)+'">'+esc(p)+'</option>';}).join('')+'</optgroup>';
-    if(src.todos.length)opts+='<optgroup label="하위 항목 있는 할일">'+src.todos.map(function(t){return '<option value="t:'+esc(t.id)+'">'+esc(t.title)+' ('+(t.subs||[]).length+')</option>';}).join('')+'</optgroup>';
-    selEl.innerHTML=opts;
-    if(state.flowSel)selEl.value=(state.flowSel.type==='project'?'p:'+state.flowSel.key:'t:'+state.flowSel.key);
-    var dead=document.getElementById('flowDeadline'),dia=document.getElementById('flowDiagram'),ed=document.getElementById('flowEditor');
-    var model=flowModel();ed.innerHTML='';
-    if(!model){dead.innerHTML='';dia.innerHTML='<p class="empty">위에서 프로젝트나 할일을 골라주세요</p>';return;}
-    if(!model.nodes.length){dead.innerHTML='';dia.innerHTML='<p class="empty">'+(model.kind==='todo'?'하위 항목이 없어요 · 할일에 하위 항목을 먼저 추가해보세요':'이 프로젝트에 할일이 없어요')+'</p>';return;}
-    var statuses=flowStatus(model.nodes);
-    var nexts=statuses.filter(function(s){return s.status==='next';}).map(function(s){return s.n.label;});
-    var allDone=statuses.every(function(s){return s.status==='done';});
-    var canDist=(model.kind==='todo'&&model.due&&model.nodes.some(function(n){return n.stage>0;}));
-    dead.innerHTML='<div class="flowmeta">'+(model.due?'<span class="flowdue">🎯 마감 '+mmdd(model.due)+'</span>':'')+(allDone?'<span class="flownext">모두 완료 🎉</span>':(nexts.length?'<span class="flownext">▶ 다음 할 일: '+esc(nexts.slice(0,4).join(', '))+(nexts.length>4?' 외':'')+'</span>':''))+(canDist?'<button class="btn-s" data-act="flow-dist" title="단계 순서대로 상위 마감까지 하위 마감 나누기">📅 하위 마감 자동 분배</button>':'')+'</div>';
-    renderFlowBoard(model,statuses,dia);
-  }
-  function renderTodayFlow(pick){
-    var el=document.getElementById('todayFlow');if(!el)return;
-    if(!state.showTodayFlow){el.classList.add('hidden');el.innerHTML='';return;}
-    el.classList.remove('hidden');
-    if(!pick.length){el.innerHTML='<div class="flowempty">오늘 할 일이 없어요</div>';return;}
-    el.innerHTML='<div class="flowrowline">'+pick.map(function(t){return '<div class="flowcard '+(t.done?'done':'next')+'">'+esc(t.title)+'</div>';}).join('<div class="flowchev">▸</div>')+'</div>';
-  }
-  // 순서도 드래그앤드롭 (카드를 단계 칼럼으로)
-  var flowDragId=null,fdia=document.getElementById('flowDiagram');
-  fdia.addEventListener('dragstart',function(e){var c=e.target.closest('.flowcard');if(!c){e.preventDefault();return;}flowDragId=c.dataset.node;c.classList.add('dragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',flowDragId);}catch(x){}}});
-  fdia.addEventListener('dragend',function(){fdia.querySelectorAll('.dragging').forEach(function(x){x.classList.remove('dragging');});fdia.querySelectorAll('.flowstage.over').forEach(function(x){x.classList.remove('over');});flowDragId=null;});
-  fdia.addEventListener('dragover',function(e){if(!flowDragId)return;var st=e.target.closest('.flowstage');if(!st)return;e.preventDefault();fdia.querySelectorAll('.flowstage.over').forEach(function(x){x.classList.remove('over');});st.classList.add('over');});
-  fdia.addEventListener('drop',function(e){if(!flowDragId)return;var st=e.target.closest('.flowstage');if(!st)return;e.preventDefault();var stage=+st.dataset.stage;var m=flowModel();if(m){m.setStage(flowDragId,stage);showToast(stage===0?'미배치로 옮겼어요':'단계 '+stage+'(으)로 옮겼어요');}flowDragId=null;renderFlow();renderProjects();});
-  function flowDistribute(){
-    var sel=state.flowSel;if(!sel||sel.type!=='todo')return;
-    var pt=tById(sel.key);if(!pt||!pt.due){showToast('상위 할일에 마감일이 없어요');return;}
-    var subs=pt.subs||[],uniq=[];
-    subs.forEach(function(s){var st=s.stage||0;if(st>0&&uniq.indexOf(st)<0)uniq.push(st);});uniq.sort(function(a,b){return a-b;});
-    if(!uniq.length){showToast('단계가 지정된 하위 항목이 없어요');return;}
-    var today=new Date(todayISO()),D=new Date(pt.due),span=D-today,k=uniq.length,n=0;
-    subs.forEach(function(s){var st=s.stage||0;if(st<=0)return;var idx=uniq.indexOf(st)+1;s.due=todayISO(new Date(today.getTime()+span*(idx/k)));n++;});
-    putTodo(pt);renderFlow();renderProjects();renderToday();showToast(n+'개 하위 마감을 상위('+mmdd(pt.due)+') 기준으로 분배했어요');
-  }
-
   // ── 그림공부 렌더 ──
   function renderArt(){
     var noTbl=document.getElementById('artNoTable'),body=document.getElementById('artBody');
@@ -1173,7 +1030,7 @@
     });
   })();
 
-  function renderAll(){syncLinks();renderToday();renderDue();renderInbox();renderProjects();renderCal();renderMemos();renderDone();renderArt();if(state.q)runSearch();if(state.tab==='flow')renderFlow();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderInbox();renderProjects();renderCal();renderMemos();renderDone();renderArt();if(state.q)runSearch();}
   // ===== 전체 검색 (띄어쓰기 무시) =====
   function norm(s){return (s||'').replace(/\s+/g,'').toLowerCase();}
   function locLabel(t){if(t.archived)return '완료함';if(t.bucket==='inbox')return '주머니';if(t.bucket==='later')return '나중';if(t.today||isRepeatDueToday(t))return '오늘';if(t.project)return t.project;return '할일';}
@@ -1198,9 +1055,8 @@
   // ===== events =====
   document.getElementById('theme').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';c=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);state.theme=c;savePrefs();});
   document.getElementById('wsSeg').addEventListener('click',function(e){var b=e.target.closest('button[data-ws]');if(!b)return;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x===b);});state.ws=b.dataset.ws;savePrefs();renderAll();});
-  var panels={dash:document.getElementById('dash'),proj:document.getElementById('proj'),cal:document.getElementById('cal'),memo:document.getElementById('memo'),done:document.getElementById('done'),flow:document.getElementById('flow'),art:document.getElementById('art')};
-  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);if(name==='flow')renderFlow();}
-  document.getElementById('flowSel').addEventListener('change',function(){var v=this.value;if(!v){state.flowSel=null;}else{state.flowSel={type:v.charAt(0)==='p'?'project':'todo',key:v.slice(2)};}renderFlow();});
+  var panels={dash:document.getElementById('dash'),proj:document.getElementById('proj'),cal:document.getElementById('cal'),memo:document.getElementById('memo'),done:document.getElementById('done'),art:document.getElementById('art')};
+  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);}
   document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){switchTab(b.dataset.tab);});});
   // 탭 드래그로 순서 변경 (localStorage에 저장)
   (function(){var navEl=document.querySelector('.tabs');var tabDrag=null;
@@ -1232,9 +1088,8 @@
         if(hit){hit.classList.add('flash');setTimeout(function(){hit.classList.remove('flash');},1700);}},60);}});
   document.getElementById('goPocket').addEventListener('click',function(){switchTab('proj');});
   document.getElementById('hours').addEventListener('input',function(){state.hours=+this.value||0;savePrefs();renderToday();});
-  document.getElementById('flowToggle').addEventListener('click',function(){state.showTodayFlow=!state.showTodayFlow;this.setAttribute('aria-pressed',state.showTodayFlow);savePrefs();renderToday();});
 
-  function capture(inp,toToday){var v=inp.value.trim();if(!v)return;var t={id:uid(),title:v,ws:state.ws,project:'',due:'',today:!!toToday,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:toToday?'active':'inbox',lastDone:'',memoId:null,sort:0,subs:[],stage:0,doneAt:'',archived:false};state.todos.unshift(t);putTodo(t);inp.value='';if(toToday){renderAll();showToast('오늘의 집중에 담았어요');}else{renderInbox();showToast('주머니에 담았어요');}}
+  function capture(inp,toToday){var v=inp.value.trim();if(!v)return;var t={id:uid(),title:v,ws:state.ws,project:'',due:'',today:!!toToday,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:toToday?'active':'inbox',lastDone:'',memoId:null,sort:0,subs:[],doneAt:'',archived:false};state.todos.unshift(t);putTodo(t);inp.value='';if(toToday){renderAll();showToast('오늘의 집중에 담았어요');}else{renderInbox();showToast('주머니에 담았어요');}}
   document.getElementById('capBtn').addEventListener('click',function(){capture(document.getElementById('capIn'));});
   document.getElementById('capToday').addEventListener('click',function(){capture(document.getElementById('capIn'),true);});
   document.getElementById('capIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this,e.shiftKey);});
@@ -1262,15 +1117,10 @@
     else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();}}
     else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();}}
     else if(act==='nest'&&t){startNest(t.id);}
-    else if(act==='flow-dist'){flowDistribute();return;}
-    else if(act==='proj-flow'){e.stopPropagation();var pfn=el.dataset.proj;flowShownProj[pfn]=!flowShownProj[pfn];renderProjects();return;}
     else if(act==='proj-rename'){e.stopPropagation();var oldn=el.dataset.proj,nn=(prompt('프로젝트 이름 변경',oldn)||'').trim();if(!nn||nn===oldn)return;
       state.todos.filter(function(x){return x.ws===state.ws&&x.project===oldn;}).forEach(function(x){x.project=nn;putTodo(x);});
       if(state.settings.projOrder&&state.settings.projOrder[state.ws]){state.settings.projOrder[state.ws]=state.settings.projOrder[state.ws].map(function(n){return n===oldn?nn:n;});putSettings();}
-      if(flowShownProj[oldn]){flowShownProj[nn]=true;delete flowShownProj[oldn];}
-      if(state.flowSel&&state.flowSel.type==='project'&&state.flowSel.key===oldn)state.flowSel.key=nn;
       renderAll();showToast('프로젝트 이름을 바꿨어요');return;}
-    else if(act==='row-flow'){var rfid=el.dataset.node;flowShownTodo[rfid]=!flowShownTodo[rfid];renderProjects();return;}
     else if(act==='proj-del'){e.stopPropagation();delProject(el.dataset.proj);return;}
     else if(act==='del'&&t){removeTodo(t,'삭제했어요');}
     else if(act==='cad'&&t){var seq=['daily','weekly','monthly','none'];t.repeat=seq[(seq.indexOf(t.repeat)+1)%4];
