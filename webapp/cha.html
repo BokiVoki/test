@@ -134,6 +134,7 @@
     background-attachment: local, local, scroll, scroll;
   }
   .atlas-sec .table-scroll{ --surface-bg: var(--paper); }
+  .store .table-scroll{ --surface-bg: var(--paper); }
 
   .compare-table, .blend-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px;}
   .compare-table th, .blend-table th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.03em;color:var(--ink-soft);padding:6px 8px;border-bottom:1px solid var(--rule);white-space:nowrap;}
@@ -179,7 +180,13 @@
   .note-textarea::placeholder{color:var(--ink-soft);opacity:0.6;}
   .note-field-label{font-size:10.5px;color:var(--ink-soft);margin:10px 0 4px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.03em;}
   .note-field-label:first-child{margin-top:0;}
-  .cell-brew{font-size:11px;color:var(--ink-soft);white-space:normal;line-height:1.4;max-width:160px;}
+  /* .blend-table .readonly-cell 의 nowrap 을 이기려면 같은 수준의 선택자여야 함
+     (예전엔 .cell-brew 단독이라 nowrap 이 이겨서 긴 우림법 텍스트가 옆 칸 위로 넘쳤음) */
+  .blend-table td.cell-brew{
+    font-size:11px;color:var(--ink-soft);line-height:1.45;
+    white-space:normal;word-break:keep-all;overflow-wrap:anywhere;
+    width:170px;max-width:170px;min-width:150px;padding-top:8px;padding-bottom:8px;
+  }
   .apply-brew-btn{
     background:none;border:1px dashed var(--rule);border-radius:3px;color:var(--ink-soft);
     cursor:pointer;padding:4px 7px;font-size:10.5px;margin-top:6px;font-family:'Noto Sans KR',sans-serif;
