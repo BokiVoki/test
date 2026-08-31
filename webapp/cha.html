@@ -235,6 +235,19 @@
     font-family:'IBM Plex Mono',monospace;font-size:14px;line-height:1.7;
   }
   .calc-out b{font-size:19px;color:var(--black-tea);}
+  /* 라벨(개완/포트/냉침) 폭만큼 내어쓰기 — 줄이 넘어가도 라벨 아래로 글자가 파고들지 않게 */
+  .calc-line{margin-top:11px;padding-top:10px;border-top:1px dashed var(--rule-faint);padding-left:52px;text-indent:-52px;}
+  .calc-line:first-child{margin-top:0;padding-top:0;border-top:none;}
+  .calc-line .calc-dim, .calc-line .calc-sub{text-indent:0;}
+  .calc-tag{
+    display:inline-block;min-width:44px;text-align:center;margin-right:8px;
+    background:var(--seal);color:var(--paper);border-radius:3px;
+    font-family:'Noto Sans KR',sans-serif;font-size:11.5px;font-weight:500;padding:2px 7px;
+    vertical-align:2px;
+    text-indent:0; /* 부모의 내어쓰기가 inline-block 안쪽 글자까지 밀지 않도록 */
+  }
+  .calc-sub{margin:5px 0 0 52px;font-size:13px;color:var(--ink-soft);}
+  .calc-dim{color:var(--ink-soft);opacity:0.85;font-size:12px;margin-top:4px;}
   select.field-select{
     width:100%;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
     padding:8px 9px;font-family:'Noto Sans KR',sans-serif;font-size:13px;color:var(--ink);
@@ -455,15 +468,19 @@
   <div class="page" id="page-brew" hidden>
 
     <div class="panel">
-      <h2>냉침 · 대용량 계산기</h2>
-      <p class="hint-top">차를 고르고 물 양을 넣으면 필요한 찻잎량이 바로 나옵니다. 농도는 세 단계로 조절할 수 있어요.</p>
+      <h2>개완 · 냉침 · 대용량 계산기</h2>
+      <p class="hint-top">차를 고르면 개완 한 잔부터 큰 포트·냉침까지 필요한 찻잎량이 한 번에 나옵니다. 농도는 세 단계로 조절할 수 있어요.</p>
       <div class="calc-row">
         <div class="field">
           <label>차 선택</label>
           <select class="field-select" id="calcTea"></select>
         </div>
         <div class="field">
-          <label>물 양 (ml)</label>
+          <label>개완 크기 (ml)</label>
+          <input type="number" id="calcGw" value="110" min="0" step="10">
+        </div>
+        <div class="field">
+          <label>포트 · 냉침 물 양 (ml)</label>
           <input type="number" id="calcMl" value="750" min="0" step="50">
         </div>
         <div class="field">
@@ -487,7 +504,9 @@
     <div class="panel" style="margin-top:24px;">
       <h2>매장에서 자주 쓰는 기준</h2>
       <p class="hint-top" style="margin-bottom:0;line-height:1.8;">
-        · 열탕 기본 비율은 <b>물 100ml당 3g</b>, 냉침은 <b>물 1L당 6~10g</b>입니다.<br>
+        · 포트 기본 비율은 <b>물 100ml당 3g</b>, 냉침은 <b>물 1L당 6~10g</b>입니다.<br>
+        · <b>개완</b>은 100ml에 4~5g이 기준이고, 구슬형 우롱·보이차·암차는 6~8g까지 올립니다. 첫 탕을 짧게 끊고 탕마다 5~10초씩 늘리세요.<br>
+        · 보이차·암차·봉황단총은 <b>세차</b>(5~10초 우려 버리기)를 먼저 하고, 구슬형 우롱은 한 번 헹궈 잎을 깨우면 첫 탕부터 제 맛이 납니다.<br>
         · 냉침은 8~12시간 뒤 <b>반드시 잎을 빼세요.</b> 잎을 뺀 뒤 냉장 2~3일, 담가두면 반나절부터 떫어집니다.<br>
         · 무이암차·봉황단총은 다른 우롱보다 훨씬 진하게(개완 100ml에 6~8g) 넣어야 특징이 살아납니다.<br>
         · 잎이 부푸는 차(우롱·백차)는 저울 없이 눈대중하면 편차가 커서, 1인분 소분을 미리 만들어두는 편이 빠릅니다.
@@ -1124,6 +1143,49 @@ const BREW_DATA = [
    note:'광서성 흑차. 숙차보다 매끄럽고 퇴창미가 적어 "보이차는 별로"라는 손님께 권하기 좋습니다.'}
 ];
 
+/* =================================================
+   개완(공부식) 기준 — 위 BREW_DATA에 이름으로 붙임
+   gw       = 개완 100ml 기준 찻잎(g)
+   gwFirst  = 첫 탕(초) · gwAdd = 탕마다 더하는 초 · gwTimes = 우릴 수 있는 횟수
+   gwRinse  = 'must' 세차 필수 / 'opt' 한 번 헹궈 깨우면 좋음 / 없으면 세차 안 함
+   potHeavy = 위 기본값이 개완 비율이라 큰 포트엔 그대로 쓰면 과한 차
+   gw:null  = 개완으로 여러 탕 나눠 우리는 방식이 맞지 않는 차
+================================================= */
+const GAIWAN = {
+  '쑥차':                {gw:3,   gwFirst:60, gwAdd:30, gwTimes:3},
+  '유자알갱이차':        {gw:null, gwNote:'과육·시럽 형태라 여러 탕으로 나눠지지 않습니다'},
+  '루이보스':            {gw:null, gwNote:'두 번째 탕부터 향이 거의 안 남아 한 번에 길게 우리는 편이 낫습니다'},
+  '세작녹차':            {gw:3,   gwFirst:20, gwAdd:8,  gwTimes:4},
+  '우전 (첫물차)':       {gw:3,   gwFirst:25, gwAdd:8,  gwTimes:3},
+  '말차':                {gw:null, gwNote:'가루차라 우리지 않고 차선으로 풉니다',
+                          potNote:'우리는 차가 아닙니다 — 70ml에 2g, 70~80℃ 물을 붓고 차선으로 W자로 15~20초'},
+  '백호은침':            {gw:4,   gwFirst:30, gwAdd:10, gwTimes:6},
+  '백모단':              {gw:4.5, gwFirst:25, gwAdd:8,  gwTimes:7},
+  '수미 · 공미':         {gw:5,   gwFirst:15, gwAdd:8,  gwTimes:8, gwRinse:'opt'},
+  '중작홍차':            {gw:4,   gwFirst:15, gwAdd:5,  gwTimes:4},
+  '금준미':              {gw:4,   gwFirst:10, gwAdd:5,  gwTimes:7},
+  '정산소종':            {gw:4,   gwFirst:10, gwAdd:5,  gwTimes:6},
+  '홍옥 (대차18호)':     {gw:4,   gwFirst:12, gwAdd:5,  gwTimes:5},
+  '아쌈 · CTC':          {gw:null, gwNote:'잘게 부순 형태라 짧게 우려도 확 나와 탕을 나누기 어렵습니다'},
+  '호지차':              {gw:4,   gwFirst:20, gwAdd:10, gwTimes:4},
+  '겐마이차':            {gw:4,   gwFirst:20, gwAdd:10, gwTimes:3},
+  '밀향오룡':            {gw:6,   gwFirst:10, gwAdd:5,  gwTimes:7, gwRinse:'opt'},
+  '동방미인':            {gw:4.5, gwFirst:15, gwAdd:8,  gwTimes:6},
+  '문산포종':            {gw:5,   gwFirst:30, gwAdd:10, gwTimes:6},
+  '사계춘':              {gw:6,   gwFirst:25, gwAdd:10, gwTimes:6, gwRinse:'opt'},
+  '고산우롱 (아리산·리산)':{gw:7, gwFirst:30, gwAdd:10, gwTimes:8, gwRinse:'opt', potHeavy:true},
+  '철관음 (청향)':       {gw:7,   gwFirst:25, gwAdd:10, gwTimes:8, gwRinse:'opt', potHeavy:true},
+  '무이암차 — 수선':     {gw:8,   gwFirst:8,  gwAdd:5,  gwTimes:9,  gwRinse:'must', potHeavy:true},
+  '무이암차 — 육계':     {gw:8,   gwFirst:6,  gwAdd:5,  gwTimes:9,  gwRinse:'must', potHeavy:true},
+  '봉황단총 (압시향 등)':{gw:7,   gwFirst:6,  gwAdd:4,  gwTimes:8,  gwRinse:'must', potHeavy:true},
+  'GABA 우롱 (가엽용차)':{gw:5,   gwFirst:25, gwAdd:10, gwTimes:6},
+  '보이 숙차':           {gw:7,   gwFirst:10, gwAdd:5,  gwTimes:12, gwRinse:'must', potHeavy:true},
+  '보이 생차':           {gw:6,   gwFirst:8,  gwAdd:4,  gwTimes:12, gwRinse:'must', potHeavy:true},
+  '노차두':              {gw:7,   gwFirst:15, gwAdd:5,  gwTimes:12, gwRinse:'must', potHeavy:true},
+  '육보차':              {gw:6,   gwFirst:10, gwAdd:5,  gwTimes:10, gwRinse:'must', potHeavy:true}
+};
+BREW_DATA.forEach(function(b){ Object.assign(b, GAIWAN[b.name] || {gw:null, gwNote:''}); });
+
 const BREW_CATS = ['전체','대용차','녹차','말차','백차','홍차','호지차','우롱차','보이차'];
 let brewCat = '전체';
 
@@ -1172,16 +1234,20 @@ function renderBrewList(){
     const cold = b.coldG
       ? '냉침 — 물 1L당 <b>'+b.coldG+'g</b>, '+b.coldHr+' 뒤 잎 빼기'
       : '<span class="cold-no">냉침 비권장 — 배전향·발효향이 찬물에서 열리지 않습니다</span>';
+    const gaiwan = b.gw
+      ? '개완 — 100ml에 <b>'+b.gw+'g</b>'+rinseText(b.gwRinse)+'<br>첫 탕 '+gwSchedule(b.gwFirst, b.gwAdd, b.gwTimes)
+      : '<span class="cold-no">개완 — '+escapeHtml(b.gwNote || '나눠 우리는 방식이 맞지 않습니다')+'</span>';
     return '<div class="brew-card cat-'+b.cat+'">' +
       '<div class="brew-head"><div class="brew-name">'+escapeHtml(b.name)+'</div><div class="brew-cat">'+b.cat+'</div></div>' +
       '<div class="brew-note">'+escapeHtml(b.note)+'</div>' +
       '<div class="brew-specs">' +
-        '<div><div class="spec-label">물 100ml당</div><div class="spec-value">'+b.g100+'<span class="unit">g</span></div></div>' +
+        '<div><div class="spec-label">포트 100ml당</div><div class="spec-value">'+b.g100+'<span class="unit">g</span></div></div>' +
         '<div><div class="spec-label">물 온도</div><div class="spec-value" style="font-size:12.5px;">'+b.temp+'</div></div>' +
         '<div><div class="spec-label">첫 탕</div><div class="spec-value" style="font-size:12.5px;">'+secText(b.first)+'</div></div>' +
         '<div><div class="spec-label">이후 탕</div><div class="spec-value" style="font-size:12.5px;">'+(b.add?'+'+b.add+'초':'—')+'</div></div>' +
         '<div><div class="spec-label">우림 횟수</div><div class="spec-value">'+b.times+'<span class="unit">회</span></div></div>' +
       '</div>' +
+      '<div class="cold-line">'+gaiwan+'</div>' +
       '<div class="cold-line">'+cold+'</div>' +
     '</div>';
   }).join('');
@@ -1193,23 +1259,61 @@ $('brewSearch').addEventListener('input', renderBrewList);
 function initCalc(){
   const sel = $('calcTea');
   sel.innerHTML = BREW_DATA.map((b,i)=>'<option value="'+i+'">'+escapeHtml(b.name)+' · '+b.cat+'</option>').join('');
-  ['calcTea','calcMl','calcStrength'].forEach(id=>{
+  ['calcTea','calcGw','calcMl','calcStrength'].forEach(id=>{
     $(id).addEventListener('input', runCalc);
   });
   runCalc();
 }
 
+// 첫 탕부터 탕마다 늘어나는 시간을 순서대로 (최대 6탕까지만 적고 나머지는 총 횟수로)
+function gwSchedule(first, add, times){
+  const total = parseInt(times) || 1;
+  const show = Math.min(total, 6);
+  const parts = [];
+  for(let i=0;i<show;i++) parts.push(first + add*i);
+  return parts.join(' → ') + '초' + (total > show ? ' … 총 '+total+'회' : ' (총 '+total+'회)');
+}
+
+function rinseText(r){
+  if(r === 'must') return ' · 세차 필수(5~10초 버리기)';
+  if(r === 'opt') return ' · 한 번 헹궈 깨우면 좋음';
+  return '';
+}
+
 function runCalc(){
   const b = BREW_DATA[parseInt($('calcTea').value)||0];
   const ml = parseFloat($('calcMl').value) || 0;
+  const gwMl = parseFloat($('calcGw').value) || 0;
   const k = parseFloat($('calcStrength').value) || 1;
-  const hot = (b.g100 * k) * (ml/100);
-  let out = '열탕 — <b>'+fmt(hot,1)+'g</b> · '+b.temp+' · 첫 탕 '+secText(b.first);
+  let out = '';
+
+  // 개완 (공부식) — 짧게 여러 번
+  if(b.gw){
+    const g = (b.gw * k) * (gwMl/100);
+    out += '<div class="calc-line"><span class="calc-tag">개완</span> '+fmt(gwMl,0)+'ml — <b>'+fmt(g,1)+'g</b> · '+b.temp+rinseText(b.gwRinse) +
+           '<div class="calc-sub">' + gwSchedule(b.gwFirst, b.gwAdd, b.gwTimes) + '</div></div>';
+  }else{
+    out += '<div class="calc-line"><span class="calc-tag">개완</span> <span class="calc-dim">' + escapeHtml(b.gwNote || '개완으로 나눠 우리는 방식이 맞지 않습니다') + '</span></div>';
+  }
+
+  // 포트 · 대용량 — 한 번에 크게
+  if(b.potNote){
+    out += '<div class="calc-line"><span class="calc-tag">포트</span> <span class="calc-dim">'+escapeHtml(b.potNote)+'</span></div>';
+  }else{
+    const hot = (b.g100 * k) * (ml/100);
+    out += '<div class="calc-line"><span class="calc-tag">포트</span> '+fmt(ml,0)+'ml — <b>'+fmt(hot,1)+'g</b> · '+b.temp+' · 첫 탕 '+secText(b.first);
+    if(b.potHeavy){
+      out += '<div class="calc-dim">※ 공부식 비율이라 큰 포트엔 100ml당 3~4g으로 낮춰 쓰세요</div>';
+    }
+    out += '</div>';
+  }
+
+  // 냉침
   if(b.coldG){
     const cold = (b.coldG * k) * (ml/1000);
-    out += '<br>냉침 — <b>'+fmt(cold,1)+'g</b> · '+b.coldHr+' 뒤 잎 빼기';
+    out += '<div class="calc-line"><span class="calc-tag">냉침</span> '+fmt(ml,0)+'ml — <b>'+fmt(cold,1)+'g</b> · '+b.coldHr+' 뒤 잎 빼기</div>';
   }else{
-    out += '<br><span style="color:var(--ink-soft);">냉침 비권장 — 열탕으로 우린 뒤 급랭하세요</span>';
+    out += '<div class="calc-line"><span class="calc-tag">냉침</span> <span class="calc-dim">비권장 — 열탕으로 우린 뒤 급랭하세요</span></div>';
   }
   $('calcOut').innerHTML = out;
 }
