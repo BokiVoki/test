@@ -94,6 +94,7 @@
   - 테이블: `todos`, `memos` (RLS `owner=auth.uid()`)
   - Auth: email+password (Confirm email 꺼둠)
 - **호스팅**: Cloudflare (`haru.lolcv1294.workers.dev`). 자동배포는 이 repo `main` 브랜치 연결 (아래 배포 메모 참고).
+- **`/cha` — 잠원점 찻잎 도매 장부**(`webapp/cha.html`, 별도 정적 페이지): 하루앱과 완전히 분리된 단일 HTML. **로그인 없이 누구나 열림**(Supabase 안 씀, 데이터는 그 브라우저 `localStorage`에만). 탭 3개 = 장부(구매처 비교표·블렌딩 원가/마진 계산·발주 요약) / 우림 가이드(차 30종 우림 스펙 + 냉침 계산기) / 차 백과(중국·대만·일본·한국·동남아 품종표). 원래 클로드 아티팩트로 만든 걸 옮긴 거라 **`window.storage`(아티팩트 전용 API)를 `localStorage` 셰임으로 교체**해야 저장이 동작함 — 나중에 아티팩트에서 새 버전을 가져올 때도 이 부분을 꼭 다시 갈아끼울 것. 검색엔진 노출은 `<meta name="robots" content="noindex">`로 막아둠(단가가 공개돼 있어서). ⚠️ URL을 아는 사람은 누구나 도매 단가를 볼 수 있음.
 - **데이터**: 현재 빈 상태로 시작. 예전 러버블 CSV(todos 300개)는 원하면 Supabase Table Editor로 Import 가능.
 
 ---

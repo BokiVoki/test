@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>잠원점 찻잎 도매 장부</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #E7DFCB;
+    --paper-deep: #DED4B8;
+    --ink: #2A241C;
+    --ink-soft: #5B5240;
+    --rule: #B0A17E;
+    --rule-faint: #C9BE9C;
+    --black-tea: #9C4A2C;
+    --green-tea: #5F7B4C;
+    --seal: #A9782E;
+    --warn: #A83232;
+    --paper-shadow: rgba(42,36,28,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top left, rgba(255,255,255,0.35), transparent 55%),
+      var(--paper);
+    background-attachment: fixed;
+    color:var(--ink);
+    font-family:'Noto Sans KR', sans-serif;
+    padding:40px 20px 80px;
+  }
+  .wrap{max-width:780px;margin:0 auto;}
+
+  header{text-align:center;margin-bottom:8px;position:relative;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.28em;color:var(--ink-soft);text-transform:uppercase;}
+  h1{font-family:'Noto Serif KR',serif;font-weight:700;font-size:34px;margin:10px 0 6px;letter-spacing:-0.01em;}
+  .sub{font-size:14px;color:var(--ink-soft);margin:0;}
+  .seal{
+    position:absolute;top:-6px; right:0;width:70px;height:70px;
+    border:2px solid var(--seal);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;transform:rotate(-8deg);
+    font-family:'Noto Serif KR',serif;font-weight:700;font-size:12px;color:var(--seal);
+    line-height:1.15;text-align:center;opacity:0.85;
+  }
+  @media (max-width:640px){ .seal{display:none;} }
+
+  .rule{border:none;border-top:1.5px solid var(--rule);margin:26px 0;}
+
+  /* ---- 탭 (스크롤해도 상단 고정) ---- */
+  .tabs{
+    display:flex;gap:0;margin:22px 0 26px;border-bottom:1.5px solid var(--rule);
+    position:sticky;top:0;z-index:30;
+    background:rgba(231,223,203,0.95);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  }
+  .tab{
+    flex:1;background:none;border:none;border-bottom:3px solid transparent;
+    font-family:'Noto Serif KR',serif;font-size:15px;font-weight:600;color:var(--ink-soft);
+    padding:12px 6px 11px;cursor:pointer;margin-bottom:-1.5px;transition:color .15s;
+  }
+  .tab:hover{color:var(--ink);}
+  .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--seal);}
+  .tab:focus-visible{outline:2px solid var(--seal);outline-offset:-2px;}
+  .tab .tab-sub{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:400;letter-spacing:0.12em;opacity:0.6;margin-top:3px;}
+  .page[hidden]{display:none;}
+
+  .panel{
+    background: var(--paper-deep);
+    border:1px solid var(--rule-faint);
+    border-radius:4px;
+    padding:20px 22px;
+    margin-bottom:22px;
+  }
+  .panel h2{font-family:'Noto Serif KR',serif;font-size:16px;margin:0 0 4px;}
+  .panel .hint-top{font-size:12px;color:var(--ink-soft);margin:0 0 14px;}
+  .grid-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 18px;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;}
+  .field .hint{font-size:10.5px;color:var(--ink-soft);opacity:0.75;margin-top:4px;}
+  .field input{
+    width:100%;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
+    padding:8px 9px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--ink);
+  }
+  .field input:focus{outline:none;border-color:var(--seal);box-shadow:0 0 0 2px rgba(169,120,46,0.18);}
+
+  .store{
+    position:relative;padding:22px 24px 20px;margin-bottom:22px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0));
+    border:1px solid var(--rule-faint);border-left:4px solid var(--seal);border-radius:3px;
+    box-shadow: 0 2px 6px var(--paper-shadow);
+  }
+  .store-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+  .store-name{font-family:'Noto Serif KR',serif;font-weight:700;font-size:21px;}
+  .store-desc{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+
+  .fill-jar{width:110px;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .fill-jar .jar-outline{width:34px;height:52px;border:1.5px solid var(--ink-soft);border-radius:2px 2px 6px 6px;position:relative;overflow:hidden;background:#F4EFDF;}
+  .fill-jar .jar-liquid{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg, var(--black-tea), var(--green-tea));transition:height 0.5s ease;}
+  .fill-jar .jar-label{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-soft);letter-spacing:0.05em;}
+
+  .outputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--rule-faint);}
+  .out-item .out-label{font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  .out-item .out-value{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;}
+  .out-item .out-value .unit{font-size:11px;font-weight:400;color:var(--ink-soft);margin-left:2px;}
+
+  .summary{margin-top:8px;padding:26px 26px 22px;background:var(--ink);color:var(--paper);border-radius:4px;}
+  .summary h2{font-family:'Noto Serif KR',serif;font-size:18px;margin:0 0 4px;}
+  .summary .sub{color:#C9BFA4;margin-bottom:18px;}
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;padding-top:14px;border-top:1px solid rgba(231,223,203,0.25);}
+  .summary-grid .s-label{font-size:11.5px;color:#C9BFA4;margin-bottom:5px;}
+  .summary-grid .s-value{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;}
+  .summary-grid .s-value .unit{font-size:12px;font-weight:400;color:#C9BFA4;margin-left:3px;}
+  .summary-note{margin-top:18px;font-size:12px;color:#C9BFA4;line-height:1.6;}
+
+  .save-status{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:14px;min-height:16px;}
+  footer{text-align:center;font-size:11px;color:var(--ink-soft);margin-top:30px;line-height:1.8;}
+  footer a{color:var(--seal);text-decoration:none;border-bottom:1px solid rgba(169,120,46,0.4);}
+  footer a:hover{border-bottom-color:var(--seal);}
+
+  /* 좌우 스크롤이 있는 표에 스크롤 그림자 힌트 */
+  .table-scroll{
+    overflow-x:auto;
+    --surface-bg: var(--paper-deep);
+    background:
+      linear-gradient(90deg, var(--surface-bg) 30%, rgba(255,255,255,0)) left center / 26px 100% no-repeat,
+      linear-gradient(270deg, var(--surface-bg) 30%, rgba(255,255,255,0)) right center / 26px 100% no-repeat,
+      radial-gradient(farthest-side at 0 50%, rgba(42,36,28,0.16), rgba(42,36,28,0)) left center / 11px 100% no-repeat,
+      radial-gradient(farthest-side at 100% 50%, rgba(42,36,28,0.16), rgba(42,36,28,0)) right center / 11px 100% no-repeat;
+    background-attachment: local, local, scroll, scroll;
+  }
+  .atlas-sec .table-scroll{ --surface-bg: var(--paper); }
+
+  .compare-table, .blend-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px;}
+  .compare-table th, .blend-table th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.03em;color:var(--ink-soft);padding:6px 8px;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  .compare-table td, .blend-table td{padding:5px 6px;border-bottom:1px solid var(--rule-faint);vertical-align:middle;}
+  .compare-table input, .compare-table select, .blend-table input, .blend-table select{
+    width:100%;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
+    padding:6px 7px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);
+  }
+  .compare-table input:focus, .compare-table select:focus, .blend-table input:focus, .blend-table select:focus{outline:none;border-color:var(--seal);}
+  .compare-table .readonly-cell, .blend-table .readonly-cell{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);white-space:nowrap;padding-left:8px;}
+  .blend-table .tea-type-cell{font-family:'Noto Serif KR',serif;font-weight:600;white-space:nowrap;}
+  .del-btn{
+    background:none;border:1px solid var(--rule);border-radius:3px;color:var(--ink-soft);
+    cursor:pointer;padding:5px 9px;font-size:11px;font-family:'Noto Sans KR',sans-serif;
+  }
+  .del-btn:hover{border-color:var(--black-tea);color:var(--black-tea);}
+  .add-row-btn{
+    margin-top:12px;background:var(--seal);color:var(--paper);border:none;border-radius:3px;
+    padding:9px 16px;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+  }
+  .add-row-btn:hover{opacity:0.88;}
+  .moq-note{font-size:11.5px;color:var(--ink-soft);margin:8px 0 14px;line-height:1.6;}
+  .pct-total{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+  .pct-total.ok{color:var(--green-tea);}
+  .pct-total.bad{color:var(--warn);}
+
+  .note-toggle-btn{
+    background:none;border:1px solid var(--rule);border-radius:3px;color:var(--ink-soft);
+    cursor:pointer;padding:5px 9px;font-size:13px;
+  }
+  .note-toggle-btn.has-note{border-color:var(--seal);color:var(--seal);background:rgba(169,120,46,0.08);}
+  .note-row td{background:#F4EFDF;padding:12px 14px 14px;border-bottom:1px solid var(--rule-faint);}
+  .star-rating{display:flex;align-items:center;gap:3px;margin-bottom:8px;}
+  .star-rating .star{cursor:pointer;font-size:17px;color:var(--rule);line-height:1;user-select:none;}
+  .star-rating .star.filled{color:var(--seal);}
+  .star-rating .star-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);margin-left:8px;}
+  .note-textarea{
+    width:100%;min-height:64px;background:#FBF7EC;border:1px solid var(--rule);border-radius:3px;
+    padding:8px 9px;font-family:'Noto Sans KR',sans-serif;font-size:12.5px;color:var(--ink);
+    resize:vertical;line-height:1.5;
+  }
+  .note-textarea:focus{outline:none;border-color:var(--seal);}
+  .note-textarea::placeholder{color:var(--ink-soft);opacity:0.6;}
+  .note-field-label{font-size:10.5px;color:var(--ink-soft);margin:10px 0 4px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.03em;}
+  .note-field-label:first-child{margin-top:0;}
+  .cell-brew{font-size:11px;color:var(--ink-soft);white-space:normal;line-height:1.4;max-width:160px;}
+  .apply-brew-btn{
+    background:none;border:1px dashed var(--rule);border-radius:3px;color:var(--ink-soft);
+    cursor:pointer;padding:4px 7px;font-size:10.5px;margin-top:6px;font-family:'Noto Sans KR',sans-serif;
+  }
+  .apply-brew-btn:hover{border-color:var(--seal);color:var(--seal);border-style:solid;}
+
+  /* ---- 우림 가이드 ---- */
+  .guide-controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;align-items:center;}
+  .guide-search{
+    flex:1;min-width:180px;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
+    padding:9px 11px;font-family:'Noto Sans KR',sans-serif;font-size:13px;color:var(--ink);
+  }
+  .guide-search:focus{outline:none;border-color:var(--seal);}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
+  .chip{
+    background:none;border:1px solid var(--rule);border-radius:20px;color:var(--ink-soft);
+    padding:5px 13px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+  }
+  .chip[aria-pressed="true"]{background:var(--seal);border-color:var(--seal);color:var(--paper);}
+  .chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+
+  .brew-card{
+    background:var(--paper-deep);border:1px solid var(--rule-faint);border-left:4px solid var(--rule);
+    border-radius:3px;padding:16px 18px;margin-bottom:12px;
+  }
+  .brew-card.cat-녹차,.brew-card.cat-말차{border-left-color:var(--green-tea);}
+  .brew-card.cat-홍차,.brew-card.cat-보이차{border-left-color:var(--black-tea);}
+  .brew-card.cat-우롱차{border-left-color:var(--seal);}
+  .brew-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .brew-name{font-family:'Noto Serif KR',serif;font-weight:700;font-size:17px;}
+  .brew-cat{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);letter-spacing:0.08em;}
+  .brew-note{font-size:12.5px;color:var(--ink-soft);margin:7px 0 12px;line-height:1.6;}
+  .brew-specs{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;padding-top:11px;border-top:1px dashed var(--rule-faint);}
+  .spec-label{font-size:10.5px;color:var(--ink-soft);margin-bottom:3px;}
+  .spec-value{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;}
+  .spec-value .unit{font-size:10.5px;font-weight:400;color:var(--ink-soft);margin-left:1px;}
+  .cold-line{margin-top:11px;padding-top:10px;border-top:1px dashed var(--rule-faint);font-size:12px;color:var(--ink-soft);line-height:1.55;}
+  .cold-line b{color:var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .cold-no{opacity:0.7;}
+  .no-result{text-align:center;color:var(--ink-soft);font-size:13px;padding:30px 0;}
+
+  /* ---- 계산기 ---- */
+  .calc-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;align-items:end;}
+  .calc-out{
+    margin-top:14px;padding:14px 16px;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
+    font-family:'IBM Plex Mono',monospace;font-size:14px;line-height:1.7;
+  }
+  .calc-out b{font-size:19px;color:var(--black-tea);}
+  select.field-select{
+    width:100%;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
+    padding:8px 9px;font-family:'Noto Sans KR',sans-serif;font-size:13px;color:var(--ink);
+  }
+  select.field-select:focus{outline:none;border-color:var(--seal);}
+
+  /* ---- 백과 ---- */
+  .atlas-nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px;}
+  .atlas-sec{margin-bottom:34px;scroll-margin-top:76px;}
+  .atlas-sec > h2{
+    font-family:'Noto Serif KR',serif;font-size:22px;margin:0 0 4px;
+    padding-bottom:7px;border-bottom:2px solid var(--seal);
+  }
+  .atlas-sec > .lede{font-size:13px;color:var(--ink-soft);margin:9px 0 18px;line-height:1.7;}
+  .atlas-sub{font-family:'Noto Serif KR',serif;font-size:15px;margin:22px 0 9px;color:var(--ink);}
+  .atlas-sub .han{font-size:12px;color:var(--ink-soft);font-weight:400;margin-left:5px;}
+  .atlas-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px;}
+  .atlas-table th{
+    text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.05em;
+    color:var(--ink-soft);padding:6px 9px;border-bottom:1px solid var(--rule);white-space:nowrap;
+  }
+  .atlas-table td{padding:8px 9px;border-bottom:1px solid var(--rule-faint);line-height:1.55;vertical-align:top;}
+  .atlas-table td:first-child{font-family:'Noto Serif KR',serif;font-weight:600;white-space:nowrap;}
+  .atlas-table tr:hover td{background:rgba(255,255,255,0.28);}
+  .spectrum{
+    background:var(--ink);color:var(--paper);border-radius:4px;padding:20px 22px;margin-top:8px;
+  }
+  .spectrum h3{font-family:'Noto Serif KR',serif;font-size:15px;margin:0 0 12px;}
+  .spectrum-bar{display:flex;height:34px;border-radius:3px;overflow:hidden;margin-bottom:8px;}
+  .spectrum-bar div{flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#2A241C;}
+  .spectrum-cap{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#C9BFA4;}
+  .spectrum-note{margin-top:14px;font-size:12px;color:#C9BFA4;line-height:1.7;}
+
+  @media (max-width:640px){
+    body{padding:26px 14px 60px;}
+    h1{font-size:26px;}
+    .eyebrow{font-size:10.5px;letter-spacing:0.2em;}
+    .tab{font-size:13.5px;padding:10px 4px 9px;}
+    .panel{padding:16px 15px;}
+    .store{padding:18px 16px 16px;}
+    .summary{padding:20px 18px 18px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="seal">茶<br>잠원<br>장부</div>
+    <div class="eyebrow">JAMWON TEA WHOLESALE LEDGER</div>
+    <h1>잠원점 찻잎 도매 계산기</h1>
+    <p class="sub">한강 선착장 배 건물 · 음악·책 중심 · 식음료 판매형 — 찻잎은 잠원점에서만 취급</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-page="page-ledger">장부<span class="tab-sub">LEDGER</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-page="page-brew">우림 가이드<span class="tab-sub">BREWING</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-page="page-atlas">차 백과<span class="tab-sub">ATLAS</span></button>
+  </div>
+
+  <!-- ================= 장부 ================= -->
+  <div class="page" id="page-ledger">
+
+  <div class="panel">
+    <h2>차 종류별 구매처 비교</h2>
+    <p class="hint-top">아직 확정 전 — 후보 차와 구매처별 kg당 단가를 모아두고 비교하는 표입니다. 아래 블렌딩 구성표에서 여기 등록한 품목을 바로 골라 쓸 수 있어요.</p>
+    <div class="moq-note">
+      <b>예평</b>: 단일 품종 구매 시 최소 300g / 여러 품종 함께 구매 시 품종당 100g부터 가능
+    </div>
+    <div class="table-scroll">
+      <table class="compare-table" id="compareTable">
+        <thead>
+          <tr>
+            <th style="min-width:130px;">차 종류</th>
+            <th style="min-width:90px;">구분</th>
+            <th style="min-width:110px;">구매처</th>
+            <th style="min-width:110px;">kg당 가격(원)</th>
+            <th>4g 환산</th>
+            <th>100g 환산</th>
+            <th>300g 환산</th>
+            <th style="min-width:110px;">비고</th>
+            <th style="min-width:60px;">테이스팅</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="compareTableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" id="addRowBtn">+ 품목 추가</button>
+  </div>
+
+  <div class="panel">
+    <h2>운영 · 발주 설정</h2>
+    <div class="grid-inputs">
+      <div class="field">
+        <label>주당 운영일수</label>
+        <input type="number" id="weeklyDays" value="3" min="0" max="7" step="1">
+        <div class="hint" id="monthlyDaysHint">≈ 월 13일 운영</div>
+      </div>
+      <div class="field">
+        <label>안전재고 버퍼 (주)</label>
+        <input type="number" id="bufferWeeks" value="2" min="0" step="0.5">
+        <div class="hint">월 물량에 더해 미리 확보해둘 여유 재고 기간</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="store" id="store-jamwon">
+    <div class="store-head">
+      <div>
+        <div class="store-name">잠원</div>
+        <div class="store-desc">한강 선착장 정착 배 건물 · 음악·책 중심 · 식음료 판매형(무제한 아님)</div>
+      </div>
+      <div class="fill-jar">
+        <div class="jar-outline"><div class="jar-liquid" id="jar-jamwon"></div></div>
+        <div class="jar-label">월 물량</div>
+      </div>
+    </div>
+    <div class="grid-inputs">
+      <div class="field">
+        <label>일일 방문객 수 (명)</label>
+        <input type="number" class="inp" id="jamwon-visitors" value="150" min="0">
+      </div>
+      <div class="field">
+        <label>차 주문 비율 (%)</label>
+        <input type="number" class="inp" id="jamwon-teaRate" value="35" min="0" max="100">
+        <div class="hint">판매형이라 무제한 지점보다 낮게 잡음</div>
+      </div>
+      <div class="field">
+        <label>주문당 평균 잔 수</label>
+        <input type="number" class="inp" id="jamwon-cups" value="1.1" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <label>로스율 (%)</label>
+        <input type="number" class="inp" id="jamwon-loss" value="8" min="0" step="1">
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <label style="display:block;font-size:12px;color:var(--ink-soft);margin-bottom:8px;">6종 블렌딩 구성 — 비율(%)과 구매처를 지정하세요</label>
+      <div class="table-scroll">
+        <table class="blend-table" id="blendTable">
+          <thead>
+            <tr>
+              <th style="min-width:70px;">비율(%)</th>
+              <th style="min-width:80px;">차종</th>
+              <th style="min-width:190px;">구매처 선택</th>
+              <th style="min-width:150px;">최적 우림법</th>
+              <th style="min-width:100px;">잔당 찻잎량(g)</th>
+              <th style="min-width:90px;">잔당 원가</th>
+              <th style="min-width:100px;">판매가(원/잔)</th>
+              <th>마진율</th>
+              <th>월 매출</th>
+              <th>원가(원/kg)</th>
+              <th>월 물량</th>
+              <th>월 원가</th>
+            </tr>
+          </thead>
+          <tbody id="blendTableBody"></tbody>
+        </table>
+      </div>
+      <div class="pct-total" id="pctTotal">-</div>
+    </div>
+
+    <div class="outputs">
+      <div class="out-item"><div class="out-label">일일 필요량</div><div class="out-value"><span id="jamwon-daily">-</span><span class="unit">g</span></div></div>
+      <div class="out-item"><div class="out-label">월간 필요량</div><div class="out-value"><span id="jamwon-monthly">-</span><span class="unit">kg</span></div></div>
+      <div class="out-item"><div class="out-label">연간 필요량</div><div class="out-value"><span id="jamwon-yearly">-</span><span class="unit">kg</span></div></div>
+      <div class="out-item"><div class="out-label">월 예상 원가</div><div class="out-value"><span id="jamwon-cost">-</span><span class="unit">원</span></div></div>
+      <div class="out-item"><div class="out-label">월 예상 매출</div><div class="out-value"><span id="jamwon-revenue">-</span><span class="unit">원</span></div></div>
+      <div class="out-item"><div class="out-label">평균 마진율</div><div class="out-value"><span id="jamwon-marginrate">-</span><span class="unit">%</span></div></div>
+    </div>
+  </div>
+
+  <div class="summary">
+    <h2>잠원점 발주 요약</h2>
+    <div class="sub">대용차·홍차·호지차·백차·우롱차·보이차 통합 기준</div>
+    <div class="summary-grid">
+      <div>
+        <div class="s-label">월간 총 물량</div>
+        <div class="s-value"><span id="total-monthly">-</span><span class="unit">kg</span></div>
+      </div>
+      <div>
+        <div class="s-label">연간 총 물량</div>
+        <div class="s-value"><span id="total-yearly">-</span><span class="unit">kg</span></div>
+      </div>
+      <div>
+        <div class="s-label">월 예상 원가</div>
+        <div class="s-value"><span id="total-cost">-</span><span class="unit">원</span></div>
+      </div>
+      <div>
+        <div class="s-label">권장 1회 발주량</div>
+        <div class="s-value"><span id="recommend-order">-</span><span class="unit">kg</span></div>
+      </div>
+      <div>
+        <div class="s-label">월 예상 매출</div>
+        <div class="s-value"><span id="total-revenue">-</span><span class="unit">원</span></div>
+      </div>
+      <div>
+        <div class="s-label">월 예상 마진액</div>
+        <div class="s-value"><span id="total-margin">-</span><span class="unit">원</span></div>
+      </div>
+      <div>
+        <div class="s-label">전체 평균 마진율</div>
+        <div class="s-value"><span id="total-margin-rate">-</span><span class="unit">%</span></div>
+      </div>
+    </div>
+    <div class="summary-note">권장 1회 발주량 = 월간 물량 + 안전재고 버퍼(주) 환산분. 비율 합이 100%가 아니면 물량은 계산되지만 실제 배합과 어긋날 수 있으니 위 표에서 100%로 맞춰주세요.</div>
+  </div>
+
+  <div class="save-status" id="saveStatus">&nbsp;</div>
+  </div><!-- /page-ledger -->
+
+  <!-- ================= 우림 가이드 ================= -->
+  <div class="page" id="page-brew" hidden>
+
+    <div class="panel">
+      <h2>냉침 · 대용량 계산기</h2>
+      <p class="hint-top">차를 고르고 물 양을 넣으면 필요한 찻잎량이 바로 나옵니다. 농도는 세 단계로 조절할 수 있어요.</p>
+      <div class="calc-row">
+        <div class="field">
+          <label>차 선택</label>
+          <select class="field-select" id="calcTea"></select>
+        </div>
+        <div class="field">
+          <label>물 양 (ml)</label>
+          <input type="number" id="calcMl" value="750" min="0" step="50">
+        </div>
+        <div class="field">
+          <label>농도</label>
+          <select class="field-select" id="calcStrength">
+            <option value="0.8">연하게</option>
+            <option value="1" selected>기본</option>
+            <option value="1.3">진하게</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-out" id="calcOut">-</div>
+    </div>
+
+    <div class="guide-controls">
+      <input type="text" class="guide-search" id="brewSearch" placeholder="차 이름으로 찾기 (예: 밀향, 세작, 육계)">
+    </div>
+    <div class="chips" id="brewChips"></div>
+    <div id="brewList"></div>
+
+    <div class="panel" style="margin-top:24px;">
+      <h2>매장에서 자주 쓰는 기준</h2>
+      <p class="hint-top" style="margin-bottom:0;line-height:1.8;">
+        · 열탕 기본 비율은 <b>물 100ml당 3g</b>, 냉침은 <b>물 1L당 6~10g</b>입니다.<br>
+        · 냉침은 8~12시간 뒤 <b>반드시 잎을 빼세요.</b> 잎을 뺀 뒤 냉장 2~3일, 담가두면 반나절부터 떫어집니다.<br>
+        · 무이암차·봉황단총은 다른 우롱보다 훨씬 진하게(개완 100ml에 6~8g) 넣어야 특징이 살아납니다.<br>
+        · 잎이 부푸는 차(우롱·백차)는 저울 없이 눈대중하면 편차가 커서, 1인분 소분을 미리 만들어두는 편이 빠릅니다.
+      </p>
+    </div>
+  </div><!-- /page-brew -->
+
+  <!-- ================= 차 백과 ================= -->
+  <div class="page" id="page-atlas" hidden>
+    <div class="atlas-nav" id="atlasNav"></div>
+    <div id="atlasBody"></div>
+
+    <div class="spectrum">
+      <h3>발효도 한 눈에 보기</h3>
+      <div class="spectrum-bar">
+        <div style="background:#A8C08A;">녹차</div>
+        <div style="background:#CBD3A3;">백차</div>
+        <div style="background:#DDCB84;">황차</div>
+        <div style="background:#C99A54;">청차</div>
+        <div style="background:#A9522F;">홍차</div>
+        <div style="background:#5C3722;color:#E7DFCB;">흑차</div>
+      </div>
+      <div class="spectrum-cap"><span>무발효</span><span>완전발효 · 후발효</span></div>
+      <p class="spectrum-note">흑차는 이 축의 끝이라기보다 별개 축입니다. 만든 뒤에도 미생물이 계속 관여하는 후발효차라서, 시간이 갈수록 계속 변합니다. 어느 나라 차든 이 스펙트럼 위 어디쯤인지만 짚으면 우림 온도와 시간이 대략 잡힙니다.</p>
+    </div>
+  </div><!-- /page-atlas -->
+
+  <footer>
+    입력값은 이 브라우저에 자동 저장되어 다음에 열 때 이어서 사용할 수 있습니다.<br>
+    <a href="/">← 하루 앱으로</a>
+  </footer>
+</div>
+
+<script>
+/* localStorage 기반 저장소 — 이 페이지는 로그인 없이 열리고, 입력값은 브라우저에만 남습니다. */
+window.storage = {
+  get: function(key){
+    try{
+      var v = localStorage.getItem(key);
+      return Promise.resolve(v === null ? null : {value: v});
+    }catch(e){ return Promise.resolve(null); }
+  },
+  set: function(key, value){
+    try{ localStorage.setItem(key, value); return Promise.resolve(true); }
+    catch(e){ return Promise.reject(e); }
+  }
+};
+
+const s = 'jamwon';
+const fields = ['visitors','teaRate','cups','loss'];
+const TEA_TYPES = ['대용차','홍차','호지차','백차','우롱차','보이차'];
+const CATEGORY_OPTIONS = ['대용차','홍차','호지차','백차','우롱차','보이차','녹차','말차','기타'];
+
+function $(id){ return document.getElementById(id); }
+function fmt(n, digits){
+  if(!isFinite(n)) return '-';
+  return n.toLocaleString('ko-KR', {maximumFractionDigits: digits===undefined?1:digits});
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ============ 탭 전환 ============ */
+const tabs = document.querySelectorAll('.tab');
+tabs.forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    tabs.forEach(t=>{
+      const on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      $(t.getAttribute('data-page')).hidden = !on;
+    });
+    window.scrollTo({top:0, behavior:'smooth'});
+    try{ window.storage.set('jamwon-active-tab-v1', tab.getAttribute('data-page')); }catch(e){}
+  });
+});
+
+// ---- 구매처 비교표 ----
+let compareRows = [
+  {name:'중작홍차', category:'홍차', vendor:'섬진다원', pricePerKg:437500, note:'80g 5만원, 30% 할인가'},
+  {name:'쑥차', category:'대용차', vendor:'도재명차', pricePerKg:143000, note:''},
+  {name:'백차', category:'백차', vendor:'예평 (만수가만든차)', pricePerKg:1440000, note:''},
+  {name:'백우롱차', category:'우롱차', vendor:'예평 (만수가만든차)', pricePerKg:1200000, note:'동방미인 계열'},
+  {name:'숙차', category:'보이차', vendor:'예평 (경매산)', pricePerKg:660000, note:'숙차(발효 보이차)'},
+  {name:'백호은침', category:'백차', vendor:'예평 (경곡)', pricePerKg:720000, note:''},
+  {name:'백모단', category:'백차', vendor:'예평', pricePerKg:720000, note:''},
+  {name:'세작녹차', category:'녹차', vendor:'다도레', pricePerKg:250000, note:''},
+  {name:'쑥차', category:'대용차', vendor:'다도레', pricePerKg:553000, note:''},
+  {name:'쑥차', category:'대용차', vendor:'산수화', pricePerKg:360000, note:''},
+  {name:'유자알갱이차', category:'대용차', vendor:'다도레', pricePerKg:314000, note:''},
+  {name:'말차', category:'말차', vendor:'다도레', pricePerKg:140000, note:''},
+  {name:'백차', category:'백차', vendor:'올티스', pricePerKg:1100000, note:''},
+  {name:'숙산차', category:'보이차', vendor:'대익', pricePerKg:71500, note:''},
+  {name:'운남성 동방미인', category:'우롱차', vendor:'QGY', pricePerKg:500000, note:''},
+  {name:'GOUN 동방미인', category:'우롱차', vendor:'메이크티(라오상하이)', pricePerKg:1600000, note:''},
+  {name:'야마시나 보우 호지차', category:'호지차', vendor:'여가생활', pricePerKg:299200, note:''},
+  {name:'호지차', category:'호지차', vendor:'올티스', pricePerKg:176000, note:''},
+  {name:'호지홍차', category:'호지차', vendor:'다도레', pricePerKg:216000, note:''},
+  {name:'금준미', category:'홍차', vendor:'QGY', pricePerKg:240000, note:''},
+  {name:'철관음 청향 고급', category:'우롱차', vendor:'QGY', pricePerKg:600000, note:''},
+  {name:'백차', category:'백차', vendor:'휴심선차', pricePerKg:900000, note:''},
+  {name:'백차', category:'백차', vendor:'제주차농', pricePerKg:200000, note:''},
+  {name:'호지차', category:'호지차', vendor:'제주차농', pricePerKg:150000, note:''},
+  {name:'2016 노차두', category:'보이차', vendor:'산수화', pricePerKg:160714, note:'시원하고 깔끔한 단맛. 280g/45,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 112,500원'},
+  {name:'2016 오공병 어린잎', category:'보이차', vendor:'산수화', pricePerKg:280000, note:'풍성하고 포만감 있는 맛. 100g/28,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 196,000원'},
+  {name:'2016 보이숙차(7452)', category:'보이차', vendor:'산수화', pricePerKg:112045, note:'클래식한 맛. 357g(전통 병차 표준 중량 추정)/40,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 78,431원'},
+  {name:'2018 보이숙차 타차', category:'보이차', vendor:'산수화', pricePerKg:70000, note:'풍성하며 깔끔한 맛. 100g/7,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 49,000원'},
+  {name:'밀향오룡', category:'우롱차', vendor:'산수화', pricePerKg:438000, note:'밀향(꿀향) 우롱차'}
+];
+
+function rowKey(row){ return row.name + '__' + row.vendor; }
+
+function renderCompareTable(){
+  const active = document.activeElement;
+  let restore = null;
+  if(active && active.closest && active.closest('#compareTable') && active.hasAttribute('data-idx')){
+    restore = {
+      idx: active.getAttribute('data-idx'),
+      field: active.getAttribute('data-field'),
+      start: active.selectionStart,
+      end: active.selectionEnd
+    };
+  }
+
+  const tbody = $('compareTableBody');
+  tbody.innerHTML = '';
+  compareRows.forEach((row, idx)=>{
+    const tr = document.createElement('tr');
+    const price = parseFloat(row.pricePerKg) || 0;
+    const rating = parseInt(row.rating) || 0;
+    const hasNote = rating > 0 || (row.tastingNote && row.tastingNote.trim().length > 0) || (row.brewMethod && row.brewMethod.trim().length > 0);
+    tr.innerHTML =
+      '<td><input type="text" data-idx="'+idx+'" data-field="name" value="'+escapeHtml(row.name)+'"></td>' +
+      '<td><select data-idx="'+idx+'" data-field="category">' +
+          CATEGORY_OPTIONS.map(c=>'<option value="'+c+'"'+(c===row.category?' selected':'')+'>'+c+'</option>').join('') +
+        '</select></td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="vendor" value="'+escapeHtml(row.vendor)+'"></td>' +
+      '<td><input type="number" data-idx="'+idx+'" data-field="pricePerKg" value="'+price+'" min="0" step="1000"></td>' +
+      '<td class="readonly-cell">'+fmt(price*0.004,0)+'원</td>' +
+      '<td class="readonly-cell">'+fmt(price/10,0)+'원</td>' +
+      '<td class="readonly-cell">'+fmt(price*0.3,0)+'원</td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="note" value="'+escapeHtml(row.note)+'"></td>' +
+      '<td><button class="note-toggle-btn'+(hasNote?' has-note':'')+'" data-idx="'+idx+'" type="button">📝</button></td>' +
+      '<td><button class="del-btn" data-idx="'+idx+'">삭제</button></td>';
+    tbody.appendChild(tr);
+
+    const noteTr = document.createElement('tr');
+    noteTr.className = 'note-row';
+    noteTr.setAttribute('data-idx', idx);
+    noteTr.style.display = 'none';
+    let starsHtml = '';
+    for(let i=1;i<=5;i++){
+      starsHtml += '<span class="star'+(i<=rating?' filled':'')+'" data-idx="'+idx+'" data-val="'+i+'">★</span>';
+    }
+    const suggestion = suggestBrewText(row.name, row.category);
+    noteTr.innerHTML =
+      '<td colspan="10">' +
+        '<div class="star-rating">'+starsHtml+'<span class="star-label" data-idx="'+idx+'">'+(rating>0?rating+'/5':'평점 없음')+'</span></div>' +
+        '<div class="note-field-label">테이스팅 메모</div>' +
+        '<textarea class="note-textarea" data-idx="'+idx+'" data-field="tastingNote" placeholder="향, 맛, 바디감, 여운 등 자유롭게 기록">'+escapeHtml(row.tastingNote||'')+'</textarea>' +
+        '<div class="note-field-label">최적 우림법</div>' +
+        '<textarea class="note-textarea brew-textarea" data-idx="'+idx+'" data-field="brewMethod" placeholder="물 온도, 우림 시간, 찻잎량:물 비율, 재우림 횟수 등">'+escapeHtml(row.brewMethod||'')+'</textarea>' +
+        (suggestion ? '<button class="apply-brew-btn" data-idx="'+idx+'" type="button">가이드 기준 채우기 — '+escapeHtml(suggestion)+'</button>' : '') +
+      '</td>';
+    tbody.appendChild(noteTr);
+  });
+
+  // 테이스팅 노트 토글 버튼
+  tbody.querySelectorAll('.note-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = e.target.getAttribute('data-idx');
+      const noteTr = tbody.querySelector('.note-row[data-idx="'+idx+'"]');
+      if(noteTr){
+        noteTr.style.display = noteTr.style.display === 'none' ? 'table-row' : 'none';
+      }
+    });
+  });
+
+  // 가이드 기준 채우기
+  tbody.querySelectorAll('.apply-brew-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
+      const text = suggestBrewText(compareRows[idx].name, compareRows[idx].category);
+      if(!text) return;
+      compareRows[idx].brewMethod = text;
+      const noteTr = tbody.querySelector('.note-row[data-idx="'+idx+'"]');
+      noteTr.querySelector('.brew-textarea').value = text;
+      tbody.querySelector('.note-toggle-btn[data-idx="'+idx+'"]').classList.add('has-note');
+      refreshBlendBrewCells();
+      scheduleCompareSave();
+    });
+  });
+
+  // 별점 클릭 (재렌더 없이 별과 라벨만 갱신)
+  tbody.querySelectorAll('.star-rating .star').forEach(starEl=>{
+    starEl.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const val = parseInt(e.target.getAttribute('data-val'));
+      const newRating = (parseInt(compareRows[idx].rating)||0) === val ? 0 : val;
+      compareRows[idx].rating = newRating;
+      const noteTr = tbody.querySelector('.note-row[data-idx="'+idx+'"]');
+      noteTr.querySelectorAll('.star').forEach(s=>{
+        s.classList.toggle('filled', parseInt(s.getAttribute('data-val')) <= newRating);
+      });
+      noteTr.querySelector('.star-label').textContent = newRating>0 ? newRating+'/5' : '평점 없음';
+      const btn = tbody.querySelector('.note-toggle-btn[data-idx="'+idx+'"]');
+      const hasNote = newRating > 0 ||
+        (compareRows[idx].tastingNote && compareRows[idx].tastingNote.trim().length>0) ||
+        (compareRows[idx].brewMethod && compareRows[idx].brewMethod.trim().length>0);
+      btn.classList.toggle('has-note', hasNote);
+      scheduleCompareSave();
+    });
+  });
+
+  // 테이스팅 메모 / 최적 우림법 (재렌더 없이 데이터만 갱신 — 커서 유지)
+  tbody.querySelectorAll('.note-textarea').forEach(ta=>{
+    ta.addEventListener('input', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const field = e.target.getAttribute('data-field');
+      compareRows[idx][field] = e.target.value;
+      const btn = tbody.querySelector('.note-toggle-btn[data-idx="'+idx+'"]');
+      const hasNote = (parseInt(compareRows[idx].rating)||0) > 0 ||
+        (compareRows[idx].tastingNote && compareRows[idx].tastingNote.trim().length>0) ||
+        (compareRows[idx].brewMethod && compareRows[idx].brewMethod.trim().length>0);
+      btn.classList.toggle('has-note', hasNote);
+      if(field === 'brewMethod'){ refreshBlendBrewCells(); }
+      scheduleCompareSave();
+    });
+  });
+
+  tbody.querySelectorAll('input, select').forEach(el=>{
+    el.addEventListener('input', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const field = e.target.getAttribute('data-field');
+      compareRows[idx][field] = e.target.value;
+      if(field === 'pricePerKg'){
+        const tr = e.target.closest('tr');
+        const price = parseFloat(e.target.value) || 0;
+        const cells = tr.querySelectorAll('.readonly-cell');
+        cells[0].textContent = fmt(price*0.004,0)+'원';
+        cells[1].textContent = fmt(price/10,0)+'원';
+        cells[2].textContent = fmt(price*0.3,0)+'원';
+      }
+      renderBlendTable(true);
+      scheduleCompareSave();
+      computeAll();
+    });
+  });
+
+  tbody.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      compareRows.splice(idx, 1);
+      renderCompareTable();
+      renderBlendTable(true);
+      scheduleCompareSave();
+      computeAll();
+    });
+  });
+
+  if(restore){
+    const el = tbody.querySelector('[data-idx="'+restore.idx+'"][data-field="'+restore.field+'"]');
+    if(el){
+      el.focus();
+      if(typeof el.setSelectionRange === 'function' && restore.start != null){
+        try{ el.setSelectionRange(restore.start, restore.end); }catch(e){}
+      }
+    }
+  }
+}
+
+$('addRowBtn').addEventListener('click', ()=>{
+  compareRows.push({name:'', category:'기타', vendor:'', pricePerKg:0, note:''});
+  renderCompareTable();
+  renderBlendTable(true);
+  scheduleCompareSave();
+});
+
+let compareSaveTimer = null;
+function scheduleCompareSave(){
+  clearTimeout(compareSaveTimer);
+  compareSaveTimer = setTimeout(async ()=>{
+    try{ await window.storage.set('jamwon-tea-comparison-v6', JSON.stringify(compareRows)); }catch(e){}
+  }, 500);
+}
+
+async function loadCompareRows(){
+  try{
+    const result = await window.storage.get('jamwon-tea-comparison-v6');
+    if(result && result.value){
+      const parsed = JSON.parse(result.value);
+      if(Array.isArray(parsed) && parsed.length){ compareRows = parsed; }
+    }
+  }catch(e){}
+  renderCompareTable();
+}
+
+// ---- 6종 블렌딩 구성표 ----
+let blendRows = [
+  {type:'대용차', pct:5, vendorKey:'쑥차__도재명차', manualPrice:0, sellingPrice:7000, gpc:3},
+  {type:'홍차', pct:30, vendorKey:'중작홍차__섬진다원', manualPrice:0, sellingPrice:8000, gpc:3},
+  {type:'호지차', pct:10, vendorKey:'manual', manualPrice:0, sellingPrice:8000, gpc:3},
+  {type:'백차', pct:20, vendorKey:'백차__예평 (만수가만든차)', manualPrice:0, sellingPrice:9000, gpc:4},
+  {type:'우롱차', pct:15, vendorKey:'백우롱차__예평 (만수가만든차)', manualPrice:0, sellingPrice:9000, gpc:5},
+  {type:'보이차', pct:20, vendorKey:'숙차__예평 (경매산)', manualPrice:0, sellingPrice:8500, gpc:5}
+];
+
+function getOptionsForCategory(cat){
+  return compareRows.filter(r=>r.category===cat).map(r=>({key:rowKey(r), label:r.name+' · '+r.vendor+' ('+fmt(r.pricePerKg,0)+'원/kg)', price:parseFloat(r.pricePerKg)||0}));
+}
+
+function priceForBlendRow(row){
+  if(row.vendorKey === 'manual') return parseFloat(row.manualPrice) || 0;
+  const match = compareRows.find(r=>rowKey(r)===row.vendorKey);
+  return match ? (parseFloat(match.pricePerKg)||0) : 0;
+}
+
+// 잠원점 전체 월간 예상 판매 잔 수 (차종 배합과 무관 — 방문객/주문비율/잔수 기준)
+function getTotalMonthlyCups(){
+  const visitors = parseFloat($(s+'-visitors').value) || 0;
+  const teaRate = parseFloat($(s+'-teaRate').value) || 0;
+  const cups = parseFloat($(s+'-cups').value) || 0;
+  const weeklyDays = parseFloat($('weeklyDays').value) || 0;
+  const monthlyDays = weeklyDays * 4.345;
+  const dailyCups = visitors * (teaRate/100) * cups;
+  return dailyCups * monthlyDays;
+}
+
+// 한 블렌딩 행의 모든 파생 수치 계산 (비율 = 잔 수 기준 배분, 잔당 찻잎량은 행마다 다름)
+function computeRowMetrics(row){
+  const totalMonthlyCups = getTotalMonthlyCups();
+  const loss = parseFloat($(s+'-loss').value) || 0;
+  const gpc = parseFloat(row.gpc) || 0;
+  const price = priceForBlendRow(row);
+
+  const cupsForType = totalMonthlyCups * ((parseFloat(row.pct)||0)/100);
+  const leafGrams = cupsForType * gpc * (1 + loss/100);
+  const monthlyKg = leafGrams / 1000;
+  const cost = monthlyKg * price;
+  const costPerCup = gpc > 0 ? (price * gpc * (1 + loss/100) / 1000) : 0;
+  const sellingPrice = parseFloat(row.sellingPrice) || 0;
+  const revenue = cupsForType * sellingPrice;
+  const marginPerCup = sellingPrice - costPerCup;
+  const marginRate = sellingPrice > 0 ? (marginPerCup / sellingPrice * 100) : null;
+
+  return {price, cupsForType, monthlyKg, cost, costPerCup, revenue, marginRate};
+}
+
+function renderBlendTable(){
+  const tbody = $('blendTableBody');
+  tbody.innerHTML = '';
+
+  blendRows.forEach((row, idx)=>{
+    const options = getOptionsForCategory(row.type);
+    if(row.vendorKey !== 'manual' && !options.find(o=>o.key===row.vendorKey)){
+      row.vendorKey = 'manual';
+    }
+    const price = priceForBlendRow(row);
+
+    const tr = document.createElement('tr');
+    let selectHtml = '<select data-idx="'+idx+'" data-field="vendorKey">' +
+      '<option value="manual"'+(row.vendorKey==='manual'?' selected':'')+'>직접 입력</option>' +
+      options.map(o=>'<option value="'+o.key+'"'+(o.key===row.vendorKey?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('') +
+      '</select>';
+
+    let priceCellHtml;
+    if(row.vendorKey === 'manual'){
+      priceCellHtml = '<input type="number" data-idx="'+idx+'" data-field="manualPrice" value="'+(parseFloat(row.manualPrice)||0)+'" min="0" step="1000">';
+    }else{
+      priceCellHtml = '<span class="readonly-cell cell-price">'+fmt(price,0)+'</span>';
+    }
+
+    tr.innerHTML =
+      '<td><input type="number" data-idx="'+idx+'" data-field="pct" value="'+row.pct+'" min="0" max="100" step="1"></td>' +
+      '<td class="tea-type-cell">'+row.type+'</td>' +
+      '<td>'+selectHtml+'</td>' +
+      '<td class="readonly-cell cell-brew"></td>' +
+      '<td><input type="number" data-idx="'+idx+'" data-field="gpc" value="'+(parseFloat(row.gpc)||0)+'" min="0" step="0.5"></td>' +
+      '<td class="readonly-cell cell-costpercup"></td>' +
+      '<td><input type="number" data-idx="'+idx+'" data-field="sellingPrice" value="'+(parseFloat(row.sellingPrice)||0)+'" min="0" step="500"></td>' +
+      '<td class="readonly-cell cell-marginrate"></td>' +
+      '<td class="readonly-cell cell-revenue"></td>' +
+      '<td>'+priceCellHtml+'</td>' +
+      '<td class="readonly-cell cell-monthlykg"></td>' +
+      '<td class="readonly-cell cell-cost"></td>';
+    tbody.appendChild(tr);
+    updateBlendRowCells(tr, idx);
+  });
+
+  tbody.querySelectorAll('input, select').forEach(el=>{
+    el.addEventListener('input', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const field = e.target.getAttribute('data-field');
+      blendRows[idx][field] = e.target.value;
+
+      if(field === 'vendorKey'){
+        renderBlendTable();
+      }else{
+        const tr = e.target.closest('tr');
+        updateBlendRowCells(tr, idx);
+        updatePctTotal();
+      }
+      scheduleSave();
+      computeAll();
+    });
+  });
+
+  updatePctTotal();
+}
+
+function updateBlendRowCells(tr, idx){
+  const row = blendRows[idx];
+  const m = computeRowMetrics(row);
+
+  const priceCell = tr.querySelector('.cell-price');
+  if(priceCell) priceCell.textContent = fmt(m.price,0);
+  const matchRow = row.vendorKey !== 'manual' ? compareRows.find(r=>rowKey(r)===row.vendorKey) : null;
+  let brewText = matchRow && matchRow.brewMethod && matchRow.brewMethod.trim() ? matchRow.brewMethod.trim() : '';
+  if(!brewText && matchRow){ brewText = suggestBrewText(matchRow.name, matchRow.category) || ''; }
+  tr.querySelector('.cell-brew').textContent = brewText || '-';
+  tr.querySelector('.cell-costpercup').textContent = fmt(m.costPerCup,0)+'원';
+  tr.querySelector('.cell-monthlykg').textContent = fmt(m.monthlyKg,2)+'kg';
+  tr.querySelector('.cell-cost').textContent = fmt(m.cost,0)+'원';
+  tr.querySelector('.cell-revenue').textContent = fmt(m.revenue,0)+'원';
+  const marginEl = tr.querySelector('.cell-marginrate');
+  marginEl.textContent = m.marginRate === null ? '-' : fmt(m.marginRate,1)+'%';
+  marginEl.style.color = m.marginRate === null ? 'var(--ink-soft)' : (m.marginRate >= 0 ? 'var(--green-tea)' : 'var(--warn)');
+  marginEl.style.fontWeight = '600';
+}
+
+function refreshBlendBrewCells(){
+  const tbody = $('blendTableBody');
+  if(!tbody) return;
+  tbody.querySelectorAll('tr').forEach((tr, idx)=>{
+    const cell = tr.querySelector('.cell-brew');
+    if(!cell) return;
+    const row = blendRows[idx];
+    if(!row) return;
+    const matchRow = row.vendorKey !== 'manual' ? compareRows.find(r=>rowKey(r)===row.vendorKey) : null;
+    let t = matchRow && matchRow.brewMethod && matchRow.brewMethod.trim() ? matchRow.brewMethod.trim() : '';
+    if(!t && matchRow){ t = suggestBrewText(matchRow.name, matchRow.category) || ''; }
+    cell.textContent = t || '-';
+  });
+}
+
+function updatePctTotal(){
+  const totalPct = blendRows.reduce((sum,r)=>sum+(parseFloat(r.pct)||0),0);
+  const pctEl = $('pctTotal');
+  pctEl.textContent = '비율 합계: '+fmt(totalPct,0)+'%'+(Math.round(totalPct)===100?' (100% 정상)':' — 100%가 되도록 맞춰주세요');
+  pctEl.className = 'pct-total ' + (Math.round(totalPct)===100 ? 'ok' : 'bad');
+}
+
+function computeAll(){
+  const bufferWeeks = parseFloat($('bufferWeeks').value) || 0;
+  const weeklyDays = parseFloat($('weeklyDays').value) || 0;
+  const monthlyDays = weeklyDays * 4.345;
+  $('monthlyDaysHint').textContent = '≈ 월 '+fmt(monthlyDays,1)+'일 운영';
+
+  let monthlyKg = 0;
+  let cost = 0;
+  let revenue = 0;
+  blendRows.forEach(row=>{
+    const m = computeRowMetrics(row);
+    monthlyKg += m.monthlyKg;
+    cost += m.cost;
+    revenue += m.revenue;
+  });
+  const yearlyKg = monthlyKg * 12;
+  const dailyG = monthlyDays > 0 ? (monthlyKg * 1000 / monthlyDays) : 0;
+  const margin = revenue - cost;
+  const marginRate = revenue > 0 ? (margin / revenue * 100) : null;
+
+  $(s+'-daily').textContent = fmt(dailyG, 0);
+  $(s+'-monthly').textContent = fmt(monthlyKg, 2);
+  $(s+'-yearly').textContent = fmt(yearlyKg, 1);
+  $(s+'-cost').textContent = fmt(cost, 0);
+  $(s+'-revenue').textContent = fmt(revenue, 0);
+  $(s+'-marginrate').textContent = marginRate === null ? '-' : fmt(marginRate, 1);
+
+  const pct = Math.max(6, Math.min(100, monthlyKg * 6));
+  requestAnimationFrame(()=>{ $('jar-jamwon').style.height = pct + '%'; });
+
+  $('total-monthly').textContent = fmt(monthlyKg, 2);
+  $('total-yearly').textContent = fmt(yearlyKg, 1);
+  $('total-cost').textContent = fmt(cost, 0);
+  $('total-revenue').textContent = fmt(revenue, 0);
+  $('total-margin').textContent = fmt(margin, 0);
+  $('total-margin-rate').textContent = marginRate === null ? '-' : fmt(marginRate, 1);
+
+  const recommend = monthlyKg * (1 + (bufferWeeks/4.33));
+  $('recommend-order').textContent = fmt(recommend, 2);
+}
+
+let saveTimer = null;
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  $('saveStatus').textContent = '저장 중...';
+  saveTimer = setTimeout(saveState, 500);
+}
+
+async function saveState(){
+  try{
+    const state = {weeklyDays: $('weeklyDays').value, bufferWeeks: $('bufferWeeks').value, jamwon:{}, blendRows: blendRows};
+    fields.forEach(f=>{ state.jamwon[f] = $(s+'-'+f).value; });
+    await window.storage.set('jamwon-tea-ledger-inputs-v3', JSON.stringify(state));
+    $('saveStatus').textContent = '자동 저장됨';
+  }catch(e){
+    $('saveStatus').textContent = '저장 실패 (이 세션에서만 유지됩니다)';
+  }
+}
+
+async function loadState(){
+  try{
+    const result = await window.storage.get('jamwon-tea-ledger-inputs-v3');
+    if(!result) return;
+    const state = JSON.parse(result.value);
+    if(state.weeklyDays !== undefined) $('weeklyDays').value = state.weeklyDays;
+    if(state.bufferWeeks !== undefined) $('bufferWeeks').value = state.bufferWeeks;
+    if(state.jamwon){
+      fields.forEach(f=>{
+        if(state.jamwon[f] !== undefined) $(s+'-'+f).value = state.jamwon[f];
+      });
+    }
+    if(Array.isArray(state.blendRows) && state.blendRows.length === TEA_TYPES.length){
+      blendRows = state.blendRows;
+    }
+  }catch(e){}
+}
+
+document.querySelectorAll('.inp, #weeklyDays, #bufferWeeks').forEach(el=>{
+  el.addEventListener('input', ()=>{ renderBlendTable(); computeAll(); scheduleSave(); });
+});
+
+/* =================================================
+   우림 가이드 데이터
+   g100 = 물 100ml 기준 찻잎(g) · temp = 물 온도
+   first = 첫 탕(초) · add = 이후 탕 추가(초) · times = 우릴 수 있는 횟수
+   coldG = 물 1L 기준 냉침 찻잎(g), null이면 냉침 비권장
+================================================= */
+const BREW_DATA = [
+  {name:'쑥차', cat:'대용차', g100:1.5, temp:'90~100℃', first:180, add:60, times:'3',
+   coldG:10, coldHr:'8~10시간',
+   note:'잎이 두꺼워 열탕도 냉침도 오래 걸립니다. 1.5g에 3분이 기준이고, 진하게 원하면 시간을 먼저 늘리세요.'},
+  {name:'유자알갱이차', cat:'대용차', g100:5, temp:'90℃', first:120, add:0, times:'1',
+   coldG:null, coldHr:'',
+   note:'과육형이라 재우림이 어렵습니다. 뜨겁게 한 번, 또는 찬물에 풀어 에이드로 쓰는 편이 낫습니다.'},
+  {name:'루이보스', cat:'대용차', g100:3, temp:'100℃', first:300, add:120, times:'2',
+   coldG:8, coldHr:'8~12시간',
+   note:'카페인이 없고 탄닌이 낮아 오래 우려도 떫어지지 않습니다. 저녁 시간대·임산부 손님용 옵션으로 하나쯤 두면 좋습니다.'},
+
+  {name:'세작녹차', cat:'녹차', g100:2.5, temp:'75~80℃', first:25, add:10, times:'3',
+   coldG:10, coldHr:'6~8시간',
+   note:'뜨거우면 바로 떫어집니다. 온도를 낮추는 게 시간 조절보다 중요합니다. 냉침 궁합은 전 차종 중 최상.'},
+  {name:'우전 (첫물차)', cat:'녹차', g100:2.5, temp:'70~75℃', first:30, add:10, times:'3',
+   coldG:9, coldHr:'6~8시간',
+   note:'세작보다 더 여립니다. 온도를 5℃ 더 낮추고 손님께 낼 때도 잔을 미리 데우지 마세요.'},
+  {name:'말차', cat:'말차', g100:2, temp:'70~80℃', first:0, add:0, times:'1',
+   coldG:null, coldHr:'',
+   note:'우리는 차가 아니라 푸는 차입니다. 70ml 물에 2g, 차선으로 W자로 15~20초. 온도가 높으면 쓴맛이 확 올라옵니다.'},
+
+  {name:'백호은침', cat:'백차', g100:2.5, temp:'85~90℃', first:40, add:15, times:'5',
+   coldG:8, coldHr:'8~12시간',
+   note:'싹만 쓴 최고급 백차. 뜨거우면 솜털향이 날아갑니다. 유리잔에 우려 싹이 서는 모습을 보여주는 연출이 잘 먹힙니다.'},
+  {name:'백모단', cat:'백차', g100:3, temp:'90℃', first:30, add:10, times:'6',
+   coldG:9, coldHr:'8~12시간',
+   note:'은침보다 잎이 섞여 맛이 진합니다. 매장 스탠다드 백차로 은침보다 다루기 편합니다.'},
+  {name:'수미 · 공미', cat:'백차', g100:4, temp:'95~100℃', first:20, add:10, times:'8',
+   coldG:10, coldHr:'8~12시간',
+   note:'성숙잎 위주라 뜨겁게 우려도 됩니다. 묵힐수록 대추향이 올라와 노백차로 가치가 붙는 등급.'},
+
+  {name:'중작홍차', cat:'홍차', g100:3, temp:'95~100℃', first:180, add:60, times:'2',
+   coldG:9, coldHr:'8~12시간',
+   note:'국산 홍차는 수입 아쌈보다 탄닌이 부드럽습니다. 밀크티로 쓸 거면 잎을 1g 더 넣으세요.'},
+  {name:'금준미', cat:'홍차', g100:3, temp:'90~95℃', first:20, add:10, times:'6',
+   coldG:8, coldHr:'8~12시간',
+   note:'새싹만 쓴 고급 홍차라 서양식으로 3분 우리면 아깝습니다. 개완에 짧게 여러 번 우리세요.'},
+  {name:'정산소종', cat:'홍차', g100:3, temp:'100℃', first:30, add:10, times:'5',
+   coldG:8, coldHr:'8~12시간',
+   note:'훈연향이 강해 호불호가 갈립니다. 주문 전에 향을 맡아보게 하는 편이 컴플레인을 줄입니다.'},
+  {name:'홍옥 (대차18호)', cat:'홍차', g100:3, temp:'95~100℃', first:180, add:60, times:'3',
+   coldG:9, coldHr:'8~12시간',
+   note:'박하·계피향이 자연스럽게 납니다. 오래 우려도 잘 떫어지지 않아 매장 운영이 편한 편.'},
+  {name:'아쌈 · CTC', cat:'홍차', g100:3, temp:'100℃', first:180, add:0, times:'1',
+   coldG:12, coldHr:'8~12시간',
+   note:'밀크티 베이스의 표준. 두유 냉침으로 만들 땐 잎을 넉넉히 넣고 8~12시간 뒤 눌러 짜세요.'},
+
+  {name:'호지차', cat:'호지차', g100:3, temp:'95~100℃', first:60, add:30, times:'3',
+   coldG:10, coldHr:'6~8시간',
+   note:'이미 볶은 차라 빨리 우러납니다. 길게 우리면 탄맛이 도니 1분 안쪽에서 끊으세요. 카페인이 낮아 저녁 메뉴로 좋습니다.'},
+  {name:'겐마이차', cat:'호지차', g100:3, temp:'90~95℃', first:45, add:20, times:'3',
+   coldG:10, coldHr:'6~8시간',
+   note:'현미 고소함이 주인공이라 짧게. 오래 우리면 녹차 쪽 떫음이 먼저 올라옵니다.'},
+
+  {name:'밀향오룡', cat:'우롱차', g100:4, temp:'95℃', first:25, add:10, times:'6',
+   coldG:9, coldHr:'8~12시간',
+   note:'봉황단총 계열 밀란향. 꿀향이 주인공이라 첫 탕을 짧게 끊고 향을 먼저 보여주세요.'},
+  {name:'동방미인', cat:'우롱차', g100:3.5, temp:'90~95℃', first:15, add:8, times:'6',
+   coldG:8, coldHr:'8~12시간',
+   note:'조형(부풀린 형태)이라 부피 대비 가볍습니다. 개완 90ml면 3~4g. 뚜껑 향을 꼭 맡아보게 하세요.'},
+  {name:'문산포종', cat:'우롱차', g100:3, temp:'90~95℃', first:45, add:15, times:'5',
+   coldG:8, coldHr:'10~14시간',
+   note:'우롱 중 녹차에 가장 가까운 청향. 냉침에서 꽃향이 아주 깨끗하게 나옵니다.'},
+  {name:'사계춘', cat:'우롱차', g100:3.5, temp:'90~95℃', first:25, add:10, times:'5',
+   coldG:8, coldHr:'10~14시간',
+   note:'사계절 채엽이 가능해 단가가 합리적입니다. 가벼운 꽃향이라 입문·냉침 라인으로 적합.'},
+  {name:'고산우롱 (아리산·리산)', cat:'우롱차', g100:5, temp:'95℃', first:40, add:15, times:'7',
+   coldG:9, coldHr:'10~14시간',
+   note:'구슬형이라 부풀면 개완을 가득 채웁니다. 첫 탕은 잎이 덜 펴져 연하니 두세 번째 탕이 정점.'},
+  {name:'철관음 (청향)', cat:'우롱차', g100:5, temp:'95℃', first:35, add:15, times:'7',
+   coldG:9, coldHr:'10~14시간',
+   note:'청향형은 냉침도 잘 맞습니다. 농향형(배전 강한 것)은 냉침하면 불맛이 안 나오니 열탕 전용으로.'},
+  {name:'무이암차 — 수선', cat:'우롱차', g100:7, temp:'100℃', first:8, add:5, times:'9',
+   coldG:null, coldHr:'',
+   note:'다른 우롱의 두 배로 넣고 아주 짧게. 난꽃향에 원목의 무게감. 배전차라 냉침은 맞지 않습니다.'},
+  {name:'무이암차 — 육계', cat:'우롱차', g100:7, temp:'100℃', first:6, add:5, times:'9',
+   coldG:null, coldHr:'',
+   note:'계피향이 특징. 향이 세서 첫 탕을 5초 안쪽으로 끊지 않으면 뒤 탕이 밋밋해집니다.'},
+  {name:'봉황단총 (압시향 등)', cat:'우롱차', g100:6, temp:'95~100℃', first:10, add:5, times:'8',
+   coldG:null, coldHr:'',
+   note:'세차 한 번은 필수. 잎이 크고 거칠어 향을 깨워야 합니다. 탕마다 향이 변하는 재미가 주무기.'},
+  {name:'GABA 우롱 (가엽용차)', cat:'우롱차', g100:4, temp:'90~95℃', first:30, add:10, times:'5',
+   coldG:9, coldHr:'8~12시간',
+   note:'무산소 발효로 만든 대만 우롱. 살짝 신맛과 발효취가 나는 게 정상이니 손님께 미리 안내하세요.'},
+
+  {name:'보이 숙차', cat:'보이차', g100:5, temp:'100℃', first:15, add:5, times:'10',
+   coldG:8, coldHr:'6~8시간 (냉장)',
+   note:'세차 필수(5~10초, 버림). 자극이 적어 입문·저녁 메뉴로 안전합니다. 냉침은 가능하지만 향이 밋밋해지니 열탕 권장.'},
+  {name:'보이 생차', cat:'보이차', g100:4.5, temp:'95~100℃', first:10, add:5, times:'10',
+   coldG:null, coldHr:'',
+   note:'신차는 떫고 자극적입니다. 공복에 진하게 내면 차취(어지럼)가 올 수 있어 다과를 함께 내세요.'},
+  {name:'노차두', cat:'보이차', g100:5, temp:'100℃', first:20, add:8, times:'12',
+   coldG:8, coldHr:'6~8시간 (냉장)',
+   note:'덩어리가 단단해 잘 안 풀립니다. 세차를 조금 길게(10초) 주고, 뒤 탕으로 갈수록 단맛이 올라옵니다.'},
+  {name:'육보차', cat:'보이차', g100:5, temp:'100℃', first:15, add:5, times:'10',
+   coldG:null, coldHr:'',
+   note:'광서성 흑차. 숙차보다 매끄럽고 퇴창미가 적어 "보이차는 별로"라는 손님께 권하기 좋습니다.'}
+];
+
+const BREW_CATS = ['전체','대용차','녹차','말차','백차','홍차','호지차','우롱차','보이차'];
+let brewCat = '전체';
+
+function secText(sec){
+  if(!sec) return '—';
+  return sec >= 60 ? (sec/60 % 1 === 0 ? (sec/60)+'분' : Math.floor(sec/60)+'분 '+(sec%60)+'초') : sec+'초';
+}
+
+function suggestBrewText(name, cat){
+  const n = (name||'').trim();
+  let hit = BREW_DATA.find(b=>b.name === n);
+  if(!hit) hit = BREW_DATA.find(b=>n && (n.includes(b.name) || b.name.includes(n)));
+  if(!hit) hit = BREW_DATA.find(b=>b.cat === cat);
+  if(!hit) return '';
+  const cold = hit.coldG ? ' / 냉침 1L당 '+hit.coldG+'g, '+hit.coldHr : ' / 냉침 비권장';
+  return '물 100ml당 '+hit.g100+'g · '+hit.temp+' · 첫 탕 '+secText(hit.first)+', 이후 +'+hit.add+'초 · '+hit.times+'회'+cold;
+}
+
+function renderChips(){
+  const box = $('brewChips');
+  box.innerHTML = BREW_CATS.map(c=>
+    '<button class="chip" data-cat="'+c+'" aria-pressed="'+(c===brewCat)+'">'+c+'</button>'
+  ).join('');
+  box.querySelectorAll('.chip').forEach(ch=>{
+    ch.addEventListener('click', ()=>{
+      brewCat = ch.getAttribute('data-cat');
+      renderChips();
+      renderBrewList();
+    });
+  });
+}
+
+function renderBrewList(){
+  const q = ($('brewSearch').value || '').trim().toLowerCase();
+  const list = BREW_DATA.filter(b=>{
+    const catOk = brewCat === '전체' || b.cat === brewCat;
+    const qOk = !q || b.name.toLowerCase().includes(q) || b.note.toLowerCase().includes(q) || b.cat.includes(q);
+    return catOk && qOk;
+  });
+  const box = $('brewList');
+  if(!list.length){
+    box.innerHTML = '<div class="no-result">해당하는 차가 없습니다. 다른 이름이나 분류로 찾아보세요.</div>';
+    return;
+  }
+  box.innerHTML = list.map(b=>{
+    const cold = b.coldG
+      ? '냉침 — 물 1L당 <b>'+b.coldG+'g</b>, '+b.coldHr+' 뒤 잎 빼기'
+      : '<span class="cold-no">냉침 비권장 — 배전향·발효향이 찬물에서 열리지 않습니다</span>';
+    return '<div class="brew-card cat-'+b.cat+'">' +
+      '<div class="brew-head"><div class="brew-name">'+escapeHtml(b.name)+'</div><div class="brew-cat">'+b.cat+'</div></div>' +
+      '<div class="brew-note">'+escapeHtml(b.note)+'</div>' +
+      '<div class="brew-specs">' +
+        '<div><div class="spec-label">물 100ml당</div><div class="spec-value">'+b.g100+'<span class="unit">g</span></div></div>' +
+        '<div><div class="spec-label">물 온도</div><div class="spec-value" style="font-size:12.5px;">'+b.temp+'</div></div>' +
+        '<div><div class="spec-label">첫 탕</div><div class="spec-value" style="font-size:12.5px;">'+secText(b.first)+'</div></div>' +
+        '<div><div class="spec-label">이후 탕</div><div class="spec-value" style="font-size:12.5px;">'+(b.add?'+'+b.add+'초':'—')+'</div></div>' +
+        '<div><div class="spec-label">우림 횟수</div><div class="spec-value">'+b.times+'<span class="unit">회</span></div></div>' +
+      '</div>' +
+      '<div class="cold-line">'+cold+'</div>' +
+    '</div>';
+  }).join('');
+}
+
+$('brewSearch').addEventListener('input', renderBrewList);
+
+/* ---- 냉침 계산기 ---- */
+function initCalc(){
+  const sel = $('calcTea');
+  sel.innerHTML = BREW_DATA.map((b,i)=>'<option value="'+i+'">'+escapeHtml(b.name)+' · '+b.cat+'</option>').join('');
+  ['calcTea','calcMl','calcStrength'].forEach(id=>{
+    $(id).addEventListener('input', runCalc);
+  });
+  runCalc();
+}
+
+function runCalc(){
+  const b = BREW_DATA[parseInt($('calcTea').value)||0];
+  const ml = parseFloat($('calcMl').value) || 0;
+  const k = parseFloat($('calcStrength').value) || 1;
+  const hot = (b.g100 * k) * (ml/100);
+  let out = '열탕 — <b>'+fmt(hot,1)+'g</b> · '+b.temp+' · 첫 탕 '+secText(b.first);
+  if(b.coldG){
+    const cold = (b.coldG * k) * (ml/1000);
+    out += '<br>냉침 — <b>'+fmt(cold,1)+'g</b> · '+b.coldHr+' 뒤 잎 빼기';
+  }else{
+    out += '<br><span style="color:var(--ink-soft);">냉침 비권장 — 열탕으로 우린 뒤 급랭하세요</span>';
+  }
+  $('calcOut').innerHTML = out;
+}
+
+/* =================================================
+   차 백과 데이터
+================================================= */
+const ATLAS = [
+  {
+    id:'china', title:'중국',
+    lede:'발효도를 기준으로 한 6대 차류가 표준입니다. 여기에 꽃으로 착향한 재가공차(화차)를 더하면 중국차의 지도가 거의 완성됩니다.',
+    groups:[
+      {sub:'녹차', han:'綠茶 · 무발효', head:['이름','산지','특징'], rows:[
+        ['서호용정','절강 항주','납작하게 눌린 형태, 볶은 밤향. 중국 녹차의 얼굴'],
+        ['벽라춘','강소 동정산','나선형으로 말린 잎, 과수원 사이에서 자라 과일향이 강함'],
+        ['황산모봉','안휘','여린 새싹, 난꽃향'],
+        ['육안과편','안휘','싹 없이 잎만 쓰는 독특한 제법'],
+        ['태평후괴','안휘','손바닥만 한 납작한 잎, 시각적 임팩트가 큼'],
+        ['신양모첨','하남','가늘고 곧은 형태, 깔끔한 맛']
+      ]},
+      {sub:'백차', han:'白茶 · 약발효', head:['이름','산지','특징'], rows:[
+        ['백호은침','복건 복정','새싹만 사용, 솜털이 가득한 최고 등급'],
+        ['백모단','복건','싹에 잎 1~2매, 은침보다 맛이 진함'],
+        ['수미 · 공미','복건','성숙한 잎 위주. 저렴하지만 묵히면 노백차로 값이 붙음']
+      ]},
+      {sub:'황차', han:'黃茶 · 경발효', head:['이름','산지','특징'], rows:[
+        ['군산은침','호남 동정호','유리잔에서 싹이 서는 연출로 유명'],
+        ['몽정황아','사천','민황 공정을 거쳐 녹차의 풋내가 빠진 부드러움']
+      ], note:'6대 차류 중 생산량이 가장 적어 시장에서 만나기 어렵습니다.'},
+      {sub:'청차 (우롱)', han:'靑茶 · 부분산화', head:['이름','산지','특징'], rows:[
+        ['대홍포','복건 무이산','무이암차의 정점. 모수 6그루 전설로 유명'],
+        ['수선','복건 무이산','난꽃향에 원목의 무게감. 노총수선이 프리미엄'],
+        ['육계','복건 무이산','계피향과 매운 여운. 무이암차 중 가장 개성이 강함'],
+        ['안계철관음','복건 안계','청향형은 맑고 꽃향, 농향형은 구수하고 묵직'],
+        ['봉황단총','광동 봉황산','밀란향·압시향 등 향형별로 세분. 우롱 중 향이 가장 화려함']
+      ]},
+      {sub:'홍차', han:'紅茶 · 완전발효', head:['이름','산지','특징'], rows:[
+        ['기문홍차','안휘','난꽃향과 과일향. 세계 3대 홍차'],
+        ['정산소종','복건 무이산','소나무 훈연향. 세계 최초의 홍차로 알려짐'],
+        ['전홍','운남','대엽종 몰트향, 진한 바디. 밀크티에도 강함'],
+        ['금준미','복건 무이산','정산소종 계열을 새싹만으로 만든 고급형']
+      ]},
+      {sub:'흑차', han:'黑茶 · 후발효', head:['이름','산지','특징'], rows:[
+        ['보이 생차','운남','자연 후발효. 수십 년에 걸쳐 익어감'],
+        ['보이 숙차','운남','1973년 개발된 악퇴 발효. 40~60일 만에 숙성된 맛'],
+        ['노차두','운남','악퇴 중 뭉친 덩어리. 등외품이었다가 재평가된 부위'],
+        ['육보차','광서','빈랑향, 매끄러움. 동남아 화교 수출로 성장'],
+        ['안화흑차 (천량차)','호남','대나무로 감싼 기둥형, 36kg급도 있음'],
+        ['복전차','섬서','금화(황금 곰팡이)를 일부러 피운 게 고급 표시']
+      ]},
+      {sub:'화차', han:'花茶 · 재가공', head:['이름','베이스','특징'], rows:[
+        ['자스민차','녹차 · 백차','복주가 원산. 꽃을 겹겹이 갈아 향만 옮김'],
+        ['계화차','우롱 · 홍차','오스만투스. 살구·꿀 같은 단향'],
+        ['공예차','녹차 · 백차','꽃을 실로 묶어 넣고 물에서 피어나게 만든 연출용']
+      ]}
+    ]
+  },
+  {
+    id:'taiwan', title:'대만',
+    lede:'청차(우롱)의 비중이 압도적입니다. 고산 지형과 안개 덕에 고산차 문화가 특히 발달했고, 품평회 등급이 곧 가격표가 되는 시장 구조를 가졌습니다.',
+    groups:[
+      {sub:'대표 우롱', han:'', head:['이름','산지','특징'], rows:[
+        ['동정우롱','남투 녹곡','대만 우롱의 원조. 중발효 중배전'],
+        ['고산우롱','아리산·리산·삼투산','해발 1000m 이상. 청향에 두터운 단맛'],
+        ['문산포종','신베이 핑린','저산화. 우롱 중 녹차에 가장 가까움'],
+        ['동방미인','신죽·먀오리','벌레가 물어야 완성되는 차. 꿀향, 샴페인우롱 별명'],
+        ['금훤 (대차12호)','남투 등','우유 같은 부드러운 향. 밀크티 베이스로도 좋음'],
+        ['사계춘','남투 등','사계절 채엽 가능. 가볍고 합리적인 입문 우롱'],
+        ['목책철관음','타이베이 목책','안계와 다른 대만식 중배전 철관음']
+      ]},
+      {sub:'홍차 · 특수차', han:'', head:['이름','산지','특징'], rows:[
+        ['홍옥 (대차18호)','일월담','버마 대엽종×대만 야생종. 박하·계피향'],
+        ['홍운 (대차21호)','일월담','과일향·용안향이 홍옥보다 강함'],
+        ['GABA 우롱 (가엽용차)','남투 명간','질소·이산화탄소 혐기 발효로 GABA를 높인 차'],
+        ['비새차','전 지역','산지가 아니라 품평회 등급 개념. 특등장·두등장 등']
+      ], note:'비새차 등급은 대체로 특등장 → 두등장 → 이등장 → 삼등장 → 삼타매 순이며, 지역에 따라 금장·은장·우량장 표기를 쓰기도 합니다.'}
+    ]
+  },
+  {
+    id:'japan', title:'일본',
+    lede:'거의 전부가 녹차이고, 대부분 덖지 않고 쪄서 만듭니다. 차광(햇빛 가리기)과 볶음(배전)이라는 두 변수로 이 많은 종류가 갈립니다.',
+    groups:[
+      {sub:'증제차', han:'蒸製茶 · 일본 녹차의 주류', head:['이름','특징'], rows:[
+        ['센차','일본 녹차 생산량의 80% 이상. 표준이자 기준점'],
+        ['교쿠로','20일 이상 차광 재배. 감칠맛이 극대화된 최고급'],
+        ['카부세차','단기 차광. 센차와 교쿠로의 중간'],
+        ['텐차','말차의 원료. 차광 재배 후 비비지 않고 건조'],
+        ['말차','텐차를 맷돌로 간 가루차. 우리지 않고 풀어서 마심'],
+        ['반차','여름~가을 늦게 딴 잎. 담백하고 카페인이 낮음'],
+        ['호지차','반차·센차를 강하게 볶음. 구수하고 카페인이 낮음'],
+        ['겐마이차','볶은 현미를 섞음. 고소함이 주인공'],
+        ['후카무시차','오래 찐 센차. 색이 진하고 입자가 고와 탁하게 우러남']
+      ]},
+      {sub:'그 외', han:'', head:['이름','특징'], rows:[
+        ['카마이리차','규슈의 덖음 녹차. 중국식 제법이 남은 소수 계열'],
+        ['와코차','일본산 홍차. 소량이지만 최근 품질이 빠르게 오름'],
+        ['구키차 · 카리가네','줄기 부위로 만든 차. 부드럽고 저렴']
+      ]}
+    ]
+  },
+  {
+    id:'korea', title:'한국',
+    lede:'조선의 숭유억불로 한 번 끊겼다가 조선 후기에 되살아난 역사를 가집니다. 그 공백을 대용차가 메운 것이 다른 나라와 가장 다른 지점입니다.',
+    groups:[
+      {sub:'녹차 등급', han:'채엽 시기 기준', head:['이름','시기','특징'], rows:[
+        ['우전','곡우 전','가장 여린 첫물. 감칠맛이 강하고 값이 높음'],
+        ['세작','곡우~입하','매장 스탠다드로 가장 무난한 등급'],
+        ['중작','5월 중순 이후','잎이 자란 뒤. 맛이 진하고 가격이 합리적'],
+        ['대작','6월 이후','가장 성숙한 잎. 티백·대량 우림용']
+      ]},
+      {sub:'특별한 차', han:'', head:['이름','산지','특징'], rows:[
+        ['청태전','전남 장흥','엽전 모양 떡차. 고려 단차 문화가 남은 후발효차'],
+        ['잭살차','하동','감기 때 마시던 민간 발효차. 투박한 맛이 재평가되는 중'],
+        ['죽로차','전남 일대','대숲 반그늘에서 자란 잎. 아미노산이 높아 부드러움'],
+        ['황차','하동·보성','약하게 발효시킨 국산 차. 구수하고 순함'],
+        ['제주 백차·홍차','제주','현대식 대규모 다원. 국산 백차 수급처로 활용 가능']
+      ]},
+      {sub:'대용차', han:'찻잎이 들어가지 않는 차', head:['이름','특징'], rows:[
+        ['유자차 · 모과차','청으로 담가 물에 푸는 방식. 겨울 메뉴로 강함'],
+        ['생강차 · 대추차','달여서 마심. 카페인이 없어 저녁·임산부 옵션'],
+        ['쑥차','잎이 두꺼워 오래 우려야 함. 쌉쌀함에 꿀·대추가 잘 맞음'],
+        ['보리차 · 옥수수차','물처럼 마시는 문화. 한국 특유의 광의의 차']
+      ]}
+    ]
+  },
+  {
+    id:'sea', title:'동남아시아',
+    lede:'차나무 재배지이면서, 마시는 방식 자체가 독자적으로 발달한 지역입니다. 먹는 차와 연유 밀크티가 대표적입니다.',
+    groups:[
+      {sub:'베트남', han:'', head:['이름','특징'], rows:[
+        ['차선뚜옛','북부 고산의 야생 대엽종. 흰 솜털이 덮여 눈차라 불림'],
+        ['연꽃차','녹차를 연꽃 속에 넣어 착향. 하노이의 명물'],
+        ['자스민차','중국과 유사한 착향법. 저렴하고 대중적']
+      ]},
+      {sub:'미얀마', han:'', head:['이름','특징'], rows:[
+        ['라펫','발효 찻잎을 견과·향신료와 버무려 먹는 샐러드. 마시지 않고 씹는 차']
+      ]},
+      {sub:'태국', han:'', head:['이름','특징'], rows:[
+        ['차옌','홍차에 연유를 넣은 주황색 밀크티. 스트리트 음료의 상징'],
+        ['도이창 · 치앙라이 우롱','대만 이주민이 전파한 고산우롱 재배지']
+      ]},
+      {sub:'인도네시아 · 말레이시아', han:'', head:['이름','특징'], rows:[
+        ['자바 · 수마트라 홍차','대규모 플랜테이션. CTC 위주의 저가 대량 생산'],
+        ['테 타릭','말레이시아식 당겨 만드는 밀크티. 연유를 씀'],
+        ['말레이시아 노육보','수출된 육보차가 현지에서 오래 묵어 재수출되는 시장']
+      ]},
+      {sub:'인도 · 스리랑카', han:'남아시아 · 참고', head:['이름','특징'], rows:[
+        ['다즐링','머스캣향. 섬세해서 밀크티에는 맞지 않음'],
+        ['아쌈','몰트향과 강한 탄닌. 밀크티의 표준'],
+        ['닐기리','남인도. 산뜻하고 깔끔해 아이스티에 적합'],
+        ['실론 (우바·딤불라)','스리랑카. 고도별로 성격이 갈리며 우바는 멘톨향이 특징']
+      ]}
+    ]
+  }
+];
+
+function renderAtlas(){
+  $('atlasNav').innerHTML = ATLAS.map(sec=>
+    '<button class="chip" data-goto="atlas-'+sec.id+'">'+sec.title+'</button>'
+  ).join('');
+  $('atlasNav').querySelectorAll('[data-goto]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const el = $(btn.getAttribute('data-goto'));
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
+
+  $('atlasBody').innerHTML = ATLAS.map(sec=>{
+    const groups = sec.groups.map(g=>{
+      const head = '<tr>'+g.head.map(h=>'<th>'+h+'</th>').join('')+'</tr>';
+      const body = g.rows.map(r=>'<tr>'+r.map(c=>'<td>'+escapeHtml(c)+'</td>').join('')+'</tr>').join('');
+      const note = g.note ? '<p class="lede" style="margin:9px 0 0;">'+escapeHtml(g.note)+'</p>' : '';
+      return '<h3 class="atlas-sub">'+escapeHtml(g.sub)+(g.han?'<span class="han">'+escapeHtml(g.han)+'</span>':'')+'</h3>' +
+        '<div class="table-scroll"><table class="atlas-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>' + note;
+    }).join('');
+    return '<section class="atlas-sec" id="atlas-'+sec.id+'">' +
+      '<h2>'+escapeHtml(sec.title)+'</h2>' +
+      '<p class="lede">'+escapeHtml(sec.lede)+'</p>' + groups +
+    '</section>';
+  }).join('');
+}
+
+(async function init(){
+  await loadState();
+  await loadCompareRows();
+  renderBlendTable();
+  computeAll();
+  renderChips();
+  renderBrewList();
+  initCalc();
+  renderAtlas();
+  try{
+    const t = await window.storage.get('jamwon-active-tab-v1');
+    if(t && t.value){
+      const target = document.querySelector('.tab[data-page="'+t.value+'"]');
+      if(target) target.click();
+    }
+  }catch(e){}
+  $('saveStatus').textContent = ' ';
+})();
+</script>
+</body>
+</html>
