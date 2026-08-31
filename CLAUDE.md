@@ -92,9 +92,9 @@
   - Publishable key(공개용, 앱에 하드코딩 OK): `sb_publishable_QBlLIrJ8coqH3I-Ij-Q7SA_OUB7KVwV`
   - ⚠️ secret key는 절대 코드/문서에 넣지 말 것
   - 테이블: `todos`, `memos` (RLS `owner=auth.uid()`)
-  - Auth: email+password (Confirm email 꺼둠)
+  - Auth: email+password (Confirm email 꺼둠). **자동 로그인 없음** — 예전엔 `localStorage.haru_creds`에 이메일/비번을 평문으로 저장해두고 앱 열 때 자동 로그인했는데, 링크만 열면 바로 내 할일이 보이는 게 싫어서 제거함(회사에 `/cha` 링크를 공유하게 되면서). 남아있던 `haru_creds` 값도 로드 시 지움. 아이디/비번 기억은 **브라우저 자체 비밀번호 관리자**에 맡김 — 그래서 로그인 입력칸을 `<form id="authForm">`(+`name`/`autocomplete=username·current-password`, 로그인 버튼 `type=submit`)으로 감쌈. 한 번 로그인하면 Supabase 세션(`persistSession`, `haru_session`)은 그대로 유지돼서 매번 비번을 치진 않음.
 - **호스팅**: Cloudflare (`haru.lolcv1294.workers.dev`). 자동배포는 이 repo `main` 브랜치 연결 (아래 배포 메모 참고).
-- **`/cha` — 잠원점 찻잎 도매 장부**(`webapp/cha.html`, 별도 정적 페이지): 하루앱과 완전히 분리된 단일 HTML. **로그인 없이 누구나 열림**(Supabase 안 씀, 데이터는 그 브라우저 `localStorage`에만). 탭 3개 = 장부(구매처 비교표·블렌딩 원가/마진 계산·발주 요약) / 우림 가이드(차 30종 우림 스펙 + 냉침 계산기) / 차 백과(중국·대만·일본·한국·동남아 품종표). 원래 클로드 아티팩트로 만든 걸 옮긴 거라 **`window.storage`(아티팩트 전용 API)를 `localStorage` 셰임으로 교체**해야 저장이 동작함 — 나중에 아티팩트에서 새 버전을 가져올 때도 이 부분을 꼭 다시 갈아끼울 것. 검색엔진 노출은 `<meta name="robots" content="noindex">`로 막아둠(단가가 공개돼 있어서). ⚠️ URL을 아는 사람은 누구나 도매 단가를 볼 수 있음.
+- **`/cha` — 잠원점 찻잎 도매 장부**(`webapp/cha.html`, 별도 정적 페이지): 하루앱과 완전히 분리된 단일 HTML. **로그인 없이 누구나 열림**(Supabase 안 씀, 데이터는 그 브라우저 `localStorage`에만). 탭 3개 = 장부(구매처 비교표·블렌딩 원가/마진 계산·발주 요약) / 우림 가이드(차 30종 우림 스펙 + 냉침 계산기) / 차 백과(중국·대만·일본·한국·동남아 품종표). 원래 클로드 아티팩트로 만든 걸 옮긴 거라 **`window.storage`(아티팩트 전용 API)를 `localStorage` 셰임으로 교체**해야 저장이 동작함 — 나중에 아티팩트에서 새 버전을 가져올 때도 이 부분을 꼭 다시 갈아끼울 것. 검색엔진 노출은 `<meta name="robots" content="noindex">`로 막아둠(단가가 공개돼 있어서). ⚠️ URL을 아는 사람은 누구나 도매 단가를 볼 수 있음. **회사 공유용이라 하루앱으로 돌아가는 링크는 일부러 안 넣음** — 이 페이지에 하루앱 흔적을 남기지 말 것.
 - **데이터**: 현재 빈 상태로 시작. 예전 러버블 CSV(todos 300개)는 원하면 Supabase Table Editor로 Import 가능.
 
 ---

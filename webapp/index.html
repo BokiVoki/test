@@ -210,6 +210,7 @@
   /* auth */
   .authwrap{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:50;padding:20px}
   .authcard{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px}
+  .authcard form{display:flex;flex-direction:column;gap:10px}
   .authcard h1{font-size:26px;margin:0 0 4px;letter-spacing:-.03em}
   .authcard p.sub{margin:0 0 12px;color:var(--faint);font-size:13px}
   .authcard input{font:inherit;font-size:15px;padding:11px 12px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel);color:var(--text)}
@@ -289,9 +290,11 @@
   <div class="authcard">
     <h1>하루 🌿</h1>
     <p class="sub">이메일로 로그인하면 폰·노트북 어디서든 같은 할일이 보여요.</p>
-    <input id="email" type="email" placeholder="이메일" autocomplete="username">
-    <input id="pw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
-    <div class="row"><button id="loginBtn">로그인</button><button id="signupBtn">회원가입</button></div>
+    <form id="authForm" method="post" action="#">
+      <input id="email" name="username" type="email" placeholder="이메일" autocomplete="username">
+      <input id="pw" name="password" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
+      <div class="row"><button id="loginBtn" type="submit">로그인</button><button id="signupBtn" type="button">회원가입</button></div>
+    </form>
     <p id="authMsg"></p>
   </div>
 </div>
@@ -394,8 +397,10 @@
   var SUPA_URL='https://mfgiesampazjzgfliuje.supabase.co';
   var SUPA_KEY='sb_publishable_QBlLIrJ8coqH3I-Ij-Q7SA_OUB7KVwV';
   var sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'haru_session'}});
-  function saveCreds(c){try{localStorage.setItem('haru_creds',JSON.stringify(c));}catch(e){}}
-  function loadCreds(){try{return JSON.parse(localStorage.getItem('haru_creds')||'null');}catch(e){return null;}}
+  // 예전엔 이메일/비밀번호를 localStorage('haru_creds')에 평문으로 저장해 자동 로그인했는데,
+  // 링크만 열면 바로 로그인되는 게 싫어서 없앰. 이미 저장돼 있던 값도 여기서 지움.
+  // 아이디/비번 기억은 브라우저 자체 비밀번호 관리자(로그인 폼 autocomplete)에 맡김.
+  try{localStorage.removeItem('haru_creds');}catch(e){}
   var DAY=['일','월','화','수','목','금','토'], FOLDERS=['전체','업무','아이디어','한강','개인'];
   var undoHist=[];
   var hasArchive=false;  // DB에 doneat/archived 컬럼이 있으면 true (마이그레이션 후)
@@ -489,24 +494,19 @@
   var authEl=document.getElementById('auth'),appEl=document.getElementById('app'),authMsg=document.getElementById('authMsg');
   function showApp(){authEl.classList.add('hidden');appEl.classList.remove('hidden');loadData();}
   function showAuth(){appEl.classList.add('hidden');authEl.classList.remove('hidden');}
-  document.getElementById('loginBtn').addEventListener('click',doLogin);
-  document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)doLogin();});
+  document.getElementById('authForm').addEventListener('submit',function(e){e.preventDefault();doLogin();});
   document.getElementById('signupBtn').addEventListener('click',doSignup);
-  document.getElementById('logout').addEventListener('click',function(){try{localStorage.removeItem('haru_creds');}catch(e){}sb.auth.signOut().then(function(){location.reload();});});
+  document.getElementById('logout').addEventListener('click',function(){sb.auth.signOut().then(function(){location.reload();});});
   function creds(){return {email:document.getElementById('email').value.trim(),password:document.getElementById('pw').value};}
   function doLogin(){var c=creds();if(!c.email||!c.password){authMsg.textContent='이메일과 비밀번호를 입력하세요';return;}authMsg.textContent='로그인 중…';
-    sb.auth.signInWithPassword(c).then(function(r){if(r.error){authMsg.textContent='로그인 실패: '+r.error.message;}else{saveCreds(c);showApp();}});}
+    sb.auth.signInWithPassword(c).then(function(r){if(r.error){authMsg.textContent='로그인 실패: '+r.error.message;}else{showApp();}});}
   function doSignup(){var c=creds();if(!c.email||c.password.length<6){authMsg.textContent='이메일 + 6자 이상 비밀번호';return;}authMsg.textContent='가입 중…';
     sb.auth.signUp(c).then(function(r){if(r.error){authMsg.textContent='가입 실패: '+r.error.message;}
-      else if(r.data.session){saveCreds(c);showApp();}
+      else if(r.data.session){showApp();}
       else{authMsg.textContent='가입됨! 이제 로그인을 눌러주세요. (이메일 확인이 필요하면 메일함 확인)';}});}
-  // 아이디/비번 기억 + 자동 로그인
-  var saved=loadCreds();
-  if(saved){document.getElementById('email').value=saved.email||'';document.getElementById('pw').value=saved.password||'';}
+  // 살아있는 로그인 세션이 있으면 그대로 들어가고, 없으면 로그인 화면 (자동 로그인 없음)
   sb.auth.getSession().then(function(r){
     if(r.data.session){showApp();}
-    else if(saved&&saved.email&&saved.password){authMsg.textContent='자동 로그인 중…';
-      sb.auth.signInWithPassword(saved).then(function(rr){if(rr.error){showAuth();authMsg.textContent='다시 로그인해주세요';}else{showApp();}});}
     else{showAuth();}
   });
 
