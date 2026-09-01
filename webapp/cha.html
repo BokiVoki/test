@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>잠원점 찻잎 도매 장부</title>
+<title>한강점 찻잎 도매 장부</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,14 +41,6 @@
   .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.28em;color:var(--ink-soft);text-transform:uppercase;}
   h1{font-family:'Noto Serif KR',serif;font-weight:700;font-size:34px;margin:10px 0 6px;letter-spacing:-0.01em;}
   .sub{font-size:14px;color:var(--ink-soft);margin:0;}
-  .seal{
-    position:absolute;top:-6px; right:0;width:70px;height:70px;
-    border:2px solid var(--seal);border-radius:50%;
-    display:flex;align-items:center;justify-content:center;transform:rotate(-8deg);
-    font-family:'Noto Serif KR',serif;font-weight:700;font-size:12px;color:var(--seal);
-    line-height:1.15;text-align:center;opacity:0.85;
-  }
-  @media (max-width:640px){ .seal{display:none;} }
 
   .rule{border:none;border-top:1.5px solid var(--rule);margin:26px 0;}
 
@@ -157,6 +149,23 @@
   }
   .add-row-btn:hover{opacity:0.88;}
   .moq-note{font-size:11.5px;color:var(--ink-soft);margin:8px 0 14px;line-height:1.6;}
+  .findbar{display:flex;align-items:center;gap:8px;margin:2px 0 14px;}
+  .findbar input{
+    flex:1;min-width:120px;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
+    padding:8px 10px;font-family:'Noto Sans KR',sans-serif;font-size:13px;color:var(--ink);
+  }
+  .findbar input:focus{outline:none;border-color:var(--seal);}
+  .findbar .find-count{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);min-width:36px;text-align:center;white-space:nowrap;}
+  .findbar .find-nav{
+    background:none;border:1px solid var(--rule);border-radius:3px;color:var(--ink-soft);
+    cursor:pointer;font-size:14px;line-height:1;padding:7px 10px;
+  }
+  .findbar .find-nav:hover{border-color:var(--seal);color:var(--seal);}
+  .findbar .find-nav:disabled{opacity:0.4;cursor:default;}
+  .findbar .find-nav:disabled:hover{border-color:var(--rule);color:var(--ink-soft);}
+  .find-hit{outline:2px solid var(--seal);outline-offset:-1px;position:relative;z-index:1;}
+  .find-hit-current{background:rgba(169,120,46,0.16) !important;}
+  tr.find-hit-current td{background:rgba(169,120,46,0.16);}
   .pct-total{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
   .pct-total.ok{color:var(--green-tea);}
   .pct-total.bad{color:var(--warn);}
@@ -299,10 +308,9 @@
 <div class="wrap">
 
   <header>
-    <div class="seal">茶<br>잠원<br>장부</div>
-    <div class="eyebrow">JAMWON TEA WHOLESALE LEDGER</div>
-    <h1>잠원점 찻잎 도매 계산기</h1>
-    <p class="sub">한강 선착장 배 건물 · 음악·책 중심 · 식음료 판매형 — 찻잎은 잠원점에서만 취급</p>
+    <div class="eyebrow">HANGANG TEA WHOLESALE LEDGER</div>
+    <h1>한강점 찻잎 도매 계산기</h1>
+    <p class="sub">한강 선착장 배 건물 · 음악·책 중심 · 식음료 판매형 — 찻잎은 한강점에서만 취급</p>
   </header>
 
   <div class="tabs" role="tablist">
@@ -317,6 +325,12 @@
   <div class="panel">
     <h2>차 종류별 구매처 비교</h2>
     <p class="hint-top">아직 확정 전 — 후보 차와 구매처별 kg당 단가를 모아두고 비교하는 표입니다. 아래 블렌딩 구성표에서 여기 등록한 품목을 바로 골라 쓸 수 있어요.</p>
+    <div class="findbar">
+      <input type="text" id="compareFind" placeholder="🔍 이 표에서 찾기 (이름·구매처·비고)">
+      <span class="find-count" id="compareFindCount"></span>
+      <button type="button" class="find-nav" id="compareFindPrev" title="이전 결과 (Shift+Enter)">‹</button>
+      <button type="button" class="find-nav" id="compareFindNext" title="다음 결과 (Enter)">›</button>
+    </div>
     <div class="moq-note">
       <b>예평</b>: 단일 품종 구매 시 최소 300g / 여러 품종 함께 구매 시 품종당 100g부터 가능
     </div>
@@ -361,7 +375,7 @@
   <div class="store" id="store-jamwon">
     <div class="store-head">
       <div>
-        <div class="store-name">잠원</div>
+        <div class="store-name">한강점</div>
         <div class="store-desc">한강 선착장 정착 배 건물 · 음악·책 중심 · 식음료 판매형(무제한 아님)</div>
       </div>
       <div class="fill-jar">
@@ -426,7 +440,7 @@
   </div>
 
   <div class="summary">
-    <h2>잠원점 발주 요약</h2>
+    <h2>한강점 발주 요약</h2>
     <div class="sub">대용차·홍차·호지차·백차·우롱차·보이차 통합 기준</div>
     <div class="summary-grid">
       <div>
@@ -518,6 +532,12 @@
 
   <!-- ================= 차 백과 ================= -->
   <div class="page" id="page-atlas" hidden>
+    <div class="findbar">
+      <input type="text" id="atlasFind" placeholder="🔍 차 백과에서 찾기 (차 이름·산지·특징)">
+      <span class="find-count" id="atlasFindCount"></span>
+      <button type="button" class="find-nav" id="atlasFindPrev" title="이전 결과 (Shift+Enter)">‹</button>
+      <button type="button" class="find-nav" id="atlasFindNext" title="다음 결과 (Enter)">›</button>
+    </div>
     <div class="atlas-nav" id="atlasNav"></div>
     <div id="atlasBody"></div>
 
@@ -570,6 +590,65 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* =================================================
+   엑셀 찾기st 검색 — 표/텍스트를 숨기지 않고 일치하는 항목만 순서대로
+   이동(스크롤+강조), 위에 "n/m" 카운터로 몇 번째인지 표시.
+   getItems(): 검색 대상이 될 DOM 요소들을 그때그때 다시 모아서 반환
+               (표가 다시 그려져도 항상 최신 요소를 잡게 하기 위함)
+   getText(el): 그 요소에서 검색할 텍스트를 뽑아냄 (input value처럼
+                textContent에 안 잡히는 값도 여기서 챙김)
+================================================= */
+function makeFinder(cfg){
+  var input = $(cfg.inputId), countEl = $(cfg.countId), prevBtn = $(cfg.prevId), nextBtn = $(cfg.nextId);
+  var getText = cfg.getText || function(el){ return el.textContent; };
+  var matches = [], cur = -1;
+  function norm(s){ return (s||'').toLowerCase().replace(/\s+/g,''); }
+  function clearHit(){ matches.forEach(function(el){ el.classList.remove('find-hit','find-hit-current'); }); }
+  function updateCount(){
+    var hasQuery = input.value.trim().length > 0;
+    countEl.textContent = !hasQuery ? '' : (matches.length ? (cur+1)+'/'+matches.length : '0/0');
+    var disabled = matches.length < 2;
+    if(prevBtn) prevBtn.disabled = disabled;
+    if(nextBtn) nextBtn.disabled = disabled;
+  }
+  function goTo(i){
+    if(!matches.length) return;
+    if(matches[cur]) matches[cur].classList.remove('find-hit-current');
+    cur = ((i % matches.length) + matches.length) % matches.length;
+    var el = matches[cur];
+    el.classList.add('find-hit-current');
+    el.scrollIntoView({block:'center', behavior:'smooth'});
+    updateCount();
+  }
+  function search(){
+    clearHit();
+    var q = norm(input.value);
+    if(!q){ matches = []; cur = -1; updateCount(); return; }
+    matches = cfg.getItems().filter(function(el){ return norm(getText(el)).indexOf(q) >= 0; });
+    matches.forEach(function(el){ el.classList.add('find-hit'); });
+    cur = matches.length ? 0 : -1;
+    if(matches.length) goTo(0);
+    updateCount();
+  }
+  input.addEventListener('input', search);
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); goTo(cur + (e.shiftKey ? -1 : 1)); }
+  });
+  if(prevBtn) prevBtn.addEventListener('click', function(){ goTo(cur-1); });
+  if(nextBtn) nextBtn.addEventListener('click', function(){ goTo(cur+1); });
+  return { refresh: search };
+}
+// 텍스트 입력칸(input) 값은 textContent에 안 잡혀서 따로 모아줌.
+// tr.textContent를 그냥 더하면 <select> 안의 "선택 안 된" <option>들 텍스트까지
+// 전부 딸려와서(모든 행이 모든 차 종류 드롭다운을 갖고 있으니) 아무 분류 이름으로
+// 검색해도 전체 행이 다 걸리는 버그가 생김 — 그래서 선택된 옵션 텍스트만 골라 담음.
+function rowInputText(tr){
+  var parts = [];
+  tr.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i){ parts.push(i.value); });
+  tr.querySelectorAll('select').forEach(function(s){ var o=s.options[s.selectedIndex]; if(o) parts.push(o.text); });
+  return parts.join(' ');
+}
+
 /* ============ 탭 전환 ============ */
 const tabs = document.querySelectorAll('.tab');
 tabs.forEach(tab=>{
@@ -586,38 +665,43 @@ tabs.forEach(tab=>{
 
 // ---- 구매처 비교표 ----
 let compareRows = [
-  {name:'중작홍차', category:'홍차', vendor:'섬진다원', pricePerKg:437500, note:'80g 5만원, 30% 할인가'},
-  {name:'쑥차', category:'대용차', vendor:'도재명차', pricePerKg:143000, note:''},
-  {name:'백차', category:'백차', vendor:'예평 (만수가만든차)', pricePerKg:1440000, note:''},
-  {name:'백우롱차', category:'우롱차', vendor:'예평 (만수가만든차)', pricePerKg:1200000, note:'동방미인 계열'},
-  {name:'숙차', category:'보이차', vendor:'예평 (경매산)', pricePerKg:660000, note:'숙차(발효 보이차)'},
-  {name:'백호은침', category:'백차', vendor:'예평 (경곡)', pricePerKg:720000, note:''},
-  {name:'백모단', category:'백차', vendor:'예평', pricePerKg:720000, note:''},
-  {name:'세작녹차', category:'녹차', vendor:'다도레', pricePerKg:250000, note:''},
-  {name:'쑥차', category:'대용차', vendor:'다도레', pricePerKg:553000, note:''},
-  {name:'쑥차', category:'대용차', vendor:'산수화', pricePerKg:360000, note:''},
-  {name:'유자알갱이차', category:'대용차', vendor:'다도레', pricePerKg:314000, note:''},
-  {name:'말차', category:'말차', vendor:'다도레', pricePerKg:140000, note:''},
-  {name:'백차', category:'백차', vendor:'올티스', pricePerKg:1100000, note:''},
-  {name:'숙산차', category:'보이차', vendor:'대익', pricePerKg:71500, note:''},
-  {name:'운남성 동방미인', category:'우롱차', vendor:'QGY', pricePerKg:500000, note:''},
-  {name:'GOUN 동방미인', category:'우롱차', vendor:'메이크티(라오상하이)', pricePerKg:1600000, note:''},
-  {name:'야마시나 보우 호지차', category:'호지차', vendor:'여가생활', pricePerKg:299200, note:''},
-  {name:'호지차', category:'호지차', vendor:'올티스', pricePerKg:176000, note:''},
-  {name:'호지홍차', category:'호지차', vendor:'다도레', pricePerKg:216000, note:''},
-  {name:'금준미', category:'홍차', vendor:'QGY', pricePerKg:240000, note:''},
-  {name:'철관음 청향 고급', category:'우롱차', vendor:'QGY', pricePerKg:600000, note:''},
-  {name:'백차', category:'백차', vendor:'휴심선차', pricePerKg:900000, note:''},
-  {name:'백차', category:'백차', vendor:'제주차농', pricePerKg:200000, note:''},
-  {name:'호지차', category:'호지차', vendor:'제주차농', pricePerKg:150000, note:''},
-  {name:'2016 노차두', category:'보이차', vendor:'산수화', pricePerKg:160714, note:'시원하고 깔끔한 단맛. 280g/45,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 112,500원'},
-  {name:'2016 오공병 어린잎', category:'보이차', vendor:'산수화', pricePerKg:280000, note:'풍성하고 포만감 있는 맛. 100g/28,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 196,000원'},
-  {name:'2016 보이숙차(7452)', category:'보이차', vendor:'산수화', pricePerKg:112045, note:'클래식한 맛. 357g(전통 병차 표준 중량 추정)/40,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 78,431원'},
-  {name:'2018 보이숙차 타차', category:'보이차', vendor:'산수화', pricePerKg:70000, note:'풍성하며 깔끔한 맛. 100g/7,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 49,000원'},
-  {name:'밀향오룡', category:'우롱차', vendor:'산수화', pricePerKg:438000, note:'밀향(꿀향) 우롱차'}
+  {id:'c01', name:'중작홍차', category:'홍차', vendor:'섬진다원', pricePerKg:437500, note:'80g 5만원, 30% 할인가'},
+  {id:'c02', name:'쑥차', category:'대용차', vendor:'도재명차', pricePerKg:143000, note:''},
+  {id:'c03', name:'백차', category:'백차', vendor:'예평 (만수가만든차)', pricePerKg:1440000, note:''},
+  {id:'c04', name:'백우롱차', category:'우롱차', vendor:'예평 (만수가만든차)', pricePerKg:1200000, note:'동방미인 계열'},
+  {id:'c05', name:'숙차', category:'보이차', vendor:'예평 (경매산)', pricePerKg:660000, note:'숙차(발효 보이차)'},
+  {id:'c06', name:'백호은침', category:'백차', vendor:'예평 (경곡)', pricePerKg:720000, note:''},
+  {id:'c07', name:'백모단', category:'백차', vendor:'예평', pricePerKg:720000, note:''},
+  {id:'c08', name:'세작녹차', category:'녹차', vendor:'다도레', pricePerKg:250000, note:''},
+  {id:'c09', name:'쑥차', category:'대용차', vendor:'다도레', pricePerKg:553000, note:''},
+  {id:'c10', name:'쑥차', category:'대용차', vendor:'산수화', pricePerKg:360000, note:''},
+  {id:'c11', name:'유자알갱이차', category:'대용차', vendor:'다도레', pricePerKg:314000, note:''},
+  {id:'c12', name:'말차', category:'말차', vendor:'다도레', pricePerKg:140000, note:''},
+  {id:'c13', name:'백차', category:'백차', vendor:'올티스', pricePerKg:1100000, note:''},
+  {id:'c14', name:'숙산차', category:'보이차', vendor:'대익', pricePerKg:71500, note:''},
+  {id:'c15', name:'운남성 동방미인', category:'우롱차', vendor:'QGY', pricePerKg:500000, note:''},
+  {id:'c16', name:'GOUN 동방미인', category:'우롱차', vendor:'메이크티(라오상하이)', pricePerKg:1600000, note:''},
+  {id:'c17', name:'야마시나 보우 호지차', category:'호지차', vendor:'여가생활', pricePerKg:299200, note:''},
+  {id:'c18', name:'호지차', category:'호지차', vendor:'올티스', pricePerKg:176000, note:''},
+  {id:'c19', name:'호지홍차', category:'호지차', vendor:'다도레', pricePerKg:216000, note:''},
+  {id:'c20', name:'금준미', category:'홍차', vendor:'QGY', pricePerKg:240000, note:''},
+  {id:'c21', name:'철관음 청향 고급', category:'우롱차', vendor:'QGY', pricePerKg:600000, note:''},
+  {id:'c22', name:'백차', category:'백차', vendor:'휴심선차', pricePerKg:900000, note:''},
+  {id:'c23', name:'백차', category:'백차', vendor:'제주차농', pricePerKg:200000, note:''},
+  {id:'c24', name:'호지차', category:'호지차', vendor:'제주차농', pricePerKg:150000, note:''},
+  {id:'c25', name:'2016 노차두', category:'보이차', vendor:'산수화', pricePerKg:160714, note:'시원하고 깔끔한 단맛. 280g/45,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 112,500원'},
+  {id:'c26', name:'2016 오공병 어린잎', category:'보이차', vendor:'산수화', pricePerKg:280000, note:'풍성하고 포만감 있는 맛. 100g/28,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 196,000원'},
+  {id:'c27', name:'2016 보이숙차(7452)', category:'보이차', vendor:'산수화', pricePerKg:112045, note:'클래식한 맛. 357g(전통 병차 표준 중량 추정)/40,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 78,431원'},
+  {id:'c28', name:'2018 보이숙차 타차', category:'보이차', vendor:'산수화', pricePerKg:70000, note:'풍성하며 깔끔한 맛. 100g/7,000원(개당). 10개 이상 구매 시 30% 할인 → kg당 49,000원'},
+  {id:'c29', name:'밀향오룡', category:'우롱차', vendor:'산수화', pricePerKg:438000, note:'밀향(꿀향) 우롱차'}
 ];
 
-function rowKey(row){ return row.name + '__' + row.vendor; }
+function newRowId(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+// 예전엔 name+vendor 문자열을 그대로 구매처 선택 키로 썼는데, 그러면 비교표에서
+// 이름이나 구매처를 살짝 고치기만 해도(오타 수정 등) 블렌딩표에 골라둔 구매처가
+// 몰래 "직접 입력"으로 리셋되는 버그가 있었음(값 자체가 사라진 게 아니라 링크가
+// 끊긴 것). 이제는 안 바뀌는 id로 연결해서 이름을 고쳐도 링크가 유지됨.
+function rowKey(row){ return row.id; }
 
 function renderCompareTable(){
   const active = document.activeElement;
@@ -764,6 +848,7 @@ function renderCompareTable(){
       renderBlendTable(true);
       scheduleCompareSave();
       computeAll();
+      if(compareFinder) compareFinder.refresh();
     });
   });
 
@@ -779,10 +864,11 @@ function renderCompareTable(){
 }
 
 $('addRowBtn').addEventListener('click', ()=>{
-  compareRows.push({name:'', category:'기타', vendor:'', pricePerKg:0, note:''});
+  compareRows.push({id:newRowId(), name:'', category:'기타', vendor:'', pricePerKg:0, note:''});
   renderCompareTable();
   renderBlendTable(true);
   scheduleCompareSave();
+  if(compareFinder) compareFinder.refresh();
 });
 
 let compareSaveTimer = null;
@@ -801,17 +887,22 @@ async function loadCompareRows(){
       if(Array.isArray(parsed) && parsed.length){ compareRows = parsed; }
     }
   }catch(e){}
+  // 예전에 저장된 행엔 id가 없을 수 있음(이 기능 추가 전 데이터) — 지금 채워넣고 다시 저장
+  let backfilled = false;
+  compareRows.forEach(r=>{ if(!r.id){ r.id = newRowId(); backfilled = true; } });
+  if(backfilled) scheduleCompareSave();
   renderCompareTable();
+  if(compareFinder) compareFinder.refresh();
 }
 
 // ---- 6종 블렌딩 구성표 ----
 let blendRows = [
-  {type:'대용차', pct:5, vendorKey:'쑥차__도재명차', manualPrice:0, sellingPrice:7000, gpc:3},
-  {type:'홍차', pct:30, vendorKey:'중작홍차__섬진다원', manualPrice:0, sellingPrice:8000, gpc:3},
+  {type:'대용차', pct:5, vendorKey:'c02', manualPrice:0, sellingPrice:7000, gpc:3},
+  {type:'홍차', pct:30, vendorKey:'c01', manualPrice:0, sellingPrice:8000, gpc:3},
   {type:'호지차', pct:10, vendorKey:'manual', manualPrice:0, sellingPrice:8000, gpc:3},
-  {type:'백차', pct:20, vendorKey:'백차__예평 (만수가만든차)', manualPrice:0, sellingPrice:9000, gpc:4},
-  {type:'우롱차', pct:15, vendorKey:'백우롱차__예평 (만수가만든차)', manualPrice:0, sellingPrice:9000, gpc:5},
-  {type:'보이차', pct:20, vendorKey:'숙차__예평 (경매산)', manualPrice:0, sellingPrice:8500, gpc:5}
+  {type:'백차', pct:20, vendorKey:'c03', manualPrice:0, sellingPrice:9000, gpc:4},
+  {type:'우롱차', pct:15, vendorKey:'c04', manualPrice:0, sellingPrice:9000, gpc:5},
+  {type:'보이차', pct:20, vendorKey:'c05', manualPrice:0, sellingPrice:8500, gpc:5}
 ];
 
 function getOptionsForCategory(cat){
@@ -824,7 +915,7 @@ function priceForBlendRow(row){
   return match ? (parseFloat(match.pricePerKg)||0) : 0;
 }
 
-// 잠원점 전체 월간 예상 판매 잔 수 (차종 배합과 무관 — 방문객/주문비율/잔수 기준)
+// 한강점 전체 월간 예상 판매 잔 수 (차종 배합과 무관 — 방문객/주문비율/잔수 기준)
 function getTotalMonthlyCups(){
   const visitors = parseFloat($(s+'-visitors').value) || 0;
   const teaRate = parseFloat($(s+'-teaRate').value) || 0;
@@ -1032,6 +1123,18 @@ async function loadState(){
     }
     if(Array.isArray(state.blendRows) && state.blendRows.length === TEA_TYPES.length){
       blendRows = state.blendRows;
+      // 예전엔 "이름__구매처" 문자열을 구매처 선택 키로 썼음(비교표에서 이름만 살짝
+      // 고쳐도 링크가 끊기던 원인) — id 기반으로 옮기면서, 남아있는 예전 형식은
+      // 지금 비교표에서 같은 이름+구매처를 찾아 id로 옮겨줌. loadCompareRows()가
+      // 이 함수보다 먼저 끝나 있어야 여기서 정확히 매칭됨.
+      blendRows.forEach(function(row){
+        if(row.vendorKey && row.vendorKey !== 'manual' && row.vendorKey.indexOf('__') >= 0){
+          var sep = row.vendorKey.indexOf('__');
+          var oldName = row.vendorKey.slice(0, sep), oldVendor = row.vendorKey.slice(sep+2);
+          var match = compareRows.find(function(r){ return r.name === oldName && r.vendor === oldVendor; });
+          row.vendorKey = match ? match.id : 'manual';
+        }
+      });
     }
   }catch(e){}
 }
@@ -1513,9 +1616,21 @@ function renderAtlas(){
   }).join('');
 }
 
+// 엑셀 찾기st 네비게이션 — 구매처 비교표 / 차 백과
+const compareFinder = makeFinder({
+  inputId:'compareFind', countId:'compareFindCount', prevId:'compareFindPrev', nextId:'compareFindNext',
+  getItems: function(){ return Array.prototype.slice.call(document.querySelectorAll('#compareTableBody > tr:not(.note-row)')); },
+  getText: rowInputText
+});
+const atlasFinder = makeFinder({
+  inputId:'atlasFind', countId:'atlasFindCount', prevId:'atlasFindPrev', nextId:'atlasFindNext',
+  getItems: function(){ return Array.prototype.slice.call(document.querySelectorAll('#atlasBody tr, #atlasBody h2, #atlasBody h3.atlas-sub')); }
+});
+
 (async function init(){
-  await loadState();
+  // 구매처 비교표를 먼저 불러와야 loadState()의 구매처 링크 마이그레이션이 정확히 맞음
   await loadCompareRows();
+  await loadState();
   renderBlendTable();
   computeAll();
   renderChips();
