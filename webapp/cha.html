@@ -505,7 +505,9 @@
       <h2>매장에서 자주 쓰는 기준</h2>
       <p class="hint-top" style="margin-bottom:0;line-height:1.8;">
         · 포트 기본 비율은 <b>물 100ml당 3g</b>, 냉침은 <b>물 1L당 6~10g</b>입니다.<br>
-        · <b>개완</b>은 100ml에 4~5g이 기준이고, 구슬형 우롱·보이차·암차는 6~8g까지 올립니다. 첫 탕을 짧게 끊고 탕마다 5~10초씩 늘리세요.<br>
+        · <b>개완·다관은 100ml당 3~4.5g</b>(110ml 개완이면 3~5g)이 매장 기준이고, 첫 탕을 짧게 끊은 뒤 탕마다 5~10초씩 늘립니다. 정통 공부식은 우롱·보이차를 100ml당 7~8g까지 올리는데 그건 10초씩 12탕 마시는 방식이라, 그 농도가 필요하면 위 계산기에서 <b>진하게</b>를 쓰세요.<br>
+        · <b>다관은 재질만 보정</b>하면 됩니다 — 백자·청자는 개완과 같고, <b>자사호·도기는 열을 머금어 첫 탕을 20~30% 짧게</b>. 그리고 바닥에 물이 남으면 계속 우러나니 끝까지 따라 버리세요.<br>
+        · 향이 주인공인 차(봉황단총·청향 철관음·백차·녹차)는 향을 안 먹는 <b>자기(개완·백자)</b>, 바디가 주인공인 차(보이차·암차·홍차)는 <b>자사호</b>가 유리합니다. 자사호는 향이 배니 보이차용·암차용을 따로 두세요.<br>
         · 보이차·암차·봉황단총은 <b>세차</b>(5~10초 우려 버리기)를 먼저 하고, 구슬형 우롱은 한 번 헹궈 잎을 깨우면 첫 탕부터 제 맛이 납니다.<br>
         · 냉침은 8~12시간 뒤 <b>반드시 잎을 빼세요.</b> 잎을 뺀 뒤 냉장 2~3일, 담가두면 반나절부터 떫어집니다.<br>
         · 무이암차·봉황단총은 다른 우롱보다 훨씬 진하게(개완 100ml에 6~8g) 넣어야 특징이 살아납니다.<br>
@@ -1144,12 +1146,20 @@ const BREW_DATA = [
 ];
 
 /* =================================================
-   개완(공부식) 기준 — 위 BREW_DATA에 이름으로 붙임
-   gw       = 개완 100ml 기준 찻잎(g)
+   개완 · 다관 기준 — 위 BREW_DATA에 이름으로 붙임
+
+   ※ 잎량은 "매장 기준"입니다. 100ml당 3~4.5g(110ml 개완이면 3~5g)으로,
+     장부의 잔당 찻잎량(3~5g)과 같은 선에 맞췄습니다.
+     정통 공부식은 우롱·보이차를 100ml당 7~8g까지 올리는데, 그건 10초씩
+     12탕을 마시는 방식이라 매장엔 과합니다. 그 농도가 필요하면 계산기의
+     '진하게'(×1.3)를 쓰면 6g 근처가 되어 거의 같아집니다.
+     잎을 줄인 만큼 우림 시간은 그에 맞게 늘려뒀습니다.
+
+   gw       = 100ml 기준 찻잎(g) — 개완·다관 공통 (그릇이 커지면 비례해서)
    gwFirst  = 첫 탕(초) · gwAdd = 탕마다 더하는 초 · gwTimes = 우릴 수 있는 횟수
+   gwDip    = 압차(눌린 차) 전용 — 덩어리가 풀리는 2탕은 오히려 짧게 끊는 초
    gwRinse  = 'must' 세차 필수 / 'opt' 한 번 헹궈 깨우면 좋음 / 없으면 세차 안 함
-   potHeavy = 위 기본값이 개완 비율이라 큰 포트엔 그대로 쓰면 과한 차
-   gw:null  = 개완으로 여러 탕 나눠 우리는 방식이 맞지 않는 차
+   gw:null  = 여러 탕으로 나눠 우리는 방식이 맞지 않는 차
 ================================================= */
 const GAIWAN = {
   '쑥차':                {gw:3,   gwFirst:60, gwAdd:30, gwTimes:3},
@@ -1159,30 +1169,30 @@ const GAIWAN = {
   '우전 (첫물차)':       {gw:3,   gwFirst:25, gwAdd:8,  gwTimes:3},
   '말차':                {gw:null, gwNote:'가루차라 우리지 않고 차선으로 풉니다',
                           potNote:'우리는 차가 아닙니다 — 70ml에 2g, 70~80℃ 물을 붓고 차선으로 W자로 15~20초'},
-  '백호은침':            {gw:4,   gwFirst:30, gwAdd:10, gwTimes:6},
-  '백모단':              {gw:4.5, gwFirst:25, gwAdd:8,  gwTimes:7},
-  '수미 · 공미':         {gw:5,   gwFirst:15, gwAdd:8,  gwTimes:8, gwRinse:'opt'},
+  '백호은침':            {gw:3.5, gwFirst:35, gwAdd:10, gwTimes:5},
+  '백모단':              {gw:4,   gwFirst:30, gwAdd:8,  gwTimes:6},
+  '수미 · 공미':         {gw:4,   gwFirst:20, gwAdd:8,  gwTimes:7, gwRinse:'opt'},
   '중작홍차':            {gw:4,   gwFirst:15, gwAdd:5,  gwTimes:4},
-  '금준미':              {gw:4,   gwFirst:10, gwAdd:5,  gwTimes:7},
-  '정산소종':            {gw:4,   gwFirst:10, gwAdd:5,  gwTimes:6},
-  '홍옥 (대차18호)':     {gw:4,   gwFirst:12, gwAdd:5,  gwTimes:5},
+  '금준미':              {gw:4,   gwFirst:12, gwAdd:5,  gwTimes:6},
+  '정산소종':            {gw:4,   gwFirst:12, gwAdd:5,  gwTimes:5},
+  '홍옥 (대차18호)':     {gw:4,   gwFirst:15, gwAdd:5,  gwTimes:5},
   '아쌈 · CTC':          {gw:null, gwNote:'잘게 부순 형태라 짧게 우려도 확 나와 탕을 나누기 어렵습니다'},
   '호지차':              {gw:4,   gwFirst:20, gwAdd:10, gwTimes:4},
   '겐마이차':            {gw:4,   gwFirst:20, gwAdd:10, gwTimes:3},
-  '밀향오룡':            {gw:6,   gwFirst:10, gwAdd:5,  gwTimes:7, gwRinse:'opt'},
-  '동방미인':            {gw:4.5, gwFirst:15, gwAdd:8,  gwTimes:6},
-  '문산포종':            {gw:5,   gwFirst:30, gwAdd:10, gwTimes:6},
-  '사계춘':              {gw:6,   gwFirst:25, gwAdd:10, gwTimes:6, gwRinse:'opt'},
-  '고산우롱 (아리산·리산)':{gw:7, gwFirst:30, gwAdd:10, gwTimes:8, gwRinse:'opt', potHeavy:true},
-  '철관음 (청향)':       {gw:7,   gwFirst:25, gwAdd:10, gwTimes:8, gwRinse:'opt', potHeavy:true},
-  '무이암차 — 수선':     {gw:8,   gwFirst:8,  gwAdd:5,  gwTimes:9,  gwRinse:'must', potHeavy:true},
-  '무이암차 — 육계':     {gw:8,   gwFirst:6,  gwAdd:5,  gwTimes:9,  gwRinse:'must', potHeavy:true},
-  '봉황단총 (압시향 등)':{gw:7,   gwFirst:6,  gwAdd:4,  gwTimes:8,  gwRinse:'must', potHeavy:true},
-  'GABA 우롱 (가엽용차)':{gw:5,   gwFirst:25, gwAdd:10, gwTimes:6},
-  '보이 숙차':           {gw:7,   gwFirst:10, gwAdd:5,  gwTimes:12, gwRinse:'must', potHeavy:true},
-  '보이 생차':           {gw:6,   gwFirst:8,  gwAdd:4,  gwTimes:12, gwRinse:'must', potHeavy:true},
-  '노차두':              {gw:7,   gwFirst:15, gwAdd:5,  gwTimes:12, gwRinse:'must', potHeavy:true},
-  '육보차':              {gw:6,   gwFirst:10, gwAdd:5,  gwTimes:10, gwRinse:'must', potHeavy:true}
+  '밀향오룡':            {gw:4.5, gwFirst:15, gwAdd:6,  gwTimes:6, gwRinse:'opt'},
+  '동방미인':            {gw:4,   gwFirst:20, gwAdd:8,  gwTimes:5},
+  '문산포종':            {gw:4.5, gwFirst:35, gwAdd:10, gwTimes:5},
+  '사계춘':              {gw:4.5, gwFirst:35, gwAdd:10, gwTimes:5, gwRinse:'opt'},
+  '고산우롱 (아리산·리산)':{gw:4.5, gwFirst:45, gwAdd:12, gwTimes:6, gwRinse:'opt', potHeavy:true},
+  '철관음 (청향)':       {gw:4.5, gwFirst:40, gwAdd:12, gwTimes:6, gwRinse:'opt', potHeavy:true},
+  '무이암차 — 수선':     {gw:4.5, gwFirst:15, gwAdd:5,  gwTimes:7,  gwRinse:'must', potHeavy:true},
+  '무이암차 — 육계':     {gw:4.5, gwFirst:12, gwAdd:5,  gwTimes:7,  gwRinse:'must', potHeavy:true},
+  '봉황단총 (압시향 등)':{gw:4.5, gwFirst:10, gwAdd:5,  gwTimes:7,  gwRinse:'must', potHeavy:true},
+  'GABA 우롱 (가엽용차)':{gw:4.5, gwFirst:30, gwAdd:10, gwTimes:5},
+  '보이 숙차':           {gw:4.5, gwFirst:15, gwDip:8,  gwAdd:5, gwTimes:10, gwRinse:'must', potHeavy:true},
+  '보이 생차':           {gw:4,   gwFirst:12, gwDip:6,  gwAdd:5, gwTimes:10, gwRinse:'must', potHeavy:true},
+  '노차두':              {gw:4.5, gwFirst:20, gwDip:10, gwAdd:5, gwTimes:10, gwRinse:'must', potHeavy:true},
+  '육보차':              {gw:4.5, gwFirst:15, gwDip:8,  gwAdd:5, gwTimes:9,  gwRinse:'must', potHeavy:true}
 };
 BREW_DATA.forEach(function(b){ Object.assign(b, GAIWAN[b.name] || {gw:null, gwNote:''}); });
 
@@ -1235,8 +1245,8 @@ function renderBrewList(){
       ? '냉침 — 물 1L당 <b>'+b.coldG+'g</b>, '+b.coldHr+' 뒤 잎 빼기'
       : '<span class="cold-no">냉침 비권장 — 배전향·발효향이 찬물에서 열리지 않습니다</span>';
     const gaiwan = b.gw
-      ? '개완 — 100ml에 <b>'+b.gw+'g</b>'+rinseText(b.gwRinse)+'<br>첫 탕 '+gwSchedule(b.gwFirst, b.gwAdd, b.gwTimes)
-      : '<span class="cold-no">개완 — '+escapeHtml(b.gwNote || '나눠 우리는 방식이 맞지 않습니다')+'</span>';
+      ? '개완 · 다관 — 100ml에 <b>'+b.gw+'g</b>'+rinseText(b.gwRinse)+'<br>첫 탕 '+gwSchedule(b)
+      : '<span class="cold-no">개완 · 다관 — '+escapeHtml(b.gwNote || '나눠 우리는 방식이 맞지 않습니다')+'</span>';
     return '<div class="brew-card cat-'+b.cat+'">' +
       '<div class="brew-head"><div class="brew-name">'+escapeHtml(b.name)+'</div><div class="brew-cat">'+b.cat+'</div></div>' +
       '<div class="brew-note">'+escapeHtml(b.note)+'</div>' +
@@ -1266,11 +1276,16 @@ function initCalc(){
 }
 
 // 첫 탕부터 탕마다 늘어나는 시간을 순서대로 (최대 6탕까지만 적고 나머지는 총 횟수로)
-function gwSchedule(first, add, times){
-  const total = parseInt(times) || 1;
+// 압차(dip)는 덩어리가 풀리는 2탕이 가장 진해서 오히려 짧게 끊고, 3탕부터 다시 늘림
+function gwSchedule(b){
+  const total = parseInt(b.gwTimes) || 1;
   const show = Math.min(total, 6);
   const parts = [];
-  for(let i=0;i<show;i++) parts.push(first + add*i);
+  for(let i=0;i<show;i++){
+    if(i === 0) parts.push(b.gwFirst);
+    else if(b.gwDip) parts.push(b.gwDip + b.gwAdd*(i-1));
+    else parts.push(b.gwFirst + b.gwAdd*i);
+  }
   return parts.join(' → ') + '초' + (total > show ? ' … 총 '+total+'회' : ' (총 '+total+'회)');
 }
 
@@ -1291,7 +1306,9 @@ function runCalc(){
   if(b.gw){
     const g = (b.gw * k) * (gwMl/100);
     out += '<div class="calc-line"><span class="calc-tag">개완</span> '+fmt(gwMl,0)+'ml — <b>'+fmt(g,1)+'g</b> · '+b.temp+rinseText(b.gwRinse) +
-           '<div class="calc-sub">' + gwSchedule(b.gwFirst, b.gwAdd, b.gwTimes) + '</div></div>';
+           '<div class="calc-sub">' + gwSchedule(b) + '</div>' +
+           (b.gwDip ? '<div class="calc-dim">덩어리가 풀리는 2탕이 가장 진해서 짧게 끊고, 3탕부터 다시 늘립니다. 덩어리째 넣었으면 첫 탕을 20~30초로.</div>' : '') +
+           '</div>';
   }else{
     out += '<div class="calc-line"><span class="calc-tag">개완</span> <span class="calc-dim">' + escapeHtml(b.gwNote || '개완으로 나눠 우리는 방식이 맞지 않습니다') + '</span></div>';
   }
