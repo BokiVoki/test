@@ -317,6 +317,7 @@
     <button class="tab" role="tab" aria-selected="true" data-page="page-ledger">장부<span class="tab-sub">LEDGER</span></button>
     <button class="tab" role="tab" aria-selected="false" data-page="page-brew">우림 가이드<span class="tab-sub">BREWING</span></button>
     <button class="tab" role="tab" aria-selected="false" data-page="page-atlas">차 백과<span class="tab-sub">ATLAS</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-page="page-glossary">향미 사전<span class="tab-sub">GLOSSARY</span></button>
   </div>
 
   <!-- ================= 장부 ================= -->
@@ -555,6 +556,42 @@
       <p class="spectrum-note">흑차는 이 축의 끝이라기보다 별개 축입니다. 만든 뒤에도 미생물이 계속 관여하는 후발효차라서, 시간이 갈수록 계속 변합니다. 어느 나라 차든 이 스펙트럼 위 어디쯤인지만 짚으면 우림 온도와 시간이 대략 잡힙니다.</p>
     </div>
   </div><!-- /page-atlas -->
+
+  <!-- ================= 향미 사전 ================= -->
+  <div class="page" id="page-glossary" hidden>
+    <div class="panel">
+      <h2>향 계열 표현</h2>
+      <p class="hint-top">테이스팅 메모 쓸 때 참고하는 향 어휘예요. 딱 맞는 표현이 안 떠오르면 같은 계열 안에서 가까운 걸 골라 쓰면 됩니다.</p>
+      <div class="table-scroll">
+        <table class="atlas-table">
+          <thead><tr><th style="min-width:80px;">계열</th><th style="min-width:280px;">세부 표현</th><th style="min-width:160px;">주로 나는 차</th></tr></thead>
+          <tbody id="aromaTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>다도 용어</h2>
+      <p class="hint-top">향이 아니라 맛·질감·여운을 가리키는 말들이에요. 산지 설명이나 다른 사람 후기에 자주 나와서 알아두면 편해요.</p>
+      <div class="table-scroll">
+        <table class="atlas-table">
+          <thead><tr><th style="min-width:70px;">용어</th><th style="min-width:60px;">한자</th><th style="min-width:220px;">뜻</th></tr></thead>
+          <tbody id="termTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>봉황단총 향형</h2>
+      <p class="hint-top">봉황단총은 품종(모수) 자체를 향으로 구분해서 이름을 붙여요 — 그래서 차 이름을 알면 어떤 향인지 바로 짐작이 돼요. 흔히 "십대 향형"이라고 부르는 10가지가 기본이고, 압시향은 그 밖에 최근 가장 널리 퍼진 품종이에요.</p>
+      <div class="table-scroll">
+        <table class="atlas-table">
+          <thead><tr><th style="min-width:80px;">향형</th><th style="min-width:60px;">한자</th><th style="min-width:220px;">향 특징</th></tr></thead>
+          <tbody id="danCongTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /page-glossary -->
 
   <footer>
     입력값은 이 브라우저에 자동 저장되어 다음에 열 때 이어서 사용할 수 있습니다.
@@ -1616,6 +1653,68 @@ function renderAtlas(){
   }).join('');
 }
 
+/* =================================================
+   향미 사전 — 향 계열표(아로마 휠식) + 다도 용어
+================================================= */
+const AROMA_WHEEL = [
+  {cat:'풀향', notes:'건초, 밀짚, 대나무줄기, 미나리, 민트, 코리앤더, 로즈메리, 바질, 셀러리, 펜넬, 녹두', where:'녹차, 저발효 우롱'},
+  {cat:'해초향', notes:'해초류, 굴, 조개류', where:'녹차, 특히 일본 교쿠로·센차'},
+  {cat:'꽃향', notes:'재스민, 계화, 국화, 백합, 난꽃, 수선화, 은방울꽃, 라일락, 장미, 제비꽃, 목련', where:'백차, 경발효 우롱(문산포종·고산우롱)'},
+  {cat:'과일향', notes:'살구, 복숭아, 사과, 수박, 배, 머스캣포도, 신선한 무화과, 딸기, 레몬, 블랙베리, 오렌지, 밀감, 자몽, 리치, 용과, 망고, 파파야, 파인애플', where:'홍차, 고산우롱, 동방미인'},
+  {cat:'유제품향', notes:'버터, 크림, 우유, 젖향, 치즈향', where:'배전 우롱(철관음 농향형 등), 일부 홍차'},
+  {cat:'견과류향', notes:'호두, 헤이즐넛, 아몬드, 밤', where:'배전차, 보이 숙차'},
+  {cat:'나무향', notes:'삼나무, 참나무, 소나무, 유칼립투스, 이끼, 젖은 낙엽', where:'무이암차, 보이차(생차·숙차 모두)'},
+  {cat:'흙향', notes:'습기, 먼지, 젖은 암석, 감자, 뿌리', where:'흑차, 보이 생차(특히 신차)'},
+  {cat:'훈연향', notes:'재, 담배, 타르', where:'정산소종 등 훈연 가공한 홍차'}
+];
+
+const TEA_TERMS = [
+  {term:'회감', hanja:'回甘', mean:'삼킨 뒤 목 안쪽에서 뒤늦게 올라오는 단맛. 홍차보다 우롱차·보이차에서 두드러짐'},
+  {term:'생진', hanja:'生津', mean:'차를 마신 뒤 입 안에 침이 고이는 듯한 감각. 회감과 같이 오는 경우가 많음'},
+  {term:'구감', hanja:'口感', mean:'맛이 아니라 입 안에서 느껴지는 질감 — 매끄러움·두께감·떫음 등을 통틀어 말함'},
+  {term:'활(활미)', hanja:'滑', mean:'구감의 한 종류. 매끄럽게 목으로 넘어가는 느낌. 고급 우롱·숙차에서 자주 쓰는 표현'},
+  {term:'순후', hanja:'醇厚', mean:'맛이 부드러우면서도 밀도가 있다는 뜻. 진하지만 거칠지 않은 상태'},
+  {term:'삽미', hanja:'澀味', mean:'떫은맛. 탄닌 때문에 생기며 적당하면 여운의 일부, 과하면 결점으로 봄'},
+  {term:'청량감', hanja:'—', mean:'시원하고 상쾌한 느낌. 멘톨 같은 향이 나는 무이암차 등에서 자주 언급됨'},
+  {term:'밀향', hanja:'蜜香', mean:'꿀 같은 달콤한 향. 동방미인처럼 벌레(부빙)가 잎을 문 뒤 나는 향이 대표적'},
+  {term:'화향', hanja:'花香', mean:'꽃향 전체를 아우르는 총칭. 위 향 계열표의 "꽃향" 항목이 세부 표현'},
+  {term:'과향', hanja:'果香', mean:'과일향 전체를 아우르는 총칭. 위 향 계열표의 "과일향" 항목이 세부 표현'},
+  {term:'배화향(불향)', hanja:'焙火香', mean:'배전(불로 볶는 공정) 때문에 생기는 향 — 견과류·카라멜·훈연 쪽에 가까움'},
+  {term:'진향', hanja:'陳香', mean:'오래 묵으면서 생기는 향. 보이차·노백차 등 후발효·숙성차에서 나타남'},
+  {term:'암운', hanja:'岩韻', mean:'무이암차 특유의 미네랄 같은 여운. 산지의 바위 토양에서 유래했다고 알려짐'},
+  {term:'산운', hanja:'山韻', mean:'고산 우롱 특유의 청량하고 깨끗한 여운. 고도가 높을수록 두드러진다고 함'},
+  {term:'다기', hanja:'茶氣', mean:'차를 마신 뒤 몸에서 느껴지는 열감·기운 등의 신체 감각. 사람마다 느끼는 정도가 다름'},
+  {term:'탕색', hanja:'湯色', mean:'우려낸 찻물의 색. 차 품질·발효도를 가늠하는 기준 중 하나'},
+  {term:'엽저', hanja:'葉底', mean:'다 우리고 남은 찻잎. 색·탄력·손상 여부로 원료 등급을 짐작함'}
+];
+
+// 봉황단총 "십대 향형" — 품종(모수) 이름 자체가 곧 향 설명인 봉황단총 특유의 분류
+const DANCONG_XIANGXING = [
+  {name:'황지향', hanja:'黃梔香', mean:'치자꽃처럼 진하고 단 꽃향'},
+  {name:'지란향', hanja:'芝蘭香', mean:'난초향. 은은하고 우아한 편'},
+  {name:'밀란향', hanja:'蜜蘭香', mean:'꿀+난향이 섞인 향. 향형 중 가장 대중적이고 물량도 많음'},
+  {name:'행인향', hanja:'杏仁香', mean:'아몬드처럼 고소하면서 살짝 쌉쌀한 향'},
+  {name:'육계향', hanja:'肉桂香', mean:'계피 같은 알싸하고 매운 향'},
+  {name:'강화향', hanja:'薑花香', mean:'생강꽃 향. 알싸하면서도 화사함'},
+  {name:'계화향', hanja:'桂花香', mean:'목서(계화)꽃 향. 달콤하고 진한 편'},
+  {name:'옥란향', hanja:'玉蘭香', mean:'백목련 향. 맑고 은은함'},
+  {name:'야래향', hanja:'夜來香', mean:'야래향(튜베로즈) 꽃향. 진하고 관능적'},
+  {name:'유화향', hanja:'柚花香', mean:'유자꽃 향. 상큼하고 시트러스에 가까움'},
+  {name:'압시향', hanja:'鴨屎香', mean:'이름과 달리 향은 좋은 편(꽃+과일 복합향) — 발견된 밭의 흙 이름("오리똥 흙")에서 따온 이름일 뿐, 십대 향형 밖의 품종인데 최근 가장 널리 퍼짐'}
+];
+
+function renderGlossary(){
+  $('aromaTableBody').innerHTML = AROMA_WHEEL.map(a=>
+    '<tr><td>'+escapeHtml(a.cat)+'</td><td>'+escapeHtml(a.notes)+'</td><td>'+escapeHtml(a.where)+'</td></tr>'
+  ).join('');
+  $('termTableBody').innerHTML = TEA_TERMS.map(t=>
+    '<tr><td>'+escapeHtml(t.term)+'</td><td>'+escapeHtml(t.hanja)+'</td><td>'+escapeHtml(t.mean)+'</td></tr>'
+  ).join('');
+  $('danCongTableBody').innerHTML = DANCONG_XIANGXING.map(d=>
+    '<tr><td>'+escapeHtml(d.name)+'</td><td>'+escapeHtml(d.hanja)+'</td><td>'+escapeHtml(d.mean)+'</td></tr>'
+  ).join('');
+}
+
 // 엑셀 찾기st 네비게이션 — 구매처 비교표 / 차 백과
 const compareFinder = makeFinder({
   inputId:'compareFind', countId:'compareFindCount', prevId:'compareFindPrev', nextId:'compareFindNext',
@@ -1637,6 +1736,7 @@ const atlasFinder = makeFinder({
   renderBrewList();
   initCalc();
   renderAtlas();
+  renderGlossary();
   try{
     const t = await window.storage.get('jamwon-active-tab-v1');
     if(t && t.value){
