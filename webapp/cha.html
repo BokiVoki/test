@@ -1150,9 +1150,9 @@ document.querySelectorAll('.inp, #weeklyDays, #bufferWeeks').forEach(el=>{
    coldG = 물 1L 기준 냉침 찻잎(g), null이면 냉침 비권장
 ================================================= */
 const BREW_DATA = [
-  {name:'쑥차', cat:'대용차', g100:1.5, temp:'90~100℃', first:180, add:60, times:'3',
-   coldG:10, coldHr:'8~10시간',
-   note:'잎이 두꺼워 열탕도 냉침도 오래 걸립니다. 1.5g에 3분이 기준이고, 진하게 원하면 시간을 먼저 늘리세요.'},
+  {name:'쑥차', cat:'대용차', g100:1, temp:'90~100℃', first:240, add:90, times:'3',
+   coldG:7, coldHr:'10~12시간',
+   note:'잎이 두꺼워 열탕도 냉침도 오래 걸립니다. 잎량을 줄인 만큼 시간을 늘렸어요 — 1g에 4분이 기준이고, 진하게 원하면 시간을 먼저 늘리세요.'},
   {name:'유자알갱이차', cat:'대용차', g100:5, temp:'90℃', first:120, add:0, times:'1',
    coldG:null, coldHr:'',
    note:'과육형이라 재우림이 어렵습니다. 뜨겁게 한 번, 또는 찬물에 풀어 에이드로 쓰는 편이 낫습니다.'},
@@ -1265,7 +1265,7 @@ const BREW_DATA = [
    gw:null  = 여러 탕으로 나눠 우리는 방식이 맞지 않는 차
 ================================================= */
 const GAIWAN = {
-  '쑥차':                {gw:3,   gwFirst:60, gwAdd:30, gwTimes:3},
+  '쑥차':                {gw:2,   gwFirst:90, gwAdd:40, gwTimes:3},
   '유자알갱이차':        {gw:null, gwNote:'과육·시럽 형태라 여러 탕으로 나눠지지 않습니다'},
   '루이보스':            {gw:null, gwNote:'두 번째 탕부터 향이 거의 안 남아 한 번에 길게 우리는 편이 낫습니다'},
   '세작녹차':            {gw:3,   gwFirst:20, gwAdd:8,  gwTimes:4},
