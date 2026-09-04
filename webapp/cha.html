@@ -129,8 +129,8 @@
   .store .table-scroll{ --surface-bg: var(--paper); }
 
   .compare-table, .blend-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px;}
-  .compare-table th, .blend-table th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.03em;color:var(--ink-soft);padding:6px 8px;border-bottom:1px solid var(--rule);white-space:nowrap;}
-  .compare-table td, .blend-table td{padding:5px 6px;border-bottom:1px solid var(--rule-faint);vertical-align:middle;}
+  .blend-table th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.03em;color:var(--ink-soft);padding:6px 8px;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  .blend-table td{padding:5px 6px;border-bottom:1px solid var(--rule-faint);vertical-align:middle;}
   .compare-table input, .compare-table select, .blend-table input, .blend-table select{
     width:100%;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
     padding:6px 7px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);
@@ -138,6 +138,29 @@
   .compare-table input:focus, .compare-table select:focus, .blend-table input:focus, .blend-table select:focus{outline:none;border-color:var(--seal);}
   .compare-table .readonly-cell, .blend-table .readonly-cell{font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);white-space:nowrap;padding-left:8px;}
   .blend-table .tea-type-cell{font-family:'Noto Serif KR',serif;font-weight:600;white-space:nowrap;}
+
+  /* ── 구매처 비교표 — 엑셀st 촘촘한 그리드 ── */
+  .compare-table{font-size:12px;border:1px solid var(--rule);}
+  .compare-table th{
+    text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.02em;
+    color:var(--ink-soft);background:var(--paper-deep);padding:5px 7px;
+    border:1px solid var(--rule);white-space:nowrap;
+  }
+  .compare-table td{padding:0;border:1px solid var(--rule-faint);vertical-align:middle;height:27px;}
+  .compare-table input[type="text"], .compare-table input[type="number"]{
+    border:0;border-radius:0;background:transparent;padding:4px 7px;height:27px;
+  }
+  .compare-table input[type="text"]:focus, .compare-table input[type="number"]:focus{
+    outline:none;background:#F4EFDF;box-shadow:inset 0 0 0 1px var(--seal);
+  }
+  .compare-table select{border:0;border-radius:0;background:transparent;padding:4px 5px;height:27px;}
+  .compare-table select:focus{outline:none;background:#F4EFDF;box-shadow:inset 0 0 0 1px var(--seal);}
+  .compare-table .readonly-cell{padding:4px 7px;text-align:right;}
+  .compare-table td.numcell{text-align:right;}
+  .compare-table td.numcell input{text-align:right;}
+  .compare-table tbody tr.row-alt td{background:rgba(255,255,255,0.32);}
+  .compare-table td .del-btn, .compare-table td .note-toggle-btn{border-radius:0;border:0;height:27px;}
+  .compare-table td .del-btn:hover, .compare-table td .note-toggle-btn:hover{background:rgba(169,120,46,0.08);}
   .del-btn{
     background:none;border:1px solid var(--rule);border-radius:3px;color:var(--ink-soft);
     cursor:pointer;padding:5px 9px;font-size:11px;font-family:'Noto Sans KR',sans-serif;
@@ -413,7 +436,6 @@
               <th style="min-width:70px;">비율(%)</th>
               <th style="min-width:80px;">차종</th>
               <th style="min-width:190px;">구매처 선택</th>
-              <th style="min-width:150px;">최적 우림법</th>
               <th style="min-width:100px;">잔당 찻잎량(g)</th>
               <th style="min-width:90px;">잔당 원가</th>
               <th style="min-width:100px;">판매가(원/잔)</th>
@@ -422,6 +444,7 @@
               <th>원가(원/kg)</th>
               <th>월 물량</th>
               <th>월 원가</th>
+              <th style="min-width:150px;">최적 우림법</th>
             </tr>
           </thead>
           <tbody id="blendTableBody"></tbody>
@@ -756,6 +779,7 @@ function renderCompareTable(){
   tbody.innerHTML = '';
   compareRows.forEach((row, idx)=>{
     const tr = document.createElement('tr');
+    if(idx % 2 === 1) tr.className = 'row-alt';
     const price = parseFloat(row.pricePerKg) || 0;
     const rating = parseInt(row.rating) || 0;
     const hasNote = rating > 0 || (row.tastingNote && row.tastingNote.trim().length > 0) || (row.brewMethod && row.brewMethod.trim().length > 0);
@@ -765,7 +789,7 @@ function renderCompareTable(){
           CATEGORY_OPTIONS.map(c=>'<option value="'+c+'"'+(c===row.category?' selected':'')+'>'+c+'</option>').join('') +
         '</select></td>' +
       '<td><input type="text" data-idx="'+idx+'" data-field="vendor" value="'+escapeHtml(row.vendor)+'"></td>' +
-      '<td><input type="number" data-idx="'+idx+'" data-field="pricePerKg" value="'+price+'" min="0" step="1000"></td>' +
+      '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="pricePerKg" value="'+price+'" min="0" step="1000"></td>' +
       '<td class="readonly-cell">'+fmt(price*0.004,0)+'원</td>' +
       '<td class="readonly-cell">'+fmt(price/10,0)+'원</td>' +
       '<td class="readonly-cell">'+fmt(price*0.3,0)+'원</td>' +
@@ -1011,7 +1035,6 @@ function renderBlendTable(){
       '<td><input type="number" data-idx="'+idx+'" data-field="pct" value="'+row.pct+'" min="0" max="100" step="1"></td>' +
       '<td class="tea-type-cell">'+row.type+'</td>' +
       '<td>'+selectHtml+'</td>' +
-      '<td class="readonly-cell cell-brew"></td>' +
       '<td><input type="number" data-idx="'+idx+'" data-field="gpc" value="'+(parseFloat(row.gpc)||0)+'" min="0" step="0.5"></td>' +
       '<td class="readonly-cell cell-costpercup"></td>' +
       '<td><input type="number" data-idx="'+idx+'" data-field="sellingPrice" value="'+(parseFloat(row.sellingPrice)||0)+'" min="0" step="500"></td>' +
@@ -1019,7 +1042,8 @@ function renderBlendTable(){
       '<td class="readonly-cell cell-revenue"></td>' +
       '<td>'+priceCellHtml+'</td>' +
       '<td class="readonly-cell cell-monthlykg"></td>' +
-      '<td class="readonly-cell cell-cost"></td>';
+      '<td class="readonly-cell cell-cost"></td>' +
+      '<td class="readonly-cell cell-brew"></td>';
     tbody.appendChild(tr);
     updateBlendRowCells(tr, idx);
   });
