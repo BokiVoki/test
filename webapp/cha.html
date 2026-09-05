@@ -172,6 +172,13 @@
   }
   .add-row-btn:hover{opacity:0.88;}
   .moq-note{font-size:11.5px;color:var(--ink-soft);margin:8px 0 14px;line-height:1.6;}
+  .snackset-card{border:1px solid var(--rule-faint);border-left:3px solid var(--seal);border-radius:3px;padding:14px 16px;margin-bottom:14px;background:rgba(255,255,255,0.22);}
+  .snackset-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .snackset-name{flex:1;min-width:160px;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;padding:7px 9px;font-family:'Noto Serif KR',serif;font-weight:600;font-size:13.5px;color:var(--ink);}
+  .snackset-name:focus{outline:none;border-color:var(--seal);}
+  .snackset-cost{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+  .snackset-cost b{color:var(--black-tea);font-size:14px;}
+  .empty-hint{font-size:12.5px;color:var(--ink-soft);padding:10px 2px;}
   .findbar{display:flex;align-items:center;gap:8px;margin:2px 0 14px;}
   .findbar input{
     flex:1;min-width:120px;background:#F4EFDF;border:1px solid var(--rule);border-radius:3px;
@@ -382,7 +389,7 @@
 
   <div class="panel">
     <h2>다과 단가</h2>
-    <p class="hint-top">차와 같이 나가는 다과 원가예요. 묶음(박스·팩) 가격과 개수를 넣으면 1인분(개당) 단가가 자동 계산되고, 아래 블렌딩 구성표에서 차마다 다과를 골라 원가·마진에 반영할 수 있어요.</p>
+    <p class="hint-top">차와 같이 나가는 다과 낱개 단가예요. 묶음(박스·팩) 가격과 개수를 넣으면 개당 단가가 자동 계산돼요. 아래 "다과 상 구성"에서 이 품목들을 골라 한 상을 만듭니다.</p>
     <div class="table-scroll">
       <table class="compare-table" id="snackTable">
         <thead>
@@ -400,6 +407,13 @@
       </table>
     </div>
     <button class="add-row-btn" id="addSnackRowBtn">+ 다과 추가</button>
+  </div>
+
+  <div class="panel">
+    <h2>다과 상 구성</h2>
+    <p class="hint-top">위 다과 단가표의 품목을 골라 한 상에 몇 개씩 들어가는지 정하면 상 하나의 원가가 자동으로 계산돼요. 아래 블렌딩 구성표에서는 품목 하나하나가 아니라 이 상 단위로 골라서 한 번에 반영하면 됩니다.</p>
+    <div id="snackSetsBody"></div>
+    <button class="add-row-btn" id="addSnackSetBtn">+ 다과 상 추가</button>
   </div>
 
   <div class="panel">
@@ -460,7 +474,7 @@
               <th style="min-width:190px;">구매처 선택</th>
               <th style="min-width:100px;">잔당 찻잎량(g)</th>
               <th style="min-width:90px;">찻잎 원가</th>
-              <th style="min-width:170px;">다과 선택</th>
+              <th style="min-width:170px;">다과 상 선택</th>
               <th style="min-width:90px;">다과 원가</th>
               <th style="min-width:90px;">합계 원가</th>
               <th style="min-width:100px;">판매가(원/잔)</th>
@@ -1005,6 +1019,7 @@ function renderSnackTable(){
         const tr = e.target.closest('tr');
         tr.querySelector('.readonly-cell').textContent = fmt(packUnitPrice(snackRows[idx]),0)+'원';
       }
+      renderSnackSets();
       renderBlendTable();
       scheduleSnackSave();
       computeAll();
@@ -1016,6 +1031,7 @@ function renderSnackTable(){
       const idx = parseInt(e.target.getAttribute('data-idx'));
       snackRows.splice(idx, 1);
       renderSnackTable();
+      renderSnackSets();
       renderBlendTable();
       scheduleSnackSave();
       computeAll();
@@ -1072,21 +1088,148 @@ function priceForBlendRow(row){
   return match ? (parseFloat(match.pricePerKg)||0) : 0;
 }
 
-// ---- 다과 단가 ----
+// ---- 다과 단가 (개별 품목 단가 — 묶음가/개수 → 개당 단가) ----
 let snackRows = [];
 function packUnitPrice(row){
   const qty = parseFloat(row.packQty) || 0;
   const price = parseFloat(row.packPrice) || 0;
   return qty > 0 ? price / qty : 0;
 }
+
+// ---- 다과 상 구성 — 품목 여러 개 + 개수로 "한 상"을 만들고, 블렌딩표에선
+// 품목 하나하나가 아니라 이 상 단위로 골라 한 번에 원가에 반영함 ----
+let snackSets = [];
+function computeSetCost(set){
+  return (set.items||[]).reduce((sum,it)=>{
+    const item = snackRows.find(r=>r.id===it.itemId);
+    const unit = item ? packUnitPrice(item) : 0;
+    return sum + unit * (parseFloat(it.qty)||0);
+  }, 0);
+}
 function getOptionsForSnack(){
-  return snackRows.map(r=>({key:r.id, label:r.name+' · '+r.vendor+' ('+fmt(packUnitPrice(r),0)+'원/개)'}));
+  return snackSets.map(s=>({key:s.id, label:(s.name||'이름 없는 상')+' ('+fmt(computeSetCost(s),0)+'원)'}));
 }
 function priceForSnackRow(row){
   const key = row.snackKey || 'manual';
   if(key === 'manual') return parseFloat(row.manualSnackPrice) || 0;
-  const match = snackRows.find(r=>r.id === key);
-  return match ? packUnitPrice(match) : 0;
+  const match = snackSets.find(s=>s.id === key);
+  return match ? computeSetCost(match) : 0;
+}
+
+function updateSnackSetCard(box, si){
+  const card = box.querySelector('.snackset-card[data-set-card="'+si+'"]');
+  if(!card) return;
+  const set = snackSets[si];
+  card.querySelectorAll('tbody tr').forEach((tr, ii)=>{
+    const it = (set.items||[])[ii]; if(!it) return;
+    const item = snackRows.find(r=>r.id===it.itemId);
+    const unit = item ? packUnitPrice(item) : 0;
+    const subtotal = unit * (parseFloat(it.qty)||0);
+    const cell = tr.querySelector('.readonly-cell');
+    if(cell) cell.textContent = fmt(subtotal,0)+'원';
+  });
+  const costEl = card.querySelector('.snackset-cost b');
+  if(costEl) costEl.textContent = fmt(computeSetCost(set),0)+'원';
+}
+
+function renderSnackSets(){
+  const box = $('snackSetsBody');
+  const itemOptions = snackRows.map(r=>({id:r.id, label:r.name+' · '+r.vendor+' ('+fmt(packUnitPrice(r),0)+'원/개)'}));
+
+  box.innerHTML = snackSets.map((set, si)=>{
+    const rows = (set.items||[]).map((it, ii)=>{
+      const opts = '<option value="">품목 선택</option>' +
+        itemOptions.map(o=>'<option value="'+o.id+'"'+(o.id===it.itemId?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+      const item = snackRows.find(r=>r.id===it.itemId);
+      const unit = item ? packUnitPrice(item) : 0;
+      const subtotal = unit * (parseFloat(it.qty)||0);
+      return '<tr>' +
+        '<td><select data-set="'+si+'" data-item="'+ii+'" data-field="itemId">'+opts+'</select></td>' +
+        '<td class="numcell"><input type="number" data-set="'+si+'" data-item="'+ii+'" data-field="qty" value="'+(parseFloat(it.qty)||0)+'" min="0" step="1"></td>' +
+        '<td class="readonly-cell">'+fmt(subtotal,0)+'원</td>' +
+        '<td><button class="del-btn" data-act="delitem" data-set="'+si+'" data-item="'+ii+'">✕</button></td>' +
+      '</tr>';
+    }).join('');
+    return '<div class="snackset-card" data-set-card="'+si+'">' +
+      '<div class="snackset-head">' +
+        '<input type="text" class="snackset-name" data-set="'+si+'" data-field="name" value="'+escapeHtml(set.name||'')+'" placeholder="다과 상 이름 (예: 기본 다과상)">' +
+        '<span class="snackset-cost">상 원가 <b>'+fmt(computeSetCost(set),0)+'원</b></span>' +
+        '<button class="del-btn" data-act="delset" data-set="'+si+'">상 삭제</button>' +
+      '</div>' +
+      '<div class="table-scroll"><table class="compare-table" style="min-width:0;">' +
+        '<thead><tr><th style="min-width:150px;">품목</th><th style="min-width:60px;">개수</th><th style="min-width:80px;">소계</th><th style="width:34px;"></th></tr></thead>' +
+        '<tbody>'+rows+'</tbody>' +
+      '</table></div>' +
+      '<button class="add-row-btn" data-act="additem" data-set="'+si+'" style="margin-top:8px;padding:6px 12px;font-size:11.5px;">+ 품목 추가</button>' +
+    '</div>';
+  }).join('') || '<p class="empty-hint">아직 만든 다과 상이 없어요. 아래 "+ 다과 상 추가"로 시작하세요.</p>';
+}
+
+$('snackSetsBody').addEventListener('input', (e)=>{
+  const el = e.target;
+  if(!el.matches('[data-field]')) return;
+  const box = $('snackSetsBody');
+  const si = parseInt(el.getAttribute('data-set'));
+  const field = el.getAttribute('data-field');
+  if(field === 'name'){
+    snackSets[si].name = el.value;
+  }else{
+    const ii = parseInt(el.getAttribute('data-item'));
+    snackSets[si].items[ii][field] = el.value;
+    updateSnackSetCard(box, si);
+  }
+  renderBlendTable();
+  scheduleSnackSetSave();
+  computeAll();
+});
+
+$('snackSetsBody').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-act]');
+  if(!btn) return;
+  const act = btn.getAttribute('data-act');
+  const si = parseInt(btn.getAttribute('data-set'));
+  if(act === 'delset'){
+    snackSets.splice(si,1);
+    renderSnackSets(); renderBlendTable(); scheduleSnackSetSave(); computeAll();
+  }else if(act === 'additem'){
+    snackSets[si].items = snackSets[si].items || [];
+    snackSets[si].items.push({itemId:'', qty:1});
+    renderSnackSets();
+  }else if(act === 'delitem'){
+    const ii = parseInt(btn.getAttribute('data-item'));
+    snackSets[si].items.splice(ii,1);
+    renderSnackSets(); renderBlendTable(); scheduleSnackSetSave(); computeAll();
+  }
+});
+
+$('addSnackSetBtn').addEventListener('click', ()=>{
+  snackSets.push({id:newRowId('ss'), name:'', items:[]});
+  renderSnackSets();
+});
+
+let snackSetSaveTimer = null;
+function scheduleSnackSetSave(){
+  clearTimeout(snackSetSaveTimer);
+  snackSetSaveTimer = setTimeout(async ()=>{
+    try{ await window.storage.set('jamwon-tea-snack-sets-v1', JSON.stringify(snackSets)); }catch(e){}
+  }, 500);
+}
+
+async function loadSnackSets(){
+  try{
+    const result = await window.storage.get('jamwon-tea-snack-sets-v1');
+    if(result && result.value){
+      const parsed = JSON.parse(result.value);
+      if(Array.isArray(parsed)){ snackSets = parsed; }
+    }
+  }catch(e){}
+  let backfilled = false;
+  snackSets.forEach(s=>{
+    if(!s.id){ s.id = newRowId('ss'); backfilled = true; }
+    if(!Array.isArray(s.items)) s.items = [];
+  });
+  if(backfilled) scheduleSnackSetSave();
+  renderSnackSets();
 }
 
 // 한강점 전체 월간 예상 판매 잔 수 (차종 배합과 무관 — 방문객/주문비율/잔수 기준)
@@ -1101,7 +1244,7 @@ function getTotalMonthlyCups(){
 }
 
 // 한 블렌딩 행의 모든 파생 수치 계산 (비율 = 잔 수 기준 배분, 잔당 찻잎량은 행마다 다름)
-// 원가·마진은 찻잎 원가에 다과 원가(개당 단가, 잔마다 1개 기준)를 더한 합계 기준으로 계산함
+// 원가·마진은 찻잎 원가에 다과 원가(잔마다 다과 상 1개 기준)를 더한 합계 기준으로 계산함
 function computeRowMetrics(row){
   const totalMonthlyCups = getTotalMonthlyCups();
   const loss = parseFloat($(s+'-loss').value) || 0;
@@ -1896,6 +2039,7 @@ const atlasFinder = makeFinder({
   // 구매처 비교표를 먼저 불러와야 loadState()의 구매처 링크 마이그레이션이 정확히 맞음
   await loadCompareRows();
   await loadSnackRows();
+  await loadSnackSets();
   await loadState();
   renderBlendTable();
   computeAll();
