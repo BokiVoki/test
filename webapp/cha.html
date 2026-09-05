@@ -146,11 +146,16 @@
   /* ── 구매처 비교표 · 블렌딩 구성표 — 엑셀st 촘촘한 그리드 (공용) ── */
   .compare-table, .blend-table{font-size:12px;border:1px solid var(--rule);}
   .compare-table th, .blend-table th{
-    text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.02em;
+    position:relative;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.02em;
     color:var(--ink-soft);background:var(--paper-deep);padding:5px 7px;
-    border:1px solid var(--rule);white-space:nowrap;
+    border:1px solid var(--rule);white-space:nowrap;box-sizing:border-box;
   }
-  .compare-table td, .blend-table td{padding:0;border:1px solid var(--rule-faint);vertical-align:middle;height:27px;}
+  .col-resizer{
+    position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;
+    user-select:none;touch-action:none;z-index:3;
+  }
+  .col-resizer:hover, .col-resizer.active{background:var(--seal);opacity:0.4;}
+  .compare-table td, .blend-table td{padding:0;border:1px solid var(--rule-faint);vertical-align:middle;height:27px;box-sizing:border-box;}
   .compare-table input[type="text"], .compare-table input[type="number"],
   .blend-table input[type="text"], .blend-table input[type="number"]{
     border:0;border-radius:0;background:transparent;padding:4px 7px;height:27px;
@@ -708,6 +713,58 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* ── 표 칸 너비 드래그 조절 (한 번 조절하면 새로고침해도 그 너비 그대로 유지) ──
+   thead의 <th>만 건드리고 tbody는 매번 다시 그려지므로, 한 번만 초기화하면
+   그 뒤로 표를 다시 그려도(행 추가/삭제 등) 너비는 안 흐트러짐. */
+function setupColResize(table){
+  if(!table || table.dataset.colResizeInit) return;
+  table.dataset.colResizeInit = '1';
+  const key = 'jamwon-tea-colw-' + (table.id || '');
+  let saved = {};
+  try{ saved = JSON.parse(localStorage.getItem(key) || '{}'); }catch(e){}
+
+  const ths = Array.from(table.querySelectorAll(':scope > thead > tr > th'));
+  table.style.tableLayout = 'fixed';
+  table.style.width = 'auto';
+  ths.forEach((th, i)=>{
+    const w = Math.round(saved[i] || th.getBoundingClientRect().width);
+    th.style.width = w + 'px';
+    th.style.minWidth = '28px';
+
+    const handle = document.createElement('div');
+    handle.className = 'col-resizer';
+    th.appendChild(handle);
+
+    let startX = 0, startW = 0;
+    function onMove(e){
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      th.style.width = Math.max(28, startW + (clientX - startX)) + 'px';
+    }
+    function onUp(){
+      handle.classList.remove('active');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onUp);
+      const widths = {};
+      ths.forEach((t, ii)=>{ widths[ii] = Math.round(t.getBoundingClientRect().width); });
+      try{ localStorage.setItem(key, JSON.stringify(widths)); }catch(e){}
+    }
+    function onDown(e){
+      e.preventDefault();
+      startX = e.touches ? e.touches[0].clientX : e.clientX;
+      startW = th.getBoundingClientRect().width;
+      handle.classList.add('active');
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, {passive:false});
+      document.addEventListener('touchend', onUp);
+    }
+    handle.addEventListener('mousedown', onDown);
+    handle.addEventListener('touchstart', onDown, {passive:false});
+  });
+}
+
 /* ── CSV 다운로드 ── */
 function toCSVCell(v){
   var s = (v===null||v===undefined) ? '' : String(v);
@@ -1007,11 +1064,12 @@ $('addRowBtn').addEventListener('click', ()=>{
 });
 
 let compareSaveTimer = null;
+async function saveCompareRows(){
+  try{ await window.storage.set('jamwon-tea-comparison-v6', JSON.stringify(compareRows)); }catch(e){}
+}
 function scheduleCompareSave(){
   clearTimeout(compareSaveTimer);
-  compareSaveTimer = setTimeout(async ()=>{
-    try{ await window.storage.set('jamwon-tea-comparison-v6', JSON.stringify(compareRows)); }catch(e){}
-  }, 500);
+  compareSaveTimer = setTimeout(saveCompareRows, 500);
 }
 
 async function loadCompareRows(){
@@ -1082,11 +1140,12 @@ $('addSnackRowBtn').addEventListener('click', ()=>{
 });
 
 let snackSaveTimer = null;
+async function saveSnackRows(){
+  try{ await window.storage.set('jamwon-tea-snacks-v1', JSON.stringify(snackRows)); }catch(e){}
+}
 function scheduleSnackSave(){
   clearTimeout(snackSaveTimer);
-  snackSaveTimer = setTimeout(async ()=>{
-    try{ await window.storage.set('jamwon-tea-snacks-v1', JSON.stringify(snackRows)); }catch(e){}
-  }, 500);
+  snackSaveTimer = setTimeout(saveSnackRows, 500);
 }
 
 async function loadSnackRows(){
@@ -1243,11 +1302,12 @@ $('addSnackSetBtn').addEventListener('click', ()=>{
 });
 
 let snackSetSaveTimer = null;
+async function saveSnackSets(){
+  try{ await window.storage.set('jamwon-tea-snack-sets-v1', JSON.stringify(snackSets)); }catch(e){}
+}
 function scheduleSnackSetSave(){
   clearTimeout(snackSetSaveTimer);
-  snackSetSaveTimer = setTimeout(async ()=>{
-    try{ await window.storage.set('jamwon-tea-snack-sets-v1', JSON.stringify(snackSets)); }catch(e){}
-  }, 500);
+  snackSetSaveTimer = setTimeout(saveSnackSets, 500);
 }
 
 async function loadSnackSets(){
@@ -1519,6 +1579,20 @@ async function loadState(){
 
 document.querySelectorAll('.inp, #weeklyDays, #bufferWeeks').forEach(el=>{
   el.addEventListener('input', ()=>{ renderBlendTable(); computeAll(); scheduleSave(); });
+});
+
+// 디바운스(0.5초) 저장 대기 중에 탭을 닫거나 다른 탭/앱으로 전환하면 그 사이 입력이
+// 날아갈 수 있어서, 화면이 숨겨지거나 페이지를 떠날 때는 대기 중인 저장을 바로 실행함
+function flushAllSaves(){
+  clearTimeout(compareSaveTimer); saveCompareRows();
+  clearTimeout(snackSaveTimer); saveSnackRows();
+  clearTimeout(snackSetSaveTimer); saveSnackSets();
+  clearTimeout(saveTimer); saveState();
+}
+window.addEventListener('pagehide', flushAllSaves);
+window.addEventListener('blur', flushAllSaves);
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden') flushAllSaves();
 });
 
 /* =================================================
@@ -2119,6 +2193,10 @@ const atlasFinder = makeFinder({
   await loadState();
   renderBlendTable();
   computeAll();
+  setupColResize($('compareTable'));
+  setupColResize($('snackTable'));
+  setupColResize($('blendTable'));
+  setupColResize($('brewRefTable'));
   renderChips();
   renderBrewList();
   initCalc();
