@@ -381,6 +381,28 @@
   </div>
 
   <div class="panel">
+    <h2>다과 단가</h2>
+    <p class="hint-top">차와 같이 나가는 다과 원가예요. 묶음(박스·팩) 가격과 개수를 넣으면 1인분(개당) 단가가 자동 계산되고, 아래 블렌딩 구성표에서 차마다 다과를 골라 원가·마진에 반영할 수 있어요.</p>
+    <div class="table-scroll">
+      <table class="compare-table" id="snackTable">
+        <thead>
+          <tr>
+            <th style="min-width:130px;">다과 이름</th>
+            <th style="min-width:110px;">구매처</th>
+            <th style="min-width:100px;">묶음 가격(원)</th>
+            <th style="min-width:80px;">묶음 개수</th>
+            <th style="min-width:90px;">개당 단가</th>
+            <th style="min-width:130px;">비고</th>
+            <th style="min-width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="snackTableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" id="addSnackRowBtn">+ 다과 추가</button>
+  </div>
+
+  <div class="panel">
     <h2>운영 · 발주 설정</h2>
     <div class="grid-inputs">
       <div class="field">
@@ -437,7 +459,10 @@
               <th style="min-width:80px;">차종</th>
               <th style="min-width:190px;">구매처 선택</th>
               <th style="min-width:100px;">잔당 찻잎량(g)</th>
-              <th style="min-width:90px;">잔당 원가</th>
+              <th style="min-width:90px;">찻잎 원가</th>
+              <th style="min-width:170px;">다과 선택</th>
+              <th style="min-width:90px;">다과 원가</th>
+              <th style="min-width:90px;">합계 원가</th>
               <th style="min-width:100px;">판매가(원/잔)</th>
               <th>마진율</th>
               <th>월 매출</th>
@@ -756,7 +781,7 @@ let compareRows = [
   {id:'c29', name:'밀향오룡', category:'우롱차', vendor:'산수화', pricePerKg:438000, note:'밀향(꿀향) 우롱차'}
 ];
 
-function newRowId(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function newRowId(prefix){ return (prefix||'c')+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 // 예전엔 name+vendor 문자열을 그대로 구매처 선택 키로 썼는데, 그러면 비교표에서
 // 이름이나 구매처를 살짝 고치기만 해도(오타 수정 등) 블렌딩표에 골라둔 구매처가
 // 몰래 "직접 입력"으로 리셋되는 버그가 있었음(값 자체가 사라진 게 아니라 링크가
@@ -956,14 +981,85 @@ async function loadCompareRows(){
   if(compareFinder) compareFinder.refresh();
 }
 
+// ---- 다과 단가표 ----
+function renderSnackTable(){
+  const tbody = $('snackTableBody');
+  tbody.innerHTML = snackRows.map((row, idx)=>
+    '<tr'+(idx%2===1?' class="row-alt"':'')+'>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="name" value="'+escapeHtml(row.name)+'"></td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="vendor" value="'+escapeHtml(row.vendor)+'"></td>' +
+      '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="packPrice" value="'+(parseFloat(row.packPrice)||0)+'" min="0" step="100"></td>' +
+      '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="packQty" value="'+(parseFloat(row.packQty)||0)+'" min="0" step="1"></td>' +
+      '<td class="readonly-cell">'+fmt(packUnitPrice(row),0)+'원</td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="note" value="'+escapeHtml(row.note||'')+'"></td>' +
+      '<td><button class="del-btn" data-idx="'+idx+'">삭제</button></td>' +
+    '</tr>'
+  ).join('');
+
+  tbody.querySelectorAll('input').forEach(el=>{
+    el.addEventListener('input', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const field = e.target.getAttribute('data-field');
+      snackRows[idx][field] = e.target.value;
+      if(field === 'packPrice' || field === 'packQty'){
+        const tr = e.target.closest('tr');
+        tr.querySelector('.readonly-cell').textContent = fmt(packUnitPrice(snackRows[idx]),0)+'원';
+      }
+      renderBlendTable();
+      scheduleSnackSave();
+      computeAll();
+    });
+  });
+
+  tbody.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      snackRows.splice(idx, 1);
+      renderSnackTable();
+      renderBlendTable();
+      scheduleSnackSave();
+      computeAll();
+    });
+  });
+}
+
+$('addSnackRowBtn').addEventListener('click', ()=>{
+  snackRows.push({id:newRowId('sn'), name:'', vendor:'', packPrice:0, packQty:0, note:''});
+  renderSnackTable();
+  renderBlendTable();
+  scheduleSnackSave();
+});
+
+let snackSaveTimer = null;
+function scheduleSnackSave(){
+  clearTimeout(snackSaveTimer);
+  snackSaveTimer = setTimeout(async ()=>{
+    try{ await window.storage.set('jamwon-tea-snacks-v1', JSON.stringify(snackRows)); }catch(e){}
+  }, 500);
+}
+
+async function loadSnackRows(){
+  try{
+    const result = await window.storage.get('jamwon-tea-snacks-v1');
+    if(result && result.value){
+      const parsed = JSON.parse(result.value);
+      if(Array.isArray(parsed)){ snackRows = parsed; }
+    }
+  }catch(e){}
+  let snackBackfilled = false;
+  snackRows.forEach(r=>{ if(!r.id){ r.id = newRowId('sn'); snackBackfilled = true; } });
+  if(snackBackfilled) scheduleSnackSave();
+  renderSnackTable();
+}
+
 // ---- 6종 블렌딩 구성표 ----
 let blendRows = [
-  {type:'대용차', pct:5, vendorKey:'c02', manualPrice:0, sellingPrice:7000, gpc:3},
-  {type:'홍차', pct:30, vendorKey:'c01', manualPrice:0, sellingPrice:8000, gpc:3},
-  {type:'호지차', pct:10, vendorKey:'manual', manualPrice:0, sellingPrice:8000, gpc:3},
-  {type:'백차', pct:20, vendorKey:'c03', manualPrice:0, sellingPrice:9000, gpc:4},
-  {type:'우롱차', pct:15, vendorKey:'c04', manualPrice:0, sellingPrice:9000, gpc:5},
-  {type:'보이차', pct:20, vendorKey:'c05', manualPrice:0, sellingPrice:8500, gpc:5}
+  {type:'대용차', pct:5, vendorKey:'c02', manualPrice:0, sellingPrice:7000, gpc:3, snackKey:'manual', manualSnackPrice:0},
+  {type:'홍차', pct:30, vendorKey:'c01', manualPrice:0, sellingPrice:8000, gpc:3, snackKey:'manual', manualSnackPrice:0},
+  {type:'호지차', pct:10, vendorKey:'manual', manualPrice:0, sellingPrice:8000, gpc:3, snackKey:'manual', manualSnackPrice:0},
+  {type:'백차', pct:20, vendorKey:'c03', manualPrice:0, sellingPrice:9000, gpc:4, snackKey:'manual', manualSnackPrice:0},
+  {type:'우롱차', pct:15, vendorKey:'c04', manualPrice:0, sellingPrice:9000, gpc:5, snackKey:'manual', manualSnackPrice:0},
+  {type:'보이차', pct:20, vendorKey:'c05', manualPrice:0, sellingPrice:8500, gpc:5, snackKey:'manual', manualSnackPrice:0}
 ];
 
 function getOptionsForCategory(cat){
@@ -974,6 +1070,23 @@ function priceForBlendRow(row){
   if(row.vendorKey === 'manual') return parseFloat(row.manualPrice) || 0;
   const match = compareRows.find(r=>rowKey(r)===row.vendorKey);
   return match ? (parseFloat(match.pricePerKg)||0) : 0;
+}
+
+// ---- 다과 단가 ----
+let snackRows = [];
+function packUnitPrice(row){
+  const qty = parseFloat(row.packQty) || 0;
+  const price = parseFloat(row.packPrice) || 0;
+  return qty > 0 ? price / qty : 0;
+}
+function getOptionsForSnack(){
+  return snackRows.map(r=>({key:r.id, label:r.name+' · '+r.vendor+' ('+fmt(packUnitPrice(r),0)+'원/개)'}));
+}
+function priceForSnackRow(row){
+  const key = row.snackKey || 'manual';
+  if(key === 'manual') return parseFloat(row.manualSnackPrice) || 0;
+  const match = snackRows.find(r=>r.id === key);
+  return match ? packUnitPrice(match) : 0;
 }
 
 // 한강점 전체 월간 예상 판매 잔 수 (차종 배합과 무관 — 방문객/주문비율/잔수 기준)
@@ -988,23 +1101,29 @@ function getTotalMonthlyCups(){
 }
 
 // 한 블렌딩 행의 모든 파생 수치 계산 (비율 = 잔 수 기준 배분, 잔당 찻잎량은 행마다 다름)
+// 원가·마진은 찻잎 원가에 다과 원가(개당 단가, 잔마다 1개 기준)를 더한 합계 기준으로 계산함
 function computeRowMetrics(row){
   const totalMonthlyCups = getTotalMonthlyCups();
   const loss = parseFloat($(s+'-loss').value) || 0;
   const gpc = parseFloat(row.gpc) || 0;
   const price = priceForBlendRow(row);
+  const snackPrice = priceForSnackRow(row);
 
   const cupsForType = totalMonthlyCups * ((parseFloat(row.pct)||0)/100);
   const leafGrams = cupsForType * gpc * (1 + loss/100);
   const monthlyKg = leafGrams / 1000;
-  const cost = monthlyKg * price;
-  const costPerCup = gpc > 0 ? (price * gpc * (1 + loss/100) / 1000) : 0;
+  const teaCost = monthlyKg * price;
+  const teaCostPerCup = gpc > 0 ? (price * gpc * (1 + loss/100) / 1000) : 0;
+  const snackCostPerCup = snackPrice;
+  const totalCostPerCup = teaCostPerCup + snackCostPerCup;
+  const monthlySnackCost = cupsForType * snackCostPerCup;
+  const cost = teaCost + monthlySnackCost;
   const sellingPrice = parseFloat(row.sellingPrice) || 0;
   const revenue = cupsForType * sellingPrice;
-  const marginPerCup = sellingPrice - costPerCup;
+  const marginPerCup = sellingPrice - totalCostPerCup;
   const marginRate = sellingPrice > 0 ? (marginPerCup / sellingPrice * 100) : null;
 
-  return {price, cupsForType, monthlyKg, cost, costPerCup, revenue, marginRate};
+  return {price, snackPrice, cupsForType, monthlyKg, cost, teaCostPerCup, snackCostPerCup, totalCostPerCup, revenue, marginRate};
 }
 
 function renderBlendTable(){
@@ -1016,12 +1135,21 @@ function renderBlendTable(){
     if(row.vendorKey !== 'manual' && !options.find(o=>o.key===row.vendorKey)){
       row.vendorKey = 'manual';
     }
+    const snackKeyVal = row.snackKey || 'manual';
+    const snackOptions = getOptionsForSnack();
+    if(snackKeyVal !== 'manual' && !snackOptions.find(o=>o.key===snackKeyVal)){
+      row.snackKey = 'manual';
+    }
     const price = priceForBlendRow(row);
 
     const tr = document.createElement('tr');
     let selectHtml = '<select data-idx="'+idx+'" data-field="vendorKey">' +
       '<option value="manual"'+(row.vendorKey==='manual'?' selected':'')+'>직접 입력</option>' +
       options.map(o=>'<option value="'+o.key+'"'+(o.key===row.vendorKey?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('') +
+      '</select>';
+    let snackSelectHtml = '<select data-idx="'+idx+'" data-field="snackKey">' +
+      '<option value="manual"'+(row.snackKey==='manual'||!row.snackKey?' selected':'')+'>직접 입력</option>' +
+      snackOptions.map(o=>'<option value="'+o.key+'"'+(o.key===row.snackKey?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('') +
       '</select>';
 
     let priceCellHtml;
@@ -1031,12 +1159,22 @@ function renderBlendTable(){
       priceCellHtml = '<span class="readonly-cell cell-price">'+fmt(price,0)+'</span>';
     }
 
+    let snackCellHtml;
+    if(row.snackKey === 'manual' || !row.snackKey){
+      snackCellHtml = '<input type="number" data-idx="'+idx+'" data-field="manualSnackPrice" value="'+(parseFloat(row.manualSnackPrice)||0)+'" min="0" step="100">';
+    }else{
+      snackCellHtml = '<span class="readonly-cell cell-snackprice"></span>';
+    }
+
     tr.innerHTML =
       '<td><input type="number" data-idx="'+idx+'" data-field="pct" value="'+row.pct+'" min="0" max="100" step="1"></td>' +
       '<td class="tea-type-cell">'+row.type+'</td>' +
       '<td>'+selectHtml+'</td>' +
       '<td><input type="number" data-idx="'+idx+'" data-field="gpc" value="'+(parseFloat(row.gpc)||0)+'" min="0" step="0.5"></td>' +
       '<td class="readonly-cell cell-costpercup"></td>' +
+      '<td>'+snackSelectHtml+'</td>' +
+      '<td>'+snackCellHtml+'</td>' +
+      '<td class="readonly-cell cell-totalcost"></td>' +
       '<td><input type="number" data-idx="'+idx+'" data-field="sellingPrice" value="'+(parseFloat(row.sellingPrice)||0)+'" min="0" step="500"></td>' +
       '<td class="readonly-cell cell-marginrate"></td>' +
       '<td class="readonly-cell cell-revenue"></td>' +
@@ -1054,7 +1192,7 @@ function renderBlendTable(){
       const field = e.target.getAttribute('data-field');
       blendRows[idx][field] = e.target.value;
 
-      if(field === 'vendorKey'){
+      if(field === 'vendorKey' || field === 'snackKey'){
         renderBlendTable();
       }else{
         const tr = e.target.closest('tr');
@@ -1075,11 +1213,14 @@ function updateBlendRowCells(tr, idx){
 
   const priceCell = tr.querySelector('.cell-price');
   if(priceCell) priceCell.textContent = fmt(m.price,0);
+  const snackPriceCell = tr.querySelector('.cell-snackprice');
+  if(snackPriceCell) snackPriceCell.textContent = fmt(m.snackPrice,0);
   const matchRow = row.vendorKey !== 'manual' ? compareRows.find(r=>rowKey(r)===row.vendorKey) : null;
   let brewText = matchRow && matchRow.brewMethod && matchRow.brewMethod.trim() ? matchRow.brewMethod.trim() : '';
   if(!brewText && matchRow){ brewText = suggestBrewText(matchRow.name, matchRow.category) || ''; }
   tr.querySelector('.cell-brew').textContent = brewText || '-';
-  tr.querySelector('.cell-costpercup').textContent = fmt(m.costPerCup,0)+'원';
+  tr.querySelector('.cell-costpercup').textContent = fmt(m.teaCostPerCup,0)+'원';
+  tr.querySelector('.cell-totalcost').textContent = fmt(m.totalCostPerCup,0)+'원';
   tr.querySelector('.cell-monthlykg').textContent = fmt(m.monthlyKg,2)+'kg';
   tr.querySelector('.cell-cost').textContent = fmt(m.cost,0)+'원';
   tr.querySelector('.cell-revenue').textContent = fmt(m.revenue,0)+'원';
@@ -1753,6 +1894,7 @@ const atlasFinder = makeFinder({
 (async function init(){
   // 구매처 비교표를 먼저 불러와야 loadState()의 구매처 링크 마이그레이션이 정확히 맞음
   await loadCompareRows();
+  await loadSnackRows();
   await loadState();
   renderBlendTable();
   computeAll();
