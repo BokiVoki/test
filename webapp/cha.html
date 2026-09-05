@@ -71,6 +71,13 @@
   }
   .panel h2{font-family:'Noto Serif KR',serif;font-size:16px;margin:0 0 4px;}
   .panel .hint-top{font-size:12px;color:var(--ink-soft);margin:0 0 14px;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .panel-head h2{margin:0;}
+  .csv-btn{
+    background:none;border:1px solid var(--rule);border-radius:3px;color:var(--ink-soft);
+    cursor:pointer;padding:6px 12px;font-size:11.5px;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;
+  }
+  .csv-btn:hover{border-color:var(--seal);color:var(--seal);}
   .grid-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 18px;}
   .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;}
   .field .hint{font-size:10.5px;color:var(--ink-soft);opacity:0.75;margin-top:4px;}
@@ -160,7 +167,7 @@
   .compare-table tbody tr.row-alt td, .blend-table tbody tr.row-alt td{background:rgba(255,255,255,0.32);}
   .compare-table td .del-btn, .compare-table td .note-toggle-btn{border-radius:0;border:0;height:27px;}
   .compare-table td .del-btn:hover, .compare-table td .note-toggle-btn:hover{background:rgba(169,120,46,0.08);}
-  .blend-table .tea-type-cell{font-family:'Noto Serif KR',serif;font-weight:600;white-space:nowrap;padding:4px 7px;}
+  .compare-table .tea-type-cell, .blend-table .tea-type-cell{font-family:'Noto Serif KR',serif;font-weight:600;white-space:nowrap;padding:4px 7px;}
   .del-btn{
     background:none;border:1px solid var(--rule);border-radius:3px;color:var(--ink-soft);
     cursor:pointer;padding:5px 9px;font-size:11px;font-family:'Noto Sans KR',sans-serif;
@@ -219,9 +226,9 @@
   .note-textarea::placeholder{color:var(--ink-soft);opacity:0.6;}
   .note-field-label{font-size:10.5px;color:var(--ink-soft);margin:10px 0 4px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.03em;}
   .note-field-label:first-child{margin-top:0;}
-  /* .blend-table .readonly-cell 의 nowrap 을 이기려면 같은 수준의 선택자여야 함
+  /* .readonly-cell 의 nowrap 을 이기려면 같은 수준의 선택자여야 함
      (예전엔 .cell-brew 단독이라 nowrap 이 이겨서 긴 우림법 텍스트가 옆 칸 위로 넘쳤음) */
-  .blend-table td.cell-brew{
+  .compare-table td.cell-brew, .blend-table td.cell-brew{
     font-size:11px;color:var(--ink-soft);line-height:1.45;text-align:left;
     white-space:normal;word-break:keep-all;overflow-wrap:anywhere;
     width:170px;max-width:170px;min-width:150px;padding:8px 7px;
@@ -354,7 +361,7 @@
   <div class="page" id="page-ledger">
 
   <div class="panel">
-    <h2>차 종류별 구매처 비교</h2>
+    <div class="panel-head"><h2>차 종류별 구매처 비교</h2><button type="button" class="csv-btn" id="csvCompareBtn">⬇ CSV 다운로드</button></div>
     <p class="hint-top">아직 확정 전 — 후보 차와 구매처별 kg당 단가를 모아두고 비교하는 표입니다. 아래 블렌딩 구성표에서 여기 등록한 품목을 바로 골라 쓸 수 있어요.</p>
     <div class="findbar">
       <input type="text" id="compareFind" placeholder="🔍 이 표에서 찾기 (이름·구매처·비고)">
@@ -388,7 +395,7 @@
   </div>
 
   <div class="panel">
-    <h2>다과 단가</h2>
+    <div class="panel-head"><h2>다과 단가</h2><button type="button" class="csv-btn" id="csvSnackBtn">⬇ CSV 다운로드</button></div>
     <p class="hint-top">차와 같이 나가는 다과 낱개 단가예요. 묶음(박스·팩) 가격과 개수를 넣으면 개당 단가가 자동 계산돼요. 아래 "다과 상 구성"에서 이 품목들을 골라 한 상을 만듭니다.</p>
     <div class="table-scroll">
       <table class="compare-table" id="snackTable">
@@ -410,7 +417,7 @@
   </div>
 
   <div class="panel">
-    <h2>다과 상 구성</h2>
+    <div class="panel-head"><h2>다과 상 구성</h2><button type="button" class="csv-btn" id="csvSnackSetBtn">⬇ CSV 다운로드</button></div>
     <p class="hint-top">위 다과 단가표의 품목을 골라 한 상에 몇 개씩 들어가는지 정하면 상 하나의 원가가 자동으로 계산돼요. 아래 블렌딩 구성표에서는 품목 하나하나가 아니라 이 상 단위로 골라서 한 번에 반영하면 됩니다.</p>
     <div id="snackSetsBody"></div>
     <button class="add-row-btn" id="addSnackSetBtn">+ 다과 상 추가</button>
@@ -464,7 +471,10 @@
     </div>
 
     <div style="margin-top:20px;">
-      <label style="display:block;font-size:12px;color:var(--ink-soft);margin-bottom:8px;">6종 블렌딩 구성 — 비율(%)과 구매처를 지정하세요</label>
+      <div class="panel-head">
+        <label style="display:block;font-size:12px;color:var(--ink-soft);">6종 블렌딩 구성 — 비율(%)과 구매처를 지정하세요</label>
+        <button type="button" class="csv-btn" id="csvBlendBtn">⬇ CSV 다운로드</button>
+      </div>
       <div class="table-scroll">
         <table class="blend-table" id="blendTable">
           <thead>
@@ -474,8 +484,6 @@
               <th style="min-width:190px;">구매처 선택</th>
               <th style="min-width:100px;">잔당 찻잎량(g)</th>
               <th style="min-width:90px;">찻잎 원가</th>
-              <th style="min-width:170px;">다과 상 선택</th>
-              <th style="min-width:90px;">다과 원가</th>
               <th style="min-width:90px;">합계 원가</th>
               <th style="min-width:100px;">판매가(원/잔)</th>
               <th>마진율</th>
@@ -483,13 +491,24 @@
               <th>원가(원/kg)</th>
               <th>월 물량</th>
               <th>월 원가</th>
-              <th style="min-width:150px;">최적 우림법</th>
+              <th style="min-width:170px;">다과 상 선택</th>
+              <th style="min-width:90px;">다과 원가</th>
             </tr>
           </thead>
           <tbody id="blendTableBody"></tbody>
         </table>
       </div>
       <div class="pct-total" id="pctTotal">-</div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <label style="display:block;font-size:12px;color:var(--ink-soft);margin-bottom:8px;">차종별 최적 우림법</label>
+      <div class="table-scroll">
+        <table class="compare-table" id="brewRefTable" style="min-width:0;">
+          <thead><tr><th style="min-width:80px;">차종</th><th>최적 우림법</th></tr></thead>
+          <tbody id="brewRefTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="outputs">
@@ -689,6 +708,22 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* ── CSV 다운로드 ── */
+function toCSVCell(v){
+  var s = (v===null||v===undefined) ? '' : String(v);
+  if(/[",\n]/.test(s)) s = '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function downloadCSV(filename, rows){
+  var csv = '﻿' + rows.map(function(r){ return r.map(toCSVCell).join(','); }).join('\r\n');
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+
 /* =================================================
    엑셀 찾기st 검색 — 표/텍스트를 숨기지 않고 일치하는 항목만 순서대로
    이동(스크롤+강조), 위에 "n/m" 카운터로 몇 번째인지 표시.
@@ -879,7 +914,7 @@ function renderCompareTable(){
       const noteTr = tbody.querySelector('.note-row[data-idx="'+idx+'"]');
       noteTr.querySelector('.brew-textarea').value = text;
       tbody.querySelector('.note-toggle-btn[data-idx="'+idx+'"]').classList.add('has-note');
-      refreshBlendBrewCells();
+      renderBrewRefTable();
       scheduleCompareSave();
     });
   });
@@ -916,7 +951,7 @@ function renderCompareTable(){
         (compareRows[idx].tastingNote && compareRows[idx].tastingNote.trim().length>0) ||
         (compareRows[idx].brewMethod && compareRows[idx].brewMethod.trim().length>0);
       btn.classList.toggle('has-note', hasNote);
-      if(field === 'brewMethod'){ refreshBlendBrewCells(); }
+      if(field === 'brewMethod'){ renderBrewRefTable(); }
       scheduleCompareSave();
     });
   });
@@ -1316,8 +1351,6 @@ function renderBlendTable(){
       '<td>'+selectHtml+'</td>' +
       '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="gpc" value="'+(parseFloat(row.gpc)||0)+'" min="0" step="0.5"></td>' +
       '<td class="readonly-cell cell-costpercup"></td>' +
-      '<td>'+snackSelectHtml+'</td>' +
-      '<td class="numcell">'+snackCellHtml+'</td>' +
       '<td class="readonly-cell cell-totalcost"></td>' +
       '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="sellingPrice" value="'+(parseFloat(row.sellingPrice)||0)+'" min="0" step="500"></td>' +
       '<td class="readonly-cell cell-marginrate"></td>' +
@@ -1325,7 +1358,8 @@ function renderBlendTable(){
       '<td class="numcell">'+priceCellHtml+'</td>' +
       '<td class="readonly-cell cell-monthlykg"></td>' +
       '<td class="readonly-cell cell-cost"></td>' +
-      '<td class="readonly-cell cell-brew"></td>';
+      '<td>'+snackSelectHtml+'</td>' +
+      '<td class="numcell">'+snackCellHtml+'</td>';
     tbody.appendChild(tr);
     updateBlendRowCells(tr, idx);
   });
@@ -1349,6 +1383,7 @@ function renderBlendTable(){
   });
 
   updatePctTotal();
+  renderBrewRefTable();
 }
 
 function updateBlendRowCells(tr, idx){
@@ -1359,10 +1394,6 @@ function updateBlendRowCells(tr, idx){
   if(priceCell) priceCell.textContent = fmt(m.price,0);
   const snackPriceCell = tr.querySelector('.cell-snackprice');
   if(snackPriceCell) snackPriceCell.textContent = fmt(m.snackPrice,0);
-  const matchRow = row.vendorKey !== 'manual' ? compareRows.find(r=>rowKey(r)===row.vendorKey) : null;
-  let brewText = matchRow && matchRow.brewMethod && matchRow.brewMethod.trim() ? matchRow.brewMethod.trim() : '';
-  if(!brewText && matchRow){ brewText = suggestBrewText(matchRow.name, matchRow.category) || ''; }
-  tr.querySelector('.cell-brew').textContent = brewText || '-';
   tr.querySelector('.cell-costpercup').textContent = fmt(m.teaCostPerCup,0)+'원';
   tr.querySelector('.cell-totalcost').textContent = fmt(m.totalCostPerCup,0)+'원';
   tr.querySelector('.cell-monthlykg').textContent = fmt(m.monthlyKg,2)+'kg';
@@ -1374,19 +1405,20 @@ function updateBlendRowCells(tr, idx){
   marginEl.style.fontWeight = '600';
 }
 
-function refreshBlendBrewCells(){
-  const tbody = $('blendTableBody');
+// 구매처로 고른 차의 "최적 우림법" — 블렌딩표가 아니라 아래 별도 표(차종별 최적 우림법)에서 보여줌
+function brewTextForRow(row){
+  const matchRow = row.vendorKey !== 'manual' ? compareRows.find(r=>rowKey(r)===row.vendorKey) : null;
+  let t = matchRow && matchRow.brewMethod && matchRow.brewMethod.trim() ? matchRow.brewMethod.trim() : '';
+  if(!t && matchRow){ t = suggestBrewText(matchRow.name, matchRow.category) || ''; }
+  return t || '-';
+}
+
+function renderBrewRefTable(){
+  const tbody = $('brewRefTableBody');
   if(!tbody) return;
-  tbody.querySelectorAll('tr').forEach((tr, idx)=>{
-    const cell = tr.querySelector('.cell-brew');
-    if(!cell) return;
-    const row = blendRows[idx];
-    if(!row) return;
-    const matchRow = row.vendorKey !== 'manual' ? compareRows.find(r=>rowKey(r)===row.vendorKey) : null;
-    let t = matchRow && matchRow.brewMethod && matchRow.brewMethod.trim() ? matchRow.brewMethod.trim() : '';
-    if(!t && matchRow){ t = suggestBrewText(matchRow.name, matchRow.category) || ''; }
-    cell.textContent = t || '-';
-  });
+  tbody.innerHTML = blendRows.map((row, idx)=>
+    '<tr'+(idx%2===1?' class="row-alt"':'')+'><td class="tea-type-cell">'+escapeHtml(row.type)+'</td><td class="cell-brew">'+escapeHtml(brewTextForRow(row))+'</td></tr>'
+  ).join('');
 }
 
 function updatePctTotal(){
@@ -2023,6 +2055,50 @@ function renderGlossary(){
     '<tr><td>'+escapeHtml(d.name)+'</td><td>'+escapeHtml(d.hanja)+'</td><td>'+escapeHtml(d.mean)+'</td></tr>'
   ).join('');
 }
+
+// ── CSV 다운로드 버튼 ──
+$('csvCompareBtn').addEventListener('click', ()=>{
+  const head = ['차 종류','구분','구매처','kg당 가격(원)','4g 환산','100g 환산','300g 환산','비고','평점','테이스팅 메모','최적 우림법'];
+  const rows = compareRows.map(r=>{
+    const price = parseFloat(r.pricePerKg)||0;
+    return [r.name, r.category, r.vendor, price, Math.round(price*0.004), Math.round(price/10), Math.round(price*0.3), r.note||'', r.rating||'', r.tastingNote||'', r.brewMethod||''];
+  });
+  downloadCSV('한강점_구매처비교.csv', [head].concat(rows));
+});
+
+$('csvSnackBtn').addEventListener('click', ()=>{
+  const head = ['다과 이름','구매처','묶음 가격(원)','묶음 개수','개당 단가(원)','비고'];
+  const rows = snackRows.map(r=>[r.name, r.vendor, parseFloat(r.packPrice)||0, parseFloat(r.packQty)||0, Math.round(packUnitPrice(r)), r.note||'']);
+  downloadCSV('한강점_다과단가.csv', [head].concat(rows));
+});
+
+$('csvSnackSetBtn').addEventListener('click', ()=>{
+  const head = ['다과 상 이름','품목','개수','소계(원)','상 원가(원)'];
+  const rows = [];
+  snackSets.forEach(set=>{
+    const cost = Math.round(computeSetCost(set));
+    const items = set.items||[];
+    if(!items.length){ rows.push([set.name||'', '-', '', '', cost]); return; }
+    items.forEach(it=>{
+      const item = snackRows.find(r=>r.id===it.itemId);
+      const unit = item ? packUnitPrice(item) : 0;
+      const qty = parseFloat(it.qty)||0;
+      rows.push([set.name||'', item?item.name:'(삭제된 품목)', qty, Math.round(unit*qty), cost]);
+    });
+  });
+  downloadCSV('한강점_다과상구성.csv', [head].concat(rows));
+});
+
+$('csvBlendBtn').addEventListener('click', ()=>{
+  const head = ['비율(%)','차종','구매처','잔당 찻잎량(g)','찻잎 원가(원)','합계 원가(원)','판매가(원/잔)','마진율(%)','월 매출(원)','원가(원/kg)','월 물량(kg)','월 원가(원)','다과 상','다과 원가(원)'];
+  const rows = blendRows.map(row=>{
+    const m = computeRowMetrics(row);
+    const vendorLabel = row.vendorKey==='manual' ? '직접 입력' : (function(){ const mr=compareRows.find(r=>rowKey(r)===row.vendorKey); return mr ? mr.name+' · '+mr.vendor : '직접 입력'; })();
+    const snackLabel = (row.snackKey==='manual'||!row.snackKey) ? '직접 입력' : (function(){ const ms=snackSets.find(s=>s.id===row.snackKey); return ms ? (ms.name||'이름 없는 상') : '직접 입력'; })();
+    return [row.pct, row.type, vendorLabel, row.gpc, Math.round(m.teaCostPerCup), Math.round(m.totalCostPerCup), row.sellingPrice, m.marginRate===null?'':Math.round(m.marginRate*10)/10, Math.round(m.revenue), Math.round(m.price), Math.round(m.monthlyKg*100)/100, Math.round(m.cost), snackLabel, Math.round(m.snackPrice)];
+  });
+  downloadCSV('한강점_블렌딩구성.csv', [head].concat(rows));
+});
 
 // 엑셀 찾기st 네비게이션 — 구매처 비교표 / 차 백과
 const compareFinder = makeFinder({
