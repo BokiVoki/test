@@ -33,9 +33,9 @@
     background-attachment: fixed;
     color:var(--ink);
     font-family:'Noto Sans KR', sans-serif;
-    padding:40px 20px 80px;
+    padding:40px 14px 80px;
   }
-  .wrap{max-width:780px;margin:0 auto;}
+  .wrap{max-width:none;margin:0 auto;}
 
   header{text-align:center;margin-bottom:8px;position:relative;}
   .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.28em;color:var(--ink-soft);text-transform:uppercase;}
@@ -61,6 +61,13 @@
   .tab:focus-visible{outline:2px solid var(--seal);outline-offset:-2px;}
   .tab .tab-sub{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:400;letter-spacing:0.12em;opacity:0.6;margin-top:3px;}
   .page[hidden]{display:none;}
+
+  /* ---- 내부 탭 (장부 안 한강점/구매처/다과, 차 백과 안 백과/우림가이드/향미사전) ---- */
+  .tabs.subtabs{
+    position:static;margin:0 0 24px;background:none;
+    -webkit-backdrop-filter:none;backdrop-filter:none;border-bottom:1px solid var(--rule-faint);
+  }
+  .tabs.subtabs .tab{font-family:'Noto Sans KR',sans-serif;font-weight:600;font-size:13.5px;padding:9px 6px 8px;}
 
   .panel{
     background: var(--paper-deep);
@@ -355,78 +362,22 @@
     <p class="sub">한강 선착장 배 건물 · 음악·책 중심 · 식음료 판매형 — 찻잎은 한강점에서만 취급</p>
   </header>
 
-  <div class="tabs" role="tablist">
+  <div class="tabs" role="tablist" id="mainTabs">
     <button class="tab" role="tab" aria-selected="true" data-page="page-ledger">장부<span class="tab-sub">LEDGER</span></button>
-    <button class="tab" role="tab" aria-selected="false" data-page="page-brew">우림 가이드<span class="tab-sub">BREWING</span></button>
-    <button class="tab" role="tab" aria-selected="false" data-page="page-atlas">차 백과<span class="tab-sub">ATLAS</span></button>
-    <button class="tab" role="tab" aria-selected="false" data-page="page-glossary">향미 사전<span class="tab-sub">GLOSSARY</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-page="page-guide">차 백과<span class="tab-sub">GUIDE</span></button>
   </div>
 
   <!-- ================= 장부 ================= -->
   <div class="page" id="page-ledger">
 
-  <div class="panel">
-    <div class="panel-head"><h2>차 종류별 구매처 비교</h2><button type="button" class="csv-btn" id="csvCompareBtn">⬇ CSV 다운로드</button></div>
-    <p class="hint-top">아직 확정 전 — 후보 차와 구매처별 kg당 단가를 모아두고 비교하는 표입니다. 아래 블렌딩 구성표에서 여기 등록한 품목을 바로 골라 쓸 수 있어요.</p>
-    <div class="findbar">
-      <input type="text" id="compareFind" placeholder="🔍 이 표에서 찾기 (이름·구매처·비고)">
-      <span class="find-count" id="compareFindCount"></span>
-      <button type="button" class="find-nav" id="compareFindPrev" title="이전 결과 (Shift+Enter)">‹</button>
-      <button type="button" class="find-nav" id="compareFindNext" title="다음 결과 (Enter)">›</button>
-    </div>
-    <div class="moq-note">
-      <b>예평</b>: 단일 품종 구매 시 최소 300g / 여러 품종 함께 구매 시 품종당 100g부터 가능
-    </div>
-    <div class="table-scroll">
-      <table class="compare-table" id="compareTable">
-        <thead>
-          <tr>
-            <th style="min-width:130px;">차 종류</th>
-            <th style="min-width:90px;">구분</th>
-            <th style="min-width:110px;">구매처</th>
-            <th style="min-width:110px;">kg당 가격(원)</th>
-            <th>4g 환산</th>
-            <th>100g 환산</th>
-            <th>300g 환산</th>
-            <th style="min-width:110px;">비고</th>
-            <th style="min-width:60px;">테이스팅</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="compareTableBody"></tbody>
-      </table>
-    </div>
-    <button class="add-row-btn" id="addRowBtn">+ 품목 추가</button>
+  <div class="tabs subtabs" role="tablist" id="ledgerTabs">
+    <button class="tab" role="tab" aria-selected="true" data-page="sub-hangang">한강점</button>
+    <button class="tab" role="tab" aria-selected="false" data-page="sub-vendors">구매처</button>
+    <button class="tab" role="tab" aria-selected="false" data-page="sub-snacks">다과</button>
   </div>
 
-  <div class="panel">
-    <div class="panel-head"><h2>다과 단가</h2><button type="button" class="csv-btn" id="csvSnackBtn">⬇ CSV 다운로드</button></div>
-    <p class="hint-top">차와 같이 나가는 다과 낱개 단가예요. 묶음(박스·팩) 가격과 개수를 넣으면 개당 단가가 자동 계산돼요. 아래 "다과 상 구성"에서 이 품목들을 골라 한 상을 만듭니다.</p>
-    <div class="table-scroll">
-      <table class="compare-table" id="snackTable">
-        <thead>
-          <tr>
-            <th style="min-width:130px;">다과 이름</th>
-            <th style="min-width:110px;">구매처</th>
-            <th style="min-width:100px;">묶음 가격(원)</th>
-            <th style="min-width:80px;">묶음 개수</th>
-            <th style="min-width:90px;">개당 단가</th>
-            <th style="min-width:130px;">비고</th>
-            <th style="min-width:60px;"></th>
-          </tr>
-        </thead>
-        <tbody id="snackTableBody"></tbody>
-      </table>
-    </div>
-    <button class="add-row-btn" id="addSnackRowBtn">+ 다과 추가</button>
-  </div>
-
-  <div class="panel">
-    <div class="panel-head"><h2>다과 상 구성</h2><button type="button" class="csv-btn" id="csvSnackSetBtn">⬇ CSV 다운로드</button></div>
-    <p class="hint-top">위 다과 단가표의 품목을 골라 한 상에 몇 개씩 들어가는지 정하면 상 하나의 원가가 자동으로 계산돼요. 아래 블렌딩 구성표에서는 품목 하나하나가 아니라 이 상 단위로 골라서 한 번에 반영하면 됩니다.</p>
-    <div id="snackSetsBody"></div>
-    <button class="add-row-btn" id="addSnackSetBtn">+ 다과 상 추가</button>
-  </div>
+  <!-- ---- 한강점: 운영·발주 설정 + 블렌딩 구성 + 최적 우림법 + 요약 ---- -->
+  <div class="page" id="sub-hangang">
 
   <div class="panel">
     <h2>운영 · 발주 설정</h2>
@@ -562,11 +513,140 @@
     <div class="summary-note">권장 1회 발주량 = 월간 물량 + 안전재고 버퍼(주) 환산분. 비율 합이 100%가 아니면 물량은 계산되지만 실제 배합과 어긋날 수 있으니 위 표에서 100%로 맞춰주세요.</div>
   </div>
 
+  </div><!-- /sub-hangang -->
+
+  <!-- ---- 구매처: 차 종류별 구매처 비교 + 구매처 연락처 ---- -->
+  <div class="page" id="sub-vendors" hidden>
+
+  <div class="panel">
+    <div class="panel-head"><h2>차 종류별 구매처 비교</h2><button type="button" class="csv-btn" id="csvCompareBtn">⬇ CSV 다운로드</button></div>
+    <p class="hint-top">아직 확정 전 — 후보 차와 구매처별 kg당 단가를 모아두고 비교하는 표입니다. 아래 블렌딩 구성표에서 여기 등록한 품목을 바로 골라 쓸 수 있어요.</p>
+    <div class="findbar">
+      <input type="text" id="compareFind" placeholder="🔍 이 표에서 찾기 (이름·구매처·비고)">
+      <span class="find-count" id="compareFindCount"></span>
+      <button type="button" class="find-nav" id="compareFindPrev" title="이전 결과 (Shift+Enter)">‹</button>
+      <button type="button" class="find-nav" id="compareFindNext" title="다음 결과 (Enter)">›</button>
+    </div>
+    <div class="moq-note">
+      <b>예평</b>: 단일 품종 구매 시 최소 300g / 여러 품종 함께 구매 시 품종당 100g부터 가능
+    </div>
+    <div class="table-scroll">
+      <table class="compare-table" id="compareTable">
+        <thead>
+          <tr>
+            <th style="min-width:130px;">차 종류</th>
+            <th style="min-width:90px;">구분</th>
+            <th style="min-width:110px;">구매처</th>
+            <th style="min-width:110px;">kg당 가격(원)</th>
+            <th>4g 환산</th>
+            <th>100g 환산</th>
+            <th>300g 환산</th>
+            <th style="min-width:110px;">비고</th>
+            <th style="min-width:60px;">테이스팅</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="compareTableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" id="addRowBtn">+ 품목 추가</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>구매처 연락처</h2><button type="button" class="csv-btn" id="csvVendorBtn">⬇ CSV 다운로드</button></div>
+    <p class="hint-top">구매처별 전화번호와 취급 품목·거래 특이사항을 정리해두는 곳이에요.</p>
+    <div class="table-scroll">
+      <table class="compare-table" id="vendorTable">
+        <thead>
+          <tr>
+            <th style="min-width:170px;">구매처</th>
+            <th style="min-width:150px;">전화번호</th>
+            <th style="min-width:240px;">비고</th>
+            <th style="min-width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="vendorTableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" id="addVendorBtn">+ 구매처 추가</button>
+  </div>
+
+  </div><!-- /sub-vendors -->
+
+  <!-- ---- 다과: 다과 단가 + 다과 상 구성 ---- -->
+  <div class="page" id="sub-snacks" hidden>
+
+  <div class="panel">
+    <div class="panel-head"><h2>다과 단가</h2><button type="button" class="csv-btn" id="csvSnackBtn">⬇ CSV 다운로드</button></div>
+    <p class="hint-top">차와 같이 나가는 다과 낱개 단가예요. 묶음(박스·팩) 가격과 개수를 넣으면 개당 단가가 자동 계산돼요. 아래 "다과 상 구성"에서 이 품목들을 골라 한 상을 만듭니다.</p>
+    <div class="table-scroll">
+      <table class="compare-table" id="snackTable">
+        <thead>
+          <tr>
+            <th style="min-width:130px;">다과 이름</th>
+            <th style="min-width:110px;">구매처</th>
+            <th style="min-width:100px;">묶음 가격(원)</th>
+            <th style="min-width:80px;">묶음 개수</th>
+            <th style="min-width:90px;">개당 단가</th>
+            <th style="min-width:130px;">비고</th>
+            <th style="min-width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="snackTableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" id="addSnackRowBtn">+ 다과 추가</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>다과 상 구성</h2><button type="button" class="csv-btn" id="csvSnackSetBtn">⬇ CSV 다운로드</button></div>
+    <p class="hint-top">위 다과 단가표의 품목을 골라 한 상에 몇 개씩 들어가는지 정하면 상 하나의 원가가 자동으로 계산돼요. 아래 블렌딩 구성표에서는 품목 하나하나가 아니라 이 상 단위로 골라서 한 번에 반영하면 됩니다.</p>
+    <div id="snackSetsBody"></div>
+    <button class="add-row-btn" id="addSnackSetBtn">+ 다과 상 추가</button>
+  </div>
+
+  </div><!-- /sub-snacks -->
+
   <div class="save-status" id="saveStatus">&nbsp;</div>
   </div><!-- /page-ledger -->
 
-  <!-- ================= 우림 가이드 ================= -->
-  <div class="page" id="page-brew" hidden>
+  <!-- ================= 차 백과 (백과 / 우림가이드 / 향미사전) ================= -->
+  <div class="page" id="page-guide" hidden>
+
+  <div class="tabs subtabs" role="tablist" id="guideTabs">
+    <button class="tab" role="tab" aria-selected="true" data-page="sub-atlas">백과</button>
+    <button class="tab" role="tab" aria-selected="false" data-page="sub-brew">우림가이드</button>
+    <button class="tab" role="tab" aria-selected="false" data-page="sub-glossary">향미사전</button>
+  </div>
+
+  <!-- ---- 백과 ---- -->
+  <div class="page" id="sub-atlas">
+    <div class="findbar">
+      <input type="text" id="atlasFind" placeholder="🔍 차 백과에서 찾기 (차 이름·산지·특징)">
+      <span class="find-count" id="atlasFindCount"></span>
+      <button type="button" class="find-nav" id="atlasFindPrev" title="이전 결과 (Shift+Enter)">‹</button>
+      <button type="button" class="find-nav" id="atlasFindNext" title="다음 결과 (Enter)">›</button>
+    </div>
+    <div class="atlas-nav" id="atlasNav"></div>
+    <div id="atlasBody"></div>
+
+    <div class="spectrum">
+      <h3>발효도 한 눈에 보기</h3>
+      <div class="spectrum-bar">
+        <div style="background:#A8C08A;">녹차</div>
+        <div style="background:#CBD3A3;">백차</div>
+        <div style="background:#DDCB84;">황차</div>
+        <div style="background:#C99A54;">청차</div>
+        <div style="background:#A9522F;">홍차</div>
+        <div style="background:#5C3722;color:#E7DFCB;">흑차</div>
+      </div>
+      <div class="spectrum-cap"><span>무발효</span><span>완전발효 · 후발효</span></div>
+      <p class="spectrum-note">흑차는 이 축의 끝이라기보다 별개 축입니다. 만든 뒤에도 미생물이 계속 관여하는 후발효차라서, 시간이 갈수록 계속 변합니다. 어느 나라 차든 이 스펙트럼 위 어디쯤인지만 짚으면 우림 온도와 시간이 대략 잡힙니다.</p>
+    </div>
+  </div><!-- /sub-atlas -->
+
+  <!-- ---- 우림 가이드 ---- -->
+  <div class="page" id="sub-brew" hidden>
 
     <div class="panel">
       <h2>개완 · 냉침 · 대용량 계산기</h2>
@@ -615,36 +695,10 @@
         · 잎이 부푸는 차(우롱·백차)는 저울 없이 눈대중하면 편차가 커서, 1인분 소분을 미리 만들어두는 편이 빠릅니다.
       </p>
     </div>
-  </div><!-- /page-brew -->
+  </div><!-- /sub-brew -->
 
-  <!-- ================= 차 백과 ================= -->
-  <div class="page" id="page-atlas" hidden>
-    <div class="findbar">
-      <input type="text" id="atlasFind" placeholder="🔍 차 백과에서 찾기 (차 이름·산지·특징)">
-      <span class="find-count" id="atlasFindCount"></span>
-      <button type="button" class="find-nav" id="atlasFindPrev" title="이전 결과 (Shift+Enter)">‹</button>
-      <button type="button" class="find-nav" id="atlasFindNext" title="다음 결과 (Enter)">›</button>
-    </div>
-    <div class="atlas-nav" id="atlasNav"></div>
-    <div id="atlasBody"></div>
-
-    <div class="spectrum">
-      <h3>발효도 한 눈에 보기</h3>
-      <div class="spectrum-bar">
-        <div style="background:#A8C08A;">녹차</div>
-        <div style="background:#CBD3A3;">백차</div>
-        <div style="background:#DDCB84;">황차</div>
-        <div style="background:#C99A54;">청차</div>
-        <div style="background:#A9522F;">홍차</div>
-        <div style="background:#5C3722;color:#E7DFCB;">흑차</div>
-      </div>
-      <div class="spectrum-cap"><span>무발효</span><span>완전발효 · 후발효</span></div>
-      <p class="spectrum-note">흑차는 이 축의 끝이라기보다 별개 축입니다. 만든 뒤에도 미생물이 계속 관여하는 후발효차라서, 시간이 갈수록 계속 변합니다. 어느 나라 차든 이 스펙트럼 위 어디쯤인지만 짚으면 우림 온도와 시간이 대략 잡힙니다.</p>
-    </div>
-  </div><!-- /page-atlas -->
-
-  <!-- ================= 향미 사전 ================= -->
-  <div class="page" id="page-glossary" hidden>
+  <!-- ---- 향미 사전 ---- -->
+  <div class="page" id="sub-glossary" hidden>
     <div class="panel">
       <h2>향 계열 표현</h2>
       <p class="hint-top">테이스팅 메모 쓸 때 참고하는 향 어휘예요. 딱 맞는 표현이 안 떠오르면 같은 계열 안에서 가까운 걸 골라 쓰면 됩니다.</p>
@@ -677,7 +731,9 @@
         </table>
       </div>
     </div>
-  </div><!-- /page-glossary -->
+  </div><!-- /sub-glossary -->
+
+  </div><!-- /page-guide -->
 
   <footer>
     입력값은 이 브라우저에 자동 저장되어 다음에 열 때 이어서 사용할 수 있습니다.
@@ -713,21 +769,41 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* ── 저장 상태 표시 (모든 표 공용) ──
+   예전엔 saveState()(운영설정+블렌딩표)만 "자동 저장됨" 문구를 갱신했고, 구매처
+   비교표·다과 단가·다과 상 구성은 저장 성공/실패를 화면에 전혀 표시하지 않아서
+   (조용히 catch만 함) 실제로 저장이 안 되고 있어도 알아챌 방법이 없었음.
+   이제 표 하나라도 저장을 시작/끝내면 이 문구가 같이 갱신됨. */
+function markSaving(){ const el = $('saveStatus'); if(el) el.textContent = '저장 중...'; }
+function markSaved(){ const el = $('saveStatus'); if(el) el.textContent = '자동 저장됨'; }
+function markSaveFailed(){ const el = $('saveStatus'); if(el) el.textContent = '저장 실패 (이 세션에서만 유지됩니다)'; }
+
 /* ── 표 칸 너비 드래그 조절 (한 번 조절하면 새로고침해도 그 너비 그대로 유지) ──
    thead의 <th>만 건드리고 tbody는 매번 다시 그려지므로, 한 번만 초기화하면
    그 뒤로 표를 다시 그려도(행 추가/삭제 등) 너비는 안 흐트러짐. */
 function setupColResize(table){
   if(!table || table.dataset.colResizeInit) return;
+  // 표가 지금 숨겨진 내부 탭(장부의 구매처·다과 등) 안에 있으면 모든 칸의 측정폭이
+  // 0이 되어 그대로 고정폭 0px로 저장되는 문제가 있었음(그 탭을 열면 칸이 다 쪼그라들어
+  // 보임) — 지금은 건너뛰고, 그 탭이 실제로 화면에 뜰 때(initTablesIn) 다시 시도함.
+  if(table.getBoundingClientRect().width === 0) return;
   table.dataset.colResizeInit = '1';
   const key = 'jamwon-tea-colw-' + (table.id || '');
   let saved = {};
   try{ saved = JSON.parse(localStorage.getItem(key) || '{}'); }catch(e){}
 
   const ths = Array.from(table.querySelectorAll(':scope > thead > tr > th'));
+  // 아직 폭을 하나도 안 잡은 상태에서 table-layout을 먼저 fixed로 바꾸면, 그 순간
+  // 브라우저가 칸 너비를 내용/min-width 기준이 아니라 표 전체 너비를 칸 수만큼
+  // 균등분할해버려서(스펙상 width가 없는 칸은 남는 폭을 똑같이 나눠 가짐) 페이지가
+  // 넓어질수록 오히려 글자가 잘리는 역효과가 났음 — 그래서 반드시 auto 레이아웃일 때
+  // (= 내용/min-width대로 자연스럽게 자리잡은 상태에서) 폭을 다 측정해둔 다음에만
+  // fixed로 전환해야 함.
+  const widths = ths.map((th, i)=> Math.round(saved[i] || th.getBoundingClientRect().width));
   table.style.tableLayout = 'fixed';
   table.style.width = 'auto';
   ths.forEach((th, i)=>{
-    const w = Math.round(saved[i] || th.getBoundingClientRect().width);
+    const w = widths[i];
     th.style.width = w + 'px';
     th.style.minWidth = '28px';
 
@@ -763,6 +839,13 @@ function setupColResize(table){
     handle.addEventListener('mousedown', onDown);
     handle.addEventListener('touchstart', onDown, {passive:false});
   });
+}
+
+// 내부 탭을 처음 열 때, 그 안에 있는(지금까지 숨겨져 있어서 setupColResize가
+// 건너뛴) 표들을 이제는 보이니까 다시 시도함
+function initTablesIn(pageEl){
+  if(!pageEl) return;
+  pageEl.querySelectorAll('table[id]').forEach(t=>{ if(!t.dataset.colResizeInit) setupColResize(t); });
 }
 
 /* ── CSV 다운로드 ── */
@@ -840,19 +923,44 @@ function rowInputText(tr){
   return parts.join(' ');
 }
 
-/* ============ 탭 전환 ============ */
-const tabs = document.querySelectorAll('.tab');
-tabs.forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    tabs.forEach(t=>{
-      const on = t === tab;
-      t.setAttribute('aria-selected', on ? 'true' : 'false');
-      $(t.getAttribute('data-page')).hidden = !on;
+/* ============ 탭 전환 (최상위 장부/차백과 + 그 안의 내부 탭 공용) ============
+   내부 탭(장부 안 한강점·구매처·다과, 차 백과 안 백과·우림가이드·향미사전)이 생기면서
+   버튼이 여러 그룹으로 나뉘므로, 전체 .tab을 한 번에 다루던 예전 방식 대신
+   탭 바(그룹)별로 스코프를 잡아 그 그룹 안 버튼끼리만 서로 영향을 주게 함. */
+function wireTabGroup(barId, storageKey){
+  const bar = $(barId);
+  if(!bar) return [];
+  const btns = Array.from(bar.querySelectorAll(':scope > .tab'));
+  btns.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      btns.forEach(b=>{
+        const on = b === btn;
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        const pageEl = $(b.getAttribute('data-page'));
+        if(pageEl){
+          pageEl.hidden = !on;
+          if(on) initTablesIn(pageEl);
+        }
+      });
+      window.scrollTo({top:0, behavior:'smooth'});
+      if(storageKey){ try{ window.storage.set(storageKey, btn.getAttribute('data-page')); }catch(e){} }
     });
-    window.scrollTo({top:0, behavior:'smooth'});
-    try{ window.storage.set('jamwon-active-tab-v1', tab.getAttribute('data-page')); }catch(e){}
   });
-});
+  return btns;
+}
+wireTabGroup('mainTabs', 'jamwon-active-tab-v1');
+wireTabGroup('ledgerTabs', 'jamwon-active-subtab-ledger-v1');
+wireTabGroup('guideTabs', 'jamwon-active-subtab-guide-v1');
+
+async function restoreActiveTab(barId, storageKey){
+  try{
+    const t = await window.storage.get(storageKey);
+    if(t && t.value){
+      const target = document.querySelector('#'+barId+' .tab[data-page="'+t.value+'"]');
+      if(target) target.click();
+    }
+  }catch(e){}
+}
 
 // ---- 구매처 비교표 ----
 let compareRows = [
@@ -1011,6 +1119,7 @@ function renderCompareTable(){
       if(field === 'brewMethod'){ renderBrewRefTable(); }
       scheduleCompareSave();
     });
+    ta.addEventListener('change', ()=>{ clearTimeout(compareSaveTimer); saveCompareRows(); });
   });
 
   tbody.querySelectorAll('input, select').forEach(el=>{
@@ -1030,6 +1139,9 @@ function renderCompareTable(){
       scheduleCompareSave();
       computeAll();
     });
+    // 타이핑 중간중간(디바운스) 대신, 그 칸에서 포커스가 빠지는 순간(다른 칸·다른 탭
+    // 클릭 등) 바로 저장 — 창을 벗어나는 pagehide/blur까지 안 기다려도 됨
+    el.addEventListener('change', ()=>{ clearTimeout(compareSaveTimer); saveCompareRows(); });
   });
 
   tbody.querySelectorAll('.del-btn').forEach(btn=>{
@@ -1065,10 +1177,12 @@ $('addRowBtn').addEventListener('click', ()=>{
 
 let compareSaveTimer = null;
 async function saveCompareRows(){
-  try{ await window.storage.set('jamwon-tea-comparison-v6', JSON.stringify(compareRows)); }catch(e){}
+  try{ await window.storage.set('jamwon-tea-comparison-v6', JSON.stringify(compareRows)); markSaved(); }
+  catch(e){ markSaveFailed(); }
 }
 function scheduleCompareSave(){
   clearTimeout(compareSaveTimer);
+  markSaving();
   compareSaveTimer = setTimeout(saveCompareRows, 500);
 }
 
@@ -1086,6 +1200,84 @@ async function loadCompareRows(){
   if(backfilled) scheduleCompareSave();
   renderCompareTable();
   if(compareFinder) compareFinder.refresh();
+}
+
+// ---- 구매처 연락처 ----
+let vendorContacts = [
+  {id:'v01', name:'여가생활', phone:'0502-533-3344', note:'호지차/말차(아사시) - 일본쪽이라서 상담이 조금 어렵고 가격변동도 있음'},
+  {id:'v02', name:'섬진다원(김상민대표님)', phone:'01056048979', note:''},
+  {id:'v03', name:'예평(노지민이사님)', phone:'01032218320', note:'중국차,만수가만든차'},
+  {id:'v04', name:'도재명차(김완준실장님)', phone:'01040178100', note:''},
+  {id:'v05', name:'QGY(오리엔티)', phone:'01068338608', note:'다구 30만원 이상시 20% 할인 가격표'},
+  {id:'v06', name:'메이크티(라오상하이)', phone:'0507-1347-2147', note:'중국차.'},
+  {id:'v07', name:'올티스', phone:'', note:''},
+  {id:'v08', name:'대익', phone:'1899-7452', note:'보이차'},
+  {id:'v09', name:'산수화', phone:'', note:'중국차.보이차'},
+  {id:'v10', name:'다도레(조채련 대표님)', phone:'01098281661', note:'쑥차/호지차/녹차'},
+  {id:'v11', name:'제주차농', phone:'', note:'백차/호지차'},
+  {id:'v12', name:'휴심선차(김덕진대표님)', phone:'010-2257-0505', note:'백차/녹차'}
+];
+
+function renderVendorTable(){
+  const tbody = $('vendorTableBody');
+  tbody.innerHTML = vendorContacts.map((row, idx)=>
+    '<tr'+(idx%2===1?' class="row-alt"':'')+'>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="name" value="'+escapeHtml(row.name)+'"></td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="phone" value="'+escapeHtml(row.phone||'')+'"></td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="note" value="'+escapeHtml(row.note||'')+'"></td>' +
+      '<td><button class="del-btn" data-idx="'+idx+'">삭제</button></td>' +
+    '</tr>'
+  ).join('') || '<tr><td colspan="4" class="empty-hint">아직 등록된 구매처가 없어요.</td></tr>';
+
+  tbody.querySelectorAll('input').forEach(el=>{
+    el.addEventListener('input', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const field = e.target.getAttribute('data-field');
+      vendorContacts[idx][field] = e.target.value;
+      scheduleVendorSave();
+    });
+    el.addEventListener('change', ()=>{ clearTimeout(vendorSaveTimer); saveVendorContacts(); });
+  });
+
+  tbody.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      vendorContacts.splice(idx, 1);
+      renderVendorTable();
+      scheduleVendorSave();
+    });
+  });
+}
+
+$('addVendorBtn').addEventListener('click', ()=>{
+  vendorContacts.push({id:newRowId('v'), name:'', phone:'', note:''});
+  renderVendorTable();
+  scheduleVendorSave();
+});
+
+let vendorSaveTimer = null;
+async function saveVendorContacts(){
+  try{ await window.storage.set('jamwon-tea-vendor-contacts-v1', JSON.stringify(vendorContacts)); markSaved(); }
+  catch(e){ markSaveFailed(); }
+}
+function scheduleVendorSave(){
+  clearTimeout(vendorSaveTimer);
+  markSaving();
+  vendorSaveTimer = setTimeout(saveVendorContacts, 500);
+}
+
+async function loadVendorContacts(){
+  try{
+    const result = await window.storage.get('jamwon-tea-vendor-contacts-v1');
+    if(result && result.value){
+      const parsed = JSON.parse(result.value);
+      if(Array.isArray(parsed)){ vendorContacts = parsed; }
+    }
+  }catch(e){}
+  let backfilled = false;
+  vendorContacts.forEach(r=>{ if(!r.id){ r.id = newRowId('v'); backfilled = true; } });
+  if(backfilled) scheduleVendorSave();
+  renderVendorTable();
 }
 
 // ---- 다과 단가표 ----
@@ -1117,6 +1309,7 @@ function renderSnackTable(){
       scheduleSnackSave();
       computeAll();
     });
+    el.addEventListener('change', ()=>{ clearTimeout(snackSaveTimer); saveSnackRows(); });
   });
 
   tbody.querySelectorAll('.del-btn').forEach(btn=>{
@@ -1141,10 +1334,12 @@ $('addSnackRowBtn').addEventListener('click', ()=>{
 
 let snackSaveTimer = null;
 async function saveSnackRows(){
-  try{ await window.storage.set('jamwon-tea-snacks-v1', JSON.stringify(snackRows)); }catch(e){}
+  try{ await window.storage.set('jamwon-tea-snacks-v1', JSON.stringify(snackRows)); markSaved(); }
+  catch(e){ markSaveFailed(); }
 }
 function scheduleSnackSave(){
   clearTimeout(snackSaveTimer);
+  markSaving();
   snackSaveTimer = setTimeout(saveSnackRows, 500);
 }
 
@@ -1276,6 +1471,11 @@ $('snackSetsBody').addEventListener('input', (e)=>{
   scheduleSnackSetSave();
   computeAll();
 });
+$('snackSetsBody').addEventListener('change', (e)=>{
+  if(!e.target.matches('[data-field]')) return;
+  clearTimeout(snackSetSaveTimer);
+  saveSnackSets();
+});
 
 $('snackSetsBody').addEventListener('click', (e)=>{
   const btn = e.target.closest('[data-act]');
@@ -1303,10 +1503,12 @@ $('addSnackSetBtn').addEventListener('click', ()=>{
 
 let snackSetSaveTimer = null;
 async function saveSnackSets(){
-  try{ await window.storage.set('jamwon-tea-snack-sets-v1', JSON.stringify(snackSets)); }catch(e){}
+  try{ await window.storage.set('jamwon-tea-snack-sets-v1', JSON.stringify(snackSets)); markSaved(); }
+  catch(e){ markSaveFailed(); }
 }
 function scheduleSnackSetSave(){
   clearTimeout(snackSetSaveTimer);
+  markSaving();
   snackSetSaveTimer = setTimeout(saveSnackSets, 500);
 }
 
@@ -1440,6 +1642,7 @@ function renderBlendTable(){
       scheduleSave();
       computeAll();
     });
+    el.addEventListener('change', ()=>{ clearTimeout(saveTimer); saveState(); });
   });
 
   updatePctTotal();
@@ -1532,7 +1735,7 @@ function computeAll(){
 let saveTimer = null;
 function scheduleSave(){
   clearTimeout(saveTimer);
-  $('saveStatus').textContent = '저장 중...';
+  markSaving();
   saveTimer = setTimeout(saveState, 500);
 }
 
@@ -1541,9 +1744,9 @@ async function saveState(){
     const state = {weeklyDays: $('weeklyDays').value, bufferWeeks: $('bufferWeeks').value, jamwon:{}, blendRows: blendRows};
     fields.forEach(f=>{ state.jamwon[f] = $(s+'-'+f).value; });
     await window.storage.set('jamwon-tea-ledger-inputs-v3', JSON.stringify(state));
-    $('saveStatus').textContent = '자동 저장됨';
+    markSaved();
   }catch(e){
-    $('saveStatus').textContent = '저장 실패 (이 세션에서만 유지됩니다)';
+    markSaveFailed();
   }
 }
 
@@ -1579,12 +1782,14 @@ async function loadState(){
 
 document.querySelectorAll('.inp, #weeklyDays, #bufferWeeks').forEach(el=>{
   el.addEventListener('input', ()=>{ renderBlendTable(); computeAll(); scheduleSave(); });
+  el.addEventListener('change', ()=>{ clearTimeout(saveTimer); saveState(); });
 });
 
 // 디바운스(0.5초) 저장 대기 중에 탭을 닫거나 다른 탭/앱으로 전환하면 그 사이 입력이
 // 날아갈 수 있어서, 화면이 숨겨지거나 페이지를 떠날 때는 대기 중인 저장을 바로 실행함
 function flushAllSaves(){
   clearTimeout(compareSaveTimer); saveCompareRows();
+  clearTimeout(vendorSaveTimer); saveVendorContacts();
   clearTimeout(snackSaveTimer); saveSnackRows();
   clearTimeout(snackSetSaveTimer); saveSnackSets();
   clearTimeout(saveTimer); saveState();
@@ -2140,6 +2345,12 @@ $('csvCompareBtn').addEventListener('click', ()=>{
   downloadCSV('한강점_구매처비교.csv', [head].concat(rows));
 });
 
+$('csvVendorBtn').addEventListener('click', ()=>{
+  const head = ['구매처','전화번호','비고'];
+  const rows = vendorContacts.map(r=>[r.name, r.phone||'', r.note||'']);
+  downloadCSV('한강점_구매처연락처.csv', [head].concat(rows));
+});
+
 $('csvSnackBtn').addEventListener('click', ()=>{
   const head = ['다과 이름','구매처','묶음 가격(원)','묶음 개수','개당 단가(원)','비고'];
   const rows = snackRows.map(r=>[r.name, r.vendor, parseFloat(r.packPrice)||0, parseFloat(r.packQty)||0, Math.round(packUnitPrice(r)), r.note||'']);
@@ -2188,12 +2399,14 @@ const atlasFinder = makeFinder({
 (async function init(){
   // 구매처 비교표를 먼저 불러와야 loadState()의 구매처 링크 마이그레이션이 정확히 맞음
   await loadCompareRows();
+  await loadVendorContacts();
   await loadSnackRows();
   await loadSnackSets();
   await loadState();
   renderBlendTable();
   computeAll();
   setupColResize($('compareTable'));
+  setupColResize($('vendorTable'));
   setupColResize($('snackTable'));
   setupColResize($('blendTable'));
   setupColResize($('brewRefTable'));
@@ -2202,13 +2415,9 @@ const atlasFinder = makeFinder({
   initCalc();
   renderAtlas();
   renderGlossary();
-  try{
-    const t = await window.storage.get('jamwon-active-tab-v1');
-    if(t && t.value){
-      const target = document.querySelector('.tab[data-page="'+t.value+'"]');
-      if(target) target.click();
-    }
-  }catch(e){}
+  await restoreActiveTab('mainTabs', 'jamwon-active-tab-v1');
+  await restoreActiveTab('ledgerTabs', 'jamwon-active-subtab-ledger-v1');
+  await restoreActiveTab('guideTabs', 'jamwon-active-subtab-guide-v1');
   $('saveStatus').textContent = ' ';
 })();
 </script>
