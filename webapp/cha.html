@@ -450,7 +450,7 @@
               <th style="min-width:190px;">구매처 선택</th>
               <th style="min-width:100px;">잔당 찻잎량(g)</th>
               <th style="min-width:90px;">찻잎 원가</th>
-              <th style="min-width:90px;">합계 원가</th>
+              <th style="min-width:90px;">합계 원가(다과포함)</th>
               <th style="min-width:100px;">판매가(원/잔)</th>
               <th>마진율</th>
               <th>월 매출</th>
@@ -2444,7 +2444,7 @@ $('csvSnackSetBtn').addEventListener('click', ()=>{
 });
 
 $('csvBlendBtn').addEventListener('click', ()=>{
-  const head = ['비율(%)','차종','구매처','잔당 찻잎량(g)','찻잎 원가(원)','합계 원가(원)','판매가(원/잔)','마진율(%)','월 매출(원)','원가(원/kg)','월 물량(kg)','월 원가(원)','다과 상','다과 원가(원)'];
+  const head = ['비율(%)','차종','구매처','잔당 찻잎량(g)','찻잎 원가(원)','합계 원가(다과포함,원)','판매가(원/잔)','마진율(%)','월 매출(원)','원가(원/kg)','월 물량(kg)','월 원가(원)','다과 상','다과 원가(원)'];
   const rows = blendRows.map(row=>{
     const m = computeRowMetrics(row);
     const vendorLabel = row.vendorKey==='manual' ? '직접 입력' : (function(){ const mr=compareRows.find(r=>rowKey(r)===row.vendorKey); return mr ? mr.name+' · '+mr.vendor : '직접 입력'; })();
