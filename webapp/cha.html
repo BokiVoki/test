@@ -160,7 +160,10 @@
     border:1px solid var(--rule);white-space:nowrap;box-sizing:border-box;
   }
   .col-resizer{
-    position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;
+    /* 실제 마우스/트랙패드로는 6px 폭이 너무 얇아서 잡기 어려웠음(놓치면
+       "드래그가 안 먹는다"로 느껴짐) — 보이는 것과 상관없이 잡을 수 있는
+       영역만 넉넉하게 넓힘 */
+    position:absolute;top:0;right:-6px;width:12px;height:100%;cursor:col-resize;
     user-select:none;touch-action:none;z-index:3;
   }
   .col-resizer:hover, .col-resizer.active{background:var(--seal);opacity:0.4;}
