@@ -126,6 +126,24 @@
   .summary-note{margin-top:18px;font-size:12px;color:#C9BFA4;line-height:1.6;}
 
   .save-status{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:14px;min-height:16px;}
+
+  /* ── 수동 저장 버튼 — 자동저장을 믿기 불안할 때 눌러서 바로 확인하라고 둠.
+     화면 어느 탭에 있든 항상 눌리게 fixed로 떠 있음(스크롤/탭 전환과 무관). ── */
+  .manual-save-btn{
+    position:fixed;right:20px;bottom:20px;z-index:40;
+    background:var(--seal);color:var(--paper);border:none;border-radius:999px;
+    padding:13px 20px;font-size:13.5px;font-weight:600;font-family:'Noto Sans KR',sans-serif;
+    cursor:pointer;box-shadow:0 4px 14px rgba(42,36,28,0.35);
+    transition:transform .12s, background .2s;
+  }
+  .manual-save-btn:hover{transform:translateY(-1px);}
+  .manual-save-btn:active{transform:translateY(0);}
+  .manual-save-btn:disabled{cursor:default;opacity:0.85;}
+  .manual-save-btn.saved{background:var(--green-tea);}
+  @media (max-width:640px){
+    .manual-save-btn{right:14px;bottom:14px;padding:11px 16px;font-size:12.5px;}
+  }
+
   footer{text-align:center;font-size:11px;color:var(--ink-soft);margin-top:30px;line-height:1.8;}
   footer a{color:var(--seal);text-decoration:none;border-bottom:1px solid rgba(169,120,46,0.4);}
   footer a:hover{border-bottom-color:var(--seal);}
@@ -751,6 +769,8 @@
     입력값은 이 브라우저에 자동 저장되어 다음에 열 때 이어서 사용할 수 있습니다.
   </footer>
 </div>
+
+<button type="button" id="manualSaveBtn" class="manual-save-btn">💾 저장</button>
 
 <script>
 /* localStorage 기반 저장소 — 이 페이지는 로그인 없이 열리고, 입력값은 브라우저에만 남습니다. */
@@ -1868,6 +1888,39 @@ window.addEventListener('blur', flushAllSaves);
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'hidden') flushAllSaves();
 });
+
+// ── 수동 저장 버튼 ── 자동저장(디바운스+change+flush)은 그대로 두고,
+// 그걸 못 믿겠거나 지금 바로 확인하고 싶을 때 누르면 dirty 여부와 상관없이
+// 지금 이 탭이 가진 모든 데이터를 즉시 저장함(사용자가 직접 누른 명시적
+// 행동이라 dirty 체크로 걸러야 하는 "탭을 안 건드렸는데 자동으로 덮어쓰는"
+// 상황이 아님).
+async function saveEverythingNow(){
+  clearTimeout(compareSaveTimer); await saveCompareRows();
+  clearTimeout(vendorSaveTimer); await saveVendorContacts();
+  clearTimeout(snackSaveTimer); await saveSnackRows();
+  clearTimeout(snackSetSaveTimer); await saveSnackSets();
+  clearTimeout(saveTimer); await saveState();
+}
+const manualSaveBtn = $('manualSaveBtn');
+if(manualSaveBtn){
+  manualSaveBtn.addEventListener('click', async ()=>{
+    manualSaveBtn.disabled = true;
+    const original = manualSaveBtn.textContent;
+    manualSaveBtn.textContent = '저장 중...';
+    try{
+      await saveEverythingNow();
+      manualSaveBtn.textContent = '✅ 저장됨';
+      manualSaveBtn.classList.add('saved');
+    }catch(e){
+      manualSaveBtn.textContent = '⚠ 저장 실패';
+    }
+    setTimeout(()=>{
+      manualSaveBtn.textContent = original;
+      manualSaveBtn.classList.remove('saved');
+      manualSaveBtn.disabled = false;
+    }, 1400);
+  });
+}
 
 /* =================================================
    우림 가이드 데이터
