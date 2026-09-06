@@ -64,8 +64,10 @@
 
   /* ---- 내부 탭 (장부 안 한강점/구매처/다과, 차 백과 안 백과/우림가이드/향미사전) ---- */
   .tabs.subtabs{
-    position:static;margin:0 0 24px;background:none;
-    -webkit-backdrop-filter:none;backdrop-filter:none;border-bottom:1px solid var(--rule-faint);
+    position:sticky;top:var(--subtabs-top, 60px);z-index:29;margin:0 0 24px;
+    background:rgba(231,223,203,0.95);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--rule-faint);
   }
   .tabs.subtabs .tab{font-family:'Noto Sans KR',sans-serif;font-weight:600;font-size:13.5px;padding:9px 6px 8px;}
 
@@ -239,11 +241,16 @@
   .note-field-label{font-size:10.5px;color:var(--ink-soft);margin:10px 0 4px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.03em;}
   .note-field-label:first-child{margin-top:0;}
   /* .readonly-cell 의 nowrap 을 이기려면 같은 수준의 선택자여야 함
-     (예전엔 .cell-brew 단독이라 nowrap 이 이겨서 긴 우림법 텍스트가 옆 칸 위로 넘쳤음) */
+     (예전엔 .cell-brew 단독이라 nowrap 이 이겨서 긴 우림법 텍스트가 옆 칸 위로 넘쳤음).
+     너비를 고정폭(170px)으로 박아뒀던 게 문제였음 — 차종별 최적 우림법 표가 칸
+     2개짜리 표로 분리된 뒤로는, 옆의 "차종" 칸이 너비 지정이 없어서(auto 레이아웃이
+     남는 공간을 전부 그쪽으로 몰아줌) 오히려 차종만 엄청 넓어지고 정작 내용이 긴
+     최적 우림법 칸은 좁게 고정돼버렸음 — 그래서 너비 지정을 없애 내용(남는 공간)
+     기준으로 자연스럽게 넓어지게 함. */
   .compare-table td.cell-brew, .blend-table td.cell-brew{
     font-size:11px;color:var(--ink-soft);line-height:1.45;text-align:left;
     white-space:normal;word-break:keep-all;overflow-wrap:anywhere;
-    width:170px;max-width:170px;min-width:150px;padding:8px 7px;
+    padding:8px 7px;
   }
   .apply-brew-btn{
     background:none;border:1px dashed var(--rule);border-radius:3px;color:var(--ink-soft);
@@ -460,8 +467,8 @@
     <div style="margin-top:20px;">
       <label style="display:block;font-size:12px;color:var(--ink-soft);margin-bottom:8px;">차종별 최적 우림법</label>
       <div class="table-scroll">
-        <table class="compare-table" id="brewRefTable" style="min-width:0;">
-          <thead><tr><th style="min-width:80px;">차종</th><th>최적 우림법</th></tr></thead>
+        <table class="compare-table" id="brewRefTable" style="min-width:0;" data-colw-v="2">
+          <thead><tr><th style="width:88px;min-width:88px;">차종</th><th>최적 우림법</th></tr></thead>
           <tbody id="brewRefTableBody"></tbody>
         </table>
       </div>
@@ -530,6 +537,7 @@
     <div class="moq-note">
       <b>예평</b>: 단일 품종 구매 시 최소 300g / 여러 품종 함께 구매 시 품종당 100g부터 가능
     </div>
+    <datalist id="vendorNameList"></datalist>
     <div class="table-scroll">
       <table class="compare-table" id="compareTable">
         <thead>
@@ -556,12 +564,13 @@
     <div class="panel-head"><h2>구매처 연락처</h2><button type="button" class="csv-btn" id="csvVendorBtn">⬇ CSV 다운로드</button></div>
     <p class="hint-top">구매처별 전화번호와 취급 품목·거래 특이사항을 정리해두는 곳이에요.</p>
     <div class="table-scroll">
-      <table class="compare-table" id="vendorTable">
+      <table class="compare-table" id="vendorTable" data-colw-v="2">
         <thead>
           <tr>
-            <th style="min-width:170px;">구매처</th>
+            <th style="min-width:150px;">구매처</th>
+            <th style="min-width:130px;">담당자</th>
             <th style="min-width:150px;">전화번호</th>
-            <th style="min-width:240px;">비고</th>
+            <th style="min-width:220px;">비고</th>
             <th style="min-width:60px;"></th>
           </tr>
         </thead>
@@ -788,7 +797,9 @@ function setupColResize(table){
   // 보임) — 지금은 건너뛰고, 그 탭이 실제로 화면에 뜰 때(initTablesIn) 다시 시도함.
   if(table.getBoundingClientRect().width === 0) return;
   table.dataset.colResizeInit = '1';
-  const key = 'jamwon-tea-colw-' + (table.id || '');
+  // data-colw-v: 칸 너비 계산 로직 자체가 바뀌어서 예전에 저장해둔 폭이 더는 맞지
+  // 않을 때(예: 최적 우림법 표) 그 표만 캐시를 무효화하려고 버전을 키에 얹음.
+  const key = 'jamwon-tea-colw-' + (table.id || '') + (table.dataset.colwV ? ':' + table.dataset.colwV : '');
   let saved = {};
   try{ saved = JSON.parse(localStorage.getItem(key) || '{}'); }catch(e){}
 
@@ -962,6 +973,20 @@ async function restoreActiveTab(barId, storageKey){
   }catch(e){}
 }
 
+// 장부/차백과 안의 내부 탭도 최상위 탭 바로 아래 고정(sticky)되게 함 — 내부 탭의
+// sticky top 값은 최상위 탭 바 높이에 딱 맞아야 틈/겹침이 없는데, 그 높이는 폰트
+// 로딩(Noto Serif KR 등)·화면 폭(모바일 미디어쿼리)에 따라 달라지므로 고정값 대신
+// 실측해서 CSS 변수로 반영함.
+function syncSubtabsStickyOffset(){
+  const mainTabs = $('mainTabs');
+  if(!mainTabs) return;
+  const h = Math.ceil(mainTabs.getBoundingClientRect().height);
+  if(h > 0) document.documentElement.style.setProperty('--subtabs-top', h + 'px');
+}
+window.addEventListener('resize', syncSubtabsStickyOffset);
+window.addEventListener('load', syncSubtabsStickyOffset);
+syncSubtabsStickyOffset();
+
 // ---- 구매처 비교표 ----
 let compareRows = [
   {id:'c01', name:'중작홍차', category:'홍차', vendor:'섬진다원', pricePerKg:437500, note:'80g 5만원, 30% 할인가'},
@@ -1027,7 +1052,7 @@ function renderCompareTable(){
       '<td><select data-idx="'+idx+'" data-field="category">' +
           CATEGORY_OPTIONS.map(c=>'<option value="'+c+'"'+(c===row.category?' selected':'')+'>'+c+'</option>').join('') +
         '</select></td>' +
-      '<td><input type="text" data-idx="'+idx+'" data-field="vendor" value="'+escapeHtml(row.vendor)+'"></td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="vendor" list="vendorNameList" value="'+escapeHtml(row.vendor)+'"></td>' +
       '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="pricePerKg" value="'+price+'" min="0" step="1000"></td>' +
       '<td class="readonly-cell">'+fmt(price*0.004,0)+'원</td>' +
       '<td class="readonly-cell">'+fmt(price/10,0)+'원</td>' +
@@ -1204,18 +1229,18 @@ async function loadCompareRows(){
 
 // ---- 구매처 연락처 ----
 let vendorContacts = [
-  {id:'v01', name:'여가생활', phone:'0502-533-3344', note:'호지차/말차(아사시) - 일본쪽이라서 상담이 조금 어렵고 가격변동도 있음'},
-  {id:'v02', name:'섬진다원(김상민대표님)', phone:'01056048979', note:''},
-  {id:'v03', name:'예평(노지민이사님)', phone:'01032218320', note:'중국차,만수가만든차'},
-  {id:'v04', name:'도재명차(김완준실장님)', phone:'01040178100', note:''},
-  {id:'v05', name:'QGY(오리엔티)', phone:'01068338608', note:'다구 30만원 이상시 20% 할인 가격표'},
-  {id:'v06', name:'메이크티(라오상하이)', phone:'0507-1347-2147', note:'중국차.'},
-  {id:'v07', name:'올티스', phone:'', note:''},
-  {id:'v08', name:'대익', phone:'1899-7452', note:'보이차'},
-  {id:'v09', name:'산수화', phone:'', note:'중국차.보이차'},
-  {id:'v10', name:'다도레(조채련 대표님)', phone:'01098281661', note:'쑥차/호지차/녹차'},
-  {id:'v11', name:'제주차농', phone:'', note:'백차/호지차'},
-  {id:'v12', name:'휴심선차(김덕진대표님)', phone:'010-2257-0505', note:'백차/녹차'}
+  {id:'v01', name:'여가생활', contact:'', phone:'0502-533-3344', note:'호지차/말차(아사시) - 일본쪽이라서 상담이 조금 어렵고 가격변동도 있음'},
+  {id:'v02', name:'섬진다원', contact:'김상민대표님', phone:'01056048979', note:''},
+  {id:'v03', name:'예평', contact:'노지민이사님', phone:'01032218320', note:'중국차,만수가만든차'},
+  {id:'v04', name:'도재명차', contact:'김완준실장님', phone:'01040178100', note:''},
+  {id:'v05', name:'QGY', contact:'오리엔티', phone:'01068338608', note:'다구 30만원 이상시 20% 할인 가격표'},
+  {id:'v06', name:'메이크티', contact:'라오상하이', phone:'0507-1347-2147', note:'중국차.'},
+  {id:'v07', name:'올티스', contact:'', phone:'', note:''},
+  {id:'v08', name:'대익', contact:'', phone:'1899-7452', note:'보이차'},
+  {id:'v09', name:'산수화', contact:'', phone:'', note:'중국차.보이차'},
+  {id:'v10', name:'다도레', contact:'조채련 대표님', phone:'01098281661', note:'쑥차/호지차/녹차'},
+  {id:'v11', name:'제주차농', contact:'', phone:'', note:'백차/호지차'},
+  {id:'v12', name:'휴심선차', contact:'김덕진대표님', phone:'010-2257-0505', note:'백차/녹차'}
 ];
 
 function renderVendorTable(){
@@ -1223,17 +1248,19 @@ function renderVendorTable(){
   tbody.innerHTML = vendorContacts.map((row, idx)=>
     '<tr'+(idx%2===1?' class="row-alt"':'')+'>' +
       '<td><input type="text" data-idx="'+idx+'" data-field="name" value="'+escapeHtml(row.name)+'"></td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="contact" value="'+escapeHtml(row.contact||'')+'"></td>' +
       '<td><input type="text" data-idx="'+idx+'" data-field="phone" value="'+escapeHtml(row.phone||'')+'"></td>' +
       '<td><input type="text" data-idx="'+idx+'" data-field="note" value="'+escapeHtml(row.note||'')+'"></td>' +
       '<td><button class="del-btn" data-idx="'+idx+'">삭제</button></td>' +
     '</tr>'
-  ).join('') || '<tr><td colspan="4" class="empty-hint">아직 등록된 구매처가 없어요.</td></tr>';
+  ).join('') || '<tr><td colspan="5" class="empty-hint">아직 등록된 구매처가 없어요.</td></tr>';
 
   tbody.querySelectorAll('input').forEach(el=>{
     el.addEventListener('input', (e)=>{
       const idx = parseInt(e.target.getAttribute('data-idx'));
       const field = e.target.getAttribute('data-field');
       vendorContacts[idx][field] = e.target.value;
+      if(field === 'name') renderVendorNameDatalist();
       scheduleVendorSave();
     });
     el.addEventListener('change', ()=>{ clearTimeout(vendorSaveTimer); saveVendorContacts(); });
@@ -1244,13 +1271,24 @@ function renderVendorTable(){
       const idx = parseInt(e.target.getAttribute('data-idx'));
       vendorContacts.splice(idx, 1);
       renderVendorTable();
+      renderVendorNameDatalist();
       scheduleVendorSave();
     });
   });
+
+  renderVendorNameDatalist();
+}
+
+// 구매처 비교표의 "구매처" 칸에서 이 목록을 드롭다운(datalist)으로 골라 쓸 수 있게 함
+// — 자유 입력도 그대로 가능하고, 목록에 없는 이름을 적어도 안 막힘.
+function renderVendorNameDatalist(){
+  const dl = $('vendorNameList');
+  if(!dl) return;
+  dl.innerHTML = vendorContacts.map(v=>'<option value="'+escapeHtml(v.name)+'">').join('');
 }
 
 $('addVendorBtn').addEventListener('click', ()=>{
-  vendorContacts.push({id:newRowId('v'), name:'', phone:'', note:''});
+  vendorContacts.push({id:newRowId('v'), name:'', contact:'', phone:'', note:''});
   renderVendorTable();
   scheduleVendorSave();
 });
@@ -1275,7 +1313,18 @@ async function loadVendorContacts(){
     }
   }catch(e){}
   let backfilled = false;
-  vendorContacts.forEach(r=>{ if(!r.id){ r.id = newRowId('v'); backfilled = true; } });
+  vendorContacts.forEach(r=>{
+    if(!r.id){ r.id = newRowId('v'); backfilled = true; }
+    // 예전엔 "섬진다원(김상민대표님)"처럼 담당자 이름이 구매처 이름 괄호 안에 같이
+    // 있었음 — 담당자 칸이 새로 생기면서, 아직 안 나뉜(=contact 필드가 없는) 예전
+    // 데이터는 한 번만 괄호를 뜯어 옮겨줌.
+    if(r.contact === undefined){
+      const m = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(r.name || '');
+      if(m){ r.name = m[1].trim(); r.contact = m[2].trim(); }
+      else{ r.contact = ''; }
+      backfilled = true;
+    }
+  });
   if(backfilled) scheduleVendorSave();
   renderVendorTable();
 }
@@ -2346,8 +2395,8 @@ $('csvCompareBtn').addEventListener('click', ()=>{
 });
 
 $('csvVendorBtn').addEventListener('click', ()=>{
-  const head = ['구매처','전화번호','비고'];
-  const rows = vendorContacts.map(r=>[r.name, r.phone||'', r.note||'']);
+  const head = ['구매처','담당자','전화번호','비고'];
+  const rows = vendorContacts.map(r=>[r.name, r.contact||'', r.phone||'', r.note||'']);
   downloadCSV('한강점_구매처연락처.csv', [head].concat(rows));
 });
 
@@ -2418,6 +2467,7 @@ const atlasFinder = makeFinder({
   await restoreActiveTab('mainTabs', 'jamwon-active-tab-v1');
   await restoreActiveTab('ledgerTabs', 'jamwon-active-subtab-ledger-v1');
   await restoreActiveTab('guideTabs', 'jamwon-active-subtab-guide-v1');
+  syncSubtabsStickyOffset();
   $('saveStatus').textContent = ' ';
 })();
 </script>
