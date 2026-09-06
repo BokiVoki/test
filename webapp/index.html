@@ -464,7 +464,21 @@
       state.curMemo=m.id;renderMemos();renderProjects();renderToday();
     });
   }
-  function putSettings(){if(!state.uid)return;sb.from('settings').upsert({owner:state.uid,data:state.settings},{onConflict:'owner'}).then(function(r){if(r.error)console.warn('settings',r.error.message);});}
+  // 탭/기기를 여러 개 열어두면, settings는 사용자당 통째로 한 행(JSON 하나)이라
+  // 예전처럼 내 메모리에 있는 값을 그냥 덮어쓰면 다른 탭이 방금 저장한 다른 설정
+  // (다른 워크스페이스의 프로젝트 순서 등)이 조용히 사라질 수 있었음 — 그래서
+  // 쓰기 직전에 서버 최신값을 다시 읽어와 합친 뒤에 저장함(특히 projOrder는
+  // 워크스페이스별로 한 번 더 합쳐서, 내가 모르는 다른 워크스페이스 순서도 보존).
+  function putSettings(){
+    if(!state.uid)return;
+    sb.from('settings').select('data').then(function(r){
+      var fresh=(r&&!r.error&&r.data&&r.data[0]&&r.data[0].data)?r.data[0].data:{};
+      var merged=Object.assign({},fresh,state.settings);
+      merged.projOrder=Object.assign({},fresh.projOrder||{},state.settings.projOrder||{});
+      state.settings=merged;
+      sb.from('settings').upsert({owner:state.uid,data:merged},{onConflict:'owner'}).then(function(r2){if(r2.error)console.warn('settings',r2.error.message);});
+    });
+  }
   // ── 그림공부: 작가/그림 ──
   function rowArtist(a){return {id:a.id,owner:state.uid,name:a.name||'',tags:a.tags||[],note:a.note||'',created:a.created||a.updated,updated:a.updated};}
   function fromArtist(r){return {id:r.id,name:r.name||'',tags:r.tags||[],note:r.note||'',created:r.created||'',updated:r.updated||''};}

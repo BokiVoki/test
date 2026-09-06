@@ -86,6 +86,7 @@
   - **⤵하위로(nest) 연결 모드 주의**: 모드 진입 후 아무 데나 클릭하면 취소됨(예전엔 유효 대상 아니면 무시→전체 먹통 버그였음, 수정됨), Esc로도 취소.
   - **하위 항목(서브태스크)**: 할일 제목 옆 `▸ n/m` 칩(또는 hover 시 `＋하위`) → 토글로 체크리스트 펼침. 오늘의 집중·프로젝트 뷰에서만. `todos.subs jsonb`(`[{t,d}]`)에 저장. 기존 할일은 hover `⤵하위로` → 대상 할일 탭하면 그 밑으로 이동(원본 삭제, 자식의 subs도 함께 흡수, 되돌리기 지원).
   - **DB 추가**: `todos.doneat text`, `todos.archived bool`, `todos.subs jsonb`(각 sub `{t,d,id,due}`), `todos.endd text`(기간 일정 종료일), `todos.donelog jsonb`(고정업무 완료 날짜 이력), `settings(owner uuid pk, data jsonb)` 테이블(RLS `owner=auth.uid()`). 코드는 `hasArchive`/`hasSubs`/`hasEnd`/`hasDoneLog` 플래그로 컬럼 없어도 안 깨지게 방어.
+  - **`putSettings()` 여러 탭 동시 열림 대비**: `/cha`(찻잎 계산기)에서 탭 여러 개 열어두면 오래된 탭이 최신 저장을 낡은 값으로 덮어쓰는 버그가 있었는데, 하루앱의 `settings`도 사용자당 통째로 한 행(JSON 하나)이라 똑같은 구조적 위험이 있음(`todos`/`memos`/그림공부는 각 행을 id로 upsert해서 원래부터 안전, `settings`만 위험). `putSettings()`가 이제 쓰기 직전에 서버 최신값을 다시 읽어와 내 변경사항과 합친 뒤 저장함(`projOrder`는 워크스페이스별로 한 번 더 합쳐서, 내가 모르는 다른 워크스페이스 순서도 안 날아가게 함) — 프로젝트 순서 변경·자정 리셋 날짜 기록에 적용됨.
 - **우선순위 점수**: `중요도*25 + 마감임박도(지남100/오늘·내일60/3일내30) + 빠른완수(≤20분)10`
 - **Supabase**
   - Project URL: `https://mfgiesampazjzgfliuje.supabase.co`
