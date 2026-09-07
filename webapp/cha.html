@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --paper: #E7DFCB;
@@ -773,17 +774,40 @@
 <button type="button" id="manualSaveBtn" class="manual-save-btn">💾 저장</button>
 
 <script>
-/* localStorage 기반 저장소 — 이 페이지는 로그인 없이 열리고, 입력값은 브라우저에만 남습니다. */
+/* Supabase 기반 공유 저장소 — 로그인은 여전히 없지만(링크만 알면 누구나 보고 고침),
+   이제 한 곳(cha_store 표)에 저장돼서 어느 컴퓨터/폰에서 열어도 같은 최신 데이터를 봄.
+   예전엔 이 브라우저의 localStorage에만 저장돼서 다른 컴퓨터에선 안 보였음(버그 아니라 원래
+   그렇게 만든 구조였는데, 여러 컴퓨터에서 쓰다 보니 문제가 됨 — 그래서 공유 저장소로 이전).
+   localStorage는 그대로 두어 오프라인이거나 서버가 잠깐 안 될 때 마지막 값이라도 보여주는
+   캐시 용도로만 씀(진짜 원본은 항상 서버). */
+var chaSb = window.supabase.createClient(
+  'https://mfgiesampazjzgfliuje.supabase.co',
+  'sb_publishable_QBlLIrJ8coqH3I-Ij-Q7SA_OUB7KVwV'
+);
 window.storage = {
-  get: function(key){
+  get: async function(key){
+    var localVal = null;
+    try{ localVal = localStorage.getItem(key); }catch(e){}
     try{
-      var v = localStorage.getItem(key);
-      return Promise.resolve(v === null ? null : {value: v});
-    }catch(e){ return Promise.resolve(null); }
+      var res = await chaSb.from('cha_store').select('value').eq('key', key).maybeSingle();
+      if(!res.error && res.data){
+        var serverVal = JSON.stringify(res.data.value);
+        try{ localStorage.setItem(key, serverVal); }catch(e){}
+        return {value: serverVal};
+      }
+      // 서버에 이 키가 아직 없음(첫 동기화) — 이 기기에 예전 값이 남아있으면 그걸로
+      // 서버를 채워서(1회성 이전) 다음부터 다른 기기에서도 보이게 함.
+      if(!res.error && localVal !== null){
+        chaSb.from('cha_store').upsert({key: key, value: JSON.parse(localVal), updated_at: new Date().toISOString()}).then(function(){}).catch(function(){});
+      }
+    }catch(e){}
+    return localVal === null ? null : {value: localVal};
   },
-  set: function(key, value){
-    try{ localStorage.setItem(key, value); return Promise.resolve(true); }
-    catch(e){ return Promise.reject(e); }
+  set: async function(key, value){
+    try{ localStorage.setItem(key, value); }catch(e){}
+    var res = await chaSb.from('cha_store').upsert({key: key, value: JSON.parse(value), updated_at: new Date().toISOString()});
+    if(res.error) throw res.error;
+    return true;
   }
 };
 
