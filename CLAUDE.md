@@ -60,6 +60,7 @@
 - **스택**: 단일 HTML 파일 + Supabase (DB+Auth) + Netlify 호스팅. 빌드 없음.
 - **디자인**: 미니멀·샤프, 딥 포레스트 그린 단일 포인트(`#2C6A46`/dark `#5FB088`), 엑셀st 표, 라이트/다크.
 - **탭**: 대시보드 / 주머니·프로젝트 / 캘린더 / 메모 / 완료함 / 그림공부
+- **탭별 즐겨찾기(URL 해시 딥링크)**: 각 탭이 `#dash`/`#proj`/`#cal`/`#memo`/`#done`/`#art` 해시를 가짐 — `switchTab`이 탭 바꿀 때마다 `history.replaceState`로 해시를 갱신해두고, 로드 시(그리고 `hashchange` 시) 그 해시가 유효한 탭이면 그 탭으로 바로 엶. 그래서 `haru.lolcv1294.workers.dev/#art`처럼 탭별로 따로 즐겨찾기 가능(예전엔 무조건 대시보드로 열렸음, `state.tab`이 `localStorage`에 저장 안 됐었음).
 - **탭 순서 변경**: 상단 탭 자체를 드래그로 재정렬(localStorage `tabOrder`, `applyTabOrder`).
 - **모바일 전체화면(아이폰 메모st)**: 680px 이하에서 그림공부/메모 둘 다 "목록 vs 상세" 중 하나만 보임 — 뭔가 선택하면(작가/그림/태그/미분류, 또는 메모) 사이드바·목록이 숨고 내용이 화면 전체를 채우는 고정 오버레이로 뜸(`art-mob-detail`/`mob-edit` 클래스, `renderArtMain`/`#mBackBtn`에서 토글). 각 화면 위 **‹ 목록** 링크(`art-back-list`)나 **‹ 메모 목록** 버튼(`#mBackBtn`)으로 되돌아감. 데스크톱(680px 초과)에선 원래대로 사이드바+본문 동시에 보임(CSS 미디어쿼리 안에서만 의미있는 클래스라 무해).
 - **되돌리기**: 토스트 "되돌리기" + **Cmd/Ctrl+Z**(입력창 focus 아닐 때). `undoHist` 스택, `doUndo()`. (되돌리기 옵션 있는 액션만 — 삭제/완료함/nest/프로젝트삭제 등)
