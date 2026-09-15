@@ -1081,8 +1081,17 @@
   document.getElementById('theme').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';c=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);state.theme=c;savePrefs();});
   document.getElementById('wsSeg').addEventListener('click',function(e){var b=e.target.closest('button[data-ws]');if(!b)return;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x===b);});state.ws=b.dataset.ws;savePrefs();renderAll();});
   var panels={dash:document.getElementById('dash'),proj:document.getElementById('proj'),cal:document.getElementById('cal'),memo:document.getElementById('memo'),done:document.getElementById('done'),art:document.getElementById('art')};
-  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);}
+  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);try{history.replaceState(null,'','#'+name);}catch(e){}}
   document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){switchTab(b.dataset.tab);});});
+  // URL 해시로 탭 딥링크(즐겨찾기용) — 예: haru.lolcv1294.workers.dev/#art 는 그림공부 탭으로 바로 열림.
+  // switchTab이 매번 replaceState로 해시를 갱신해두니, 탭에 있는 채로 주소창의 링크를 복사하거나
+  // 즐겨찾기해두면 그 탭이 그대로 저장됨. hashchange(뒤로/앞으로 가기, 해시 직접 수정)에도 반응.
+  (function(){
+    function tabFromHash(){var h=(location.hash||'').slice(1);return panels[h]?h:null;}
+    var initial=tabFromHash();
+    if(initial && initial!=='dash') switchTab(initial);
+    window.addEventListener('hashchange',function(){var t=tabFromHash();if(t)switchTab(t);});
+  })();
   // 탭 드래그로 순서 변경 (localStorage에 저장)
   (function(){var navEl=document.querySelector('.tabs');var tabDrag=null;
     navEl.querySelectorAll('button[data-tab]').forEach(function(b){b.draggable=true;});
