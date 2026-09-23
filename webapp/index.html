@@ -52,7 +52,21 @@
   .homegrid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:22px;align-items:start}
   .homemain{min-width:0}
   .homeside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
-  @media (max-width:900px){.homegrid{grid-template-columns:1fr;gap:16px}.homeside{position:static}}
+  /* 모바일에서 "할일"과 "보드"(주머니·회의안건·링크·오늘한줄)를 탭으로 나눠서
+     한 화면에 다 쌓이지 않게 함 — 데스크톱(900px 초과)에선 원래대로 항상 둘 다 보임 */
+  .homeseg{display:none}
+  @media (max-width:900px){
+    .homegrid{grid-template-columns:1fr;gap:16px}
+    .homeside{position:static}
+    .homeseg{display:flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden;margin:0 2px 14px}
+    .homeseg span{flex:1;text-align:center;padding:9px 0;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+    .homeseg span.on{background:var(--accent);color:#fff}
+    :root[data-theme="dark"] .homeseg span.on,:root:not([data-theme="light"]) .homeseg span.on{color:var(--bg)}
+    .homeseg .hsn{font-family:var(--mono);font-weight:600;margin-left:3px}
+    .homeseg span.on .hsn{opacity:.85}
+    #homeGrid.show-board .homemain{display:none}
+    #homeGrid:not(.show-board) .homeside{display:none}
+  }
   .board{border:1px solid var(--line);border-radius:4px;background:var(--panel);padding:10px 12px}
   .board.pinned{border-color:var(--accent);background:var(--accent-wash)}
   .bhead2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
@@ -79,6 +93,26 @@
   @media (max-width:680px){
     .pjsec thead th:nth-child(3),.pjsec thead th:nth-child(4),
     .pjsec td.prgcell,.pjsec td.rvwcell{display:none}
+    /* 오늘의 집중·마감 임박 표는 프로젝트 칸까지 있으면 제목이 심하게 줄바꿈돼서 뺌
+       (프로젝트별로 묶인 아래 월간 표에선 어차피 안 보이는 칸이라 여기만 해당) */
+    .blk table.tbl thead th:nth-child(3),.blk table.tbl td.pj{display:none}
+    /* 마우스 드래그 전용 손잡이 — 터치에선 애초에 동작 안 해서 자리만 차지하니 숨김 */
+    .rowdrag,.pjhandle,.subdrag{display:none}
+    /* 호버해야만 보이던 버튼들 — 삭제·이름변경·반복설정·하위로 옮기기·링크삭제·
+       하위항목의 날짜/오늘 지정까지. 터치엔 호버 자체가 없어서 지금까진 존재하는지도
+       몰랐거나 알아도 못 눌렀던 것들 — 항상 옅게라도 보이게(회의안건·링크 보드와 같은 처리) */
+    .rowdel,.pjdel,.pjren,.subadd0,.subitem .sdel,.rowbtn,.nest,.lkrow .lkdel{opacity:.5!important}
+    .sdue2,.stoday{opacity:.5!important}
+    .sdue2.has,.stoday.has{opacity:.9!important}
+    /* 제목 칸: 배지·아이콘들이 제목과 한 줄로 엉겨붙어 글자 단위로 쪼개지던 것을
+       제목은 항상 자기 줄, 나머지(이월·상시 배지, 하위/반복/메모/삭제 등)는 그 아래
+       줄로 깔끔하게 줄바꿈되게 함 */
+    td:has(>.ttl){display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;line-height:1.5;padding-top:10px;padding-bottom:10px}
+    td:has(>.ttl) .ttl{flex:1 1 100%;font-size:14.5px}
+    /* "오늘 4시간 · 예상 ..." 줄이 한 줄에 안 맞으면 글자가 칸마다 쪼개져 보였음 —
+       줄바꿈 허용해서 그냥 두 줄로 자연스럽게 내려가게 */
+    .bhead{flex-wrap:wrap;row-gap:6px}
+    .bhead .r{flex-wrap:wrap;row-gap:4px}
   }
   .agrow{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;padding:3px 0}
   .agrow .agck{flex:none;cursor:pointer;color:var(--faint);line-height:1.5}
@@ -461,7 +495,11 @@
   <div id="home">
     <div class="capture"><input id="capIn" placeholder="머릿속에 있는 거, 일단 여기 다 던져…" aria-label="빠른 캡처"><button id="capBtn">담기</button><button id="capToday" class="btn-s" title="오늘의 집중으로 바로">오늘</button></div>
     <p class="caphint">뭐든 던지면 <a class="goPocket" id="goPocket">주머니(<span id="capCount">0</span>)</a>에 쌓여요 · 나중에 프로젝트로 옮기면 돼요</p>
-    <div class="homegrid">
+    <div class="homeseg" id="homeSeg">
+      <span class="on" data-hs="main">할일</span>
+      <span data-hs="board">보드<b class="hsn" id="hsnCount"></b></span>
+    </div>
+    <div class="homegrid" id="homeGrid">
       <div class="homemain">
         <section class="blk">
           <div class="bhead"><h2>오늘의 집중</h2><div class="r">오늘 <input class="hours" id="hours" type="number" min="0" max="16" value="4">시간 <span class="budget" id="budget"></span> <button class="btn-s hidden" id="archAll" data-act="archive-all"></button></div></div>
@@ -1484,7 +1522,13 @@
     });
   })();
 
-  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCal();renderMemos();renderJournal();renderDone();renderArt();if(state.q)runSearch();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCal();renderMemos();renderJournal();renderDone();renderArt();updateHomeSegCount();if(state.q)runSearch();}
+  // 모바일 "보드" 탭에 살짝 붙는 숫자 — 주머니 + 체크 안 한 회의 안건 합
+  function updateHomeSegCount(){
+    var el=document.getElementById('hsnCount');if(!el)return;
+    var n=wsTodos().filter(function(t){return !t.project;}).length+state.agenda.filter(function(a){return a.ws===state.ws&&!a.done;}).length;
+    el.textContent=n?(' '+n):'';
+  }
   // ===== 전체 검색 (띄어쓰기 무시) =====
   function norm(s){return (s||'').replace(/\s+/g,'').toLowerCase();}
   function locLabel(t){if(t.archived)return '완료함';if(t.bucket==='inbox')return '주머니';if(t.bucket==='later')return '나중';if(t.today||isRepeatDueToday(t))return '오늘';if(t.project)return t.project;return '할일';}
@@ -1554,8 +1598,16 @@
         var hit=null;sr.querySelectorAll('.subitem').forEach(function(el){if(!hit&&norm(el.textContent).indexOf(qn)>=0)hit=el;});
         (hit||sr).scrollIntoView({block:'center'});
         if(hit){hit.classList.add('flash');setTimeout(function(){hit.classList.remove('flash');},1700);}},60);}});
-  document.getElementById('goPocket').addEventListener('click',function(){switchTab('home');var b=document.querySelector('.homeside .board');if(b)b.scrollIntoView({block:'center',behavior:'smooth'});});
+  document.getElementById('goPocket').addEventListener('click',function(){
+    switchTab('home');
+    document.querySelectorAll('#homeSeg [data-hs]').forEach(function(x){x.classList.toggle('on',x.dataset.hs==='board');});
+    document.getElementById('homeGrid').classList.add('show-board');
+    var b=document.querySelector('.homeside .board');if(b)b.scrollIntoView({block:'center',behavior:'smooth'});});
   document.getElementById('goDrawer').addEventListener('click',function(){switchTab('drawer');});
+  document.getElementById('homeSeg').addEventListener('click',function(e){
+    var el=e.target.closest('[data-hs]');if(!el)return;
+    document.querySelectorAll('#homeSeg [data-hs]').forEach(function(x){x.classList.toggle('on',x===el);});
+    document.getElementById('homeGrid').classList.toggle('show-board',el.dataset.hs==='board');});
   document.getElementById('hours').addEventListener('input',function(){state.hours=+this.value||0;savePrefs();renderToday();});
 
   function capture(inp,toToday){var v=inp.value.trim();if(!v)return;var t={id:uid(),title:v,ws:state.ws,project:'',due:'',today:!!toToday,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:toToday?'active':'inbox',lastDone:'',memoId:null,sort:0,subs:[],doneAt:'',archived:false,month:state.month||thisMonth(),review:''};state.todos.unshift(t);putTodo(t);inp.value='';if(toToday){renderAll();showToast('오늘의 집중에 담았어요');}else{renderInbox();showToast('주머니에 담았어요');}}
