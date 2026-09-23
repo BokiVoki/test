@@ -52,6 +52,10 @@
   /* ===== 홈: 왼쪽 본문 + 오른쪽 보드 ===== */
   .homegrid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:22px;align-items:start}
   .homemain{min-width:0}
+  /* 오늘의 집중/마감 임박은 은은한 면 배경을 깔아서 그 아래 월별 표와 한눈에 구분되게 */
+  .todayzone{background:var(--sunk);padding:14px 14px 2px;margin-bottom:22px}
+  .todayzone section.blk{margin-bottom:16px}
+  .todayzone section.blk:last-child{margin-bottom:6px}
   .homeside{display:flex;flex-direction:column;position:sticky;top:12px}
   /* 모바일에서 "할일"과 "보드"(주머니·회의안건·링크·오늘한줄)를 탭으로 나눠서
      한 화면에 다 쌓이지 않게 함 — 데스크톱(900px 초과)에선 원래대로 항상 둘 다 보임 */
@@ -83,14 +87,24 @@
   .boardempty{font-size:11.5px;color:var(--faint);padding:2px 0}
   /* 사이드 폭(280px)에선 표 칸으로 나누면 제목이 글자 단위로 쪼개져서, 행을 flex로 풀어
      [체크 + 제목] 한 줄 / [분류 버튼들] 다음 줄로 접히게 함 */
-  .inboxtbl tr{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .inboxtbl tr{display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .inboxtbl tr.inbmorerow{padding-top:0}
   .inboxtbl tr:last-child{border-bottom:0}
   .inboxtbl td{display:block;padding:0;border:0}
+  /* 체크박스가 30px 칸 안에서 가운데 정렬되던 게(큰 표용 기본값) 제목과 멀어 보이게 했음 —
+     주머니 보드에선 체크박스가 제목에 바로 붙게 */
+  .inboxtbl td.ckcell{width:auto;text-align:left;padding:0 6px 0 0}
   .inboxtbl td:nth-child(2){flex:1 1 120px;min-width:0;word-break:break-word}
-  .inboxtbl td:nth-child(3){flex:1 1 100%}
   .inboxtbl td.empty{flex:1 1 100%;text-align:left}
-  .inboxtbl .tri{flex-wrap:wrap;gap:3px}
-  .inboxtbl .tri button,.inboxtbl .tri select{font-size:10.5px;padding:2px 6px}
+  /* 오늘/날짜/프로젝트/나중/메모/버림 6개가 늘 다 펼쳐져 있던 걸 "⋯"로 접어둠 —
+     누르면 그 아래 한 줄이 펼쳐지며 세로 메뉴로 보여줌 */
+  .inboxtbl td.inbmorecell{flex:0 0 auto!important}
+  .moretog{cursor:pointer;color:var(--faint);font-size:13px;padding:1px 3px}
+  .moretog:hover{color:var(--accent)}
+  .inboxtbl .inbmorerow>td{width:100%}
+  .tri.inbmenu{flex-direction:column;align-items:stretch;gap:0;padding:4px 0 6px;margin-left:22px;border-top:1px dotted var(--line-2)}
+  .tri.inbmenu button,.tri.inbmenu select{text-align:left;width:100%;padding:5px 4px}
+  .tri.inbmenu .arch{opacity:1}
   /* 진행사항·회고는 책상에서 쓰는 칸 — 좁은 화면에선 숨겨서 표가 안 눌리게
      (칸 순서: 1체크 2할일 3진행사항 4회고 5마감 6예상 7중요) */
   @media (max-width:680px){
@@ -508,14 +522,16 @@
     </div>
     <div class="homegrid" id="homeGrid">
       <div class="homemain">
-        <section class="blk">
-          <div class="bhead"><h2>오늘의 집중</h2><div class="r">오늘 <input class="hours" id="hours" type="number" min="0" max="16" value="4">시간 <span class="budget" id="budget"></span> <button class="btn-s hidden" id="archAll" data-act="archive-all"></button></div></div>
-          <table class="tbl"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody id="todayBody"></tbody></table>
-        </section>
-        <section class="blk">
-          <div class="bhead"><h2>마감 임박 · 밀린 것</h2></div>
-          <table class="tbl"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>마감</th><th class="num">상태</th><th>중요</th></tr></thead><tbody id="dueBody"></tbody></table>
-        </section>
+        <div class="todayzone">
+          <section class="blk">
+            <div class="bhead"><h2>오늘의 집중</h2><div class="r">오늘 <input class="hours" id="hours" type="number" min="0" max="16" value="4">시간 <span class="budget" id="budget"></span> <button class="btn-s hidden" id="archAll" data-act="archive-all"></button></div></div>
+            <table class="tbl"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody id="todayBody"></tbody></table>
+          </section>
+          <section class="blk">
+            <div class="bhead"><h2>마감 임박 · 밀린 것</h2></div>
+            <table class="tbl"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>마감</th><th class="num">상태</th><th>중요</th></tr></thead><tbody id="dueBody"></tbody></table>
+          </section>
+        </div>
         <div class="monthnav">
           <button id="mPrev" title="지난 달">‹</button>
           <h2 id="monthTitle"></h2>
@@ -658,6 +674,7 @@
   var hasJournal=false;  // journal 테이블이 있으면 true (저널, v2)
   var hasRoutines=false; // routines 테이블이 있으면 true (상시업무, v2)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
+  var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var nestSource=null;   // '하위로 이동' 중인 할일 id
   var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'home',q:'',artists:[],artworks:[],artSel:{type:'none'},month:'',agenda:[],links:[],progress:[],journal:[],jDate:'',routines:[]};
@@ -896,8 +913,9 @@
     var opts=projectNames().map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
     document.getElementById('capCount').textContent=list.length;document.getElementById('inBadge').textContent='미분류 '+list.length;
     if(!list.length){body.innerHTML='<tr><td colspan="3" class="empty">주머니 비었어요 ✓</td></tr>';return;}
-    body.innerHTML=list.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
-      return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td><div class="tri">'+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'')+'<button data-act="t-today">오늘</button><button class="inbdue'+(t.due?' has':'')+(over?' over':'')+'" data-act="due">'+(t.due?'📅 '+mmdd(t.due):'📅 날짜')+'</button><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>';}).join('');}
+    body.innerHTML=list.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0),open=!!inbOpen[t.id];
+      return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td class="inbmorecell"><span class="moretog" data-act="inb-more" title="오늘·날짜·프로젝트·나중·메모·버림">'+(open?'▴':'⋯')+'</span></td></tr>'
+        +(open?('<tr class="inbmorerow" data-id="'+t.id+'"><td colspan="3"><div class="tri inbmenu">'+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'')+'<button data-act="t-today">오늘</button><button class="inbdue'+(t.due?' has':'')+(over?' over':'')+'" data-act="due">'+(t.due?'📅 '+mmdd(t.due):'📅 날짜')+'</button><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>'):'');}).join('');}
   function renderProjects(){var wrap=document.getElementById('projAll'),names=orderedProjects();
     if(!names.length){wrap.innerHTML='<p class="empty">프로젝트가 아직 없어요 · 주머니에서 항목을 프로젝트로 분류해보세요</p>';return;}
     var m=state.month||thisMonth();
@@ -1745,6 +1763,7 @@
       var jt=jEntry(todayISO()),before=jt.body||'',raw=before.split('\n');
       raw.splice(+lr.dataset.li,1);jt.body=raw.join('\n');putJournal(jt);renderTodayLine();renderJournal();
       showToast('한 줄 지웠어요',function(){jt.body=before;putJournal(jt);renderTodayLine();renderJournal();});}
+    else if(act==='inb-more'&&t){inbOpen[t.id]=!inbOpen[t.id];renderInbox();}
     else if(act==='prg-open'&&t){if(!hasProgress){showToast('진행 기록 표가 아직 없어요');return;}
       prgOpen[t.id]=!prgOpen[t.id];renderProjects();
       if(prgOpen[t.id]){var pin0=document.querySelector('tr.prgrow[data-id="'+t.id+'"] .prgin');if(pin0)pin0.focus();}}
