@@ -181,14 +181,13 @@
   .monthnav button{font:inherit;font-size:13px;line-height:1;padding:5px 10px;border:1px solid var(--line-2);background:var(--panel);color:var(--muted);cursor:pointer}
   .monthnav button:hover{border-color:var(--accent);color:var(--accent)}
   .monthnav .mcount{margin-left:auto;font-size:11.5px;color:var(--faint)}
-  .monthgoal{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;margin:0 0 20px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .monthgoal{display:flex;flex-direction:column;gap:9px;margin:0 0 20px;padding-bottom:14px;border-bottom:1px solid var(--line)}
   .mgin{font:inherit;font-size:13px;padding:5px 2px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text)}
   .mgin:focus{outline:none;border-bottom-color:var(--accent)}
-  .mggoal{flex:1 1 220px;min-width:160px;font-weight:600}
-  .mgmustrow{display:flex;align-items:center;gap:6px}
+  .mggoal{width:100%;font-weight:600}
+  .mgmustrow{display:flex;align-items:center;gap:8px}
   .mgnum{flex:none;width:14px;text-align:center;font-size:11px;color:var(--faint)}
-  .mgmust{width:130px}
-  @media(max-width:680px){.monthgoal{gap:10px 16px}.mggoal{flex:1 1 100%}.mgmust{width:104px}}
+  .mgmust{flex:1;width:auto}
   .rvw{display:block;min-width:60px;font-size:11.5px;color:var(--muted);outline:none;cursor:text}
   .rvw:empty::before{content:'＋';color:var(--faint)}
   .rvw:focus{color:var(--text)}
@@ -559,7 +558,7 @@
           <span class="mcount" id="monthCount"></span>
         </div>
         <div class="monthgoal">
-          <input class="mgin mggoal" id="mgGoal" placeholder="🎯 이번 달 목표" aria-label="월 목표">
+          <input class="mgin mggoal" id="mgGoal" placeholder="📝 이번 달 메모" aria-label="이번 달 메모">
           <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust" data-mi="0" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 1"></div>
           <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust" data-mi="1" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 2"></div>
           <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust" data-mi="2" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 3"></div>
