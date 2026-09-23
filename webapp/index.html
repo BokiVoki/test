@@ -181,6 +181,14 @@
   .monthnav button{font:inherit;font-size:13px;line-height:1;padding:5px 10px;border:1px solid var(--line-2);background:var(--panel);color:var(--muted);cursor:pointer}
   .monthnav button:hover{border-color:var(--accent);color:var(--accent)}
   .monthnav .mcount{margin-left:auto;font-size:11.5px;color:var(--faint)}
+  .monthgoal{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;margin:0 0 20px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .mgin{font:inherit;font-size:13px;padding:5px 2px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text)}
+  .mgin:focus{outline:none;border-bottom-color:var(--accent)}
+  .mggoal{flex:1 1 220px;min-width:160px;font-weight:600}
+  .mgmustrow{display:flex;align-items:center;gap:6px}
+  .mgnum{flex:none;width:14px;text-align:center;font-size:11px;color:var(--faint)}
+  .mgmust{width:130px}
+  @media(max-width:680px){.monthgoal{gap:10px 16px}.mggoal{flex:1 1 100%}.mgmust{width:104px}}
   .rvw{display:block;min-width:60px;font-size:11.5px;color:var(--muted);outline:none;cursor:text}
   .rvw:empty::before{content:'＋';color:var(--faint)}
   .rvw:focus{color:var(--text)}
@@ -550,6 +558,12 @@
           <button class="btn-s" id="seedBtn" title="서랍에 등록해둔 상시업무를 이 달 목록으로 가져옵니다">＋ 상시업무</button>
           <span class="mcount" id="monthCount"></span>
         </div>
+        <div class="monthgoal">
+          <input class="mgin mggoal" id="mgGoal" placeholder="🎯 이번 달 목표" aria-label="월 목표">
+          <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust" data-mi="0" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 1"></div>
+          <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust" data-mi="1" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 2"></div>
+          <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust" data-mi="2" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 3"></div>
+        </div>
         <div id="projAll"></div>
       </div>
       <aside class="homeside">
@@ -688,6 +702,7 @@
   var hasProgress=false; // progress 테이블이 있으면 true (진행 기록, v2)
   var hasJournal=false;  // journal 테이블이 있으면 true (저널, v2)
   var hasRoutines=false; // routines 테이블이 있으면 true (상시업무, v2)
+  var hasMonthGoal=false;// journal.goal/musts 컬럼이 있으면 true (월 목표·꼭 이뤄야 할 것, SQL 마이그레이션 후)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
@@ -746,7 +761,7 @@
   function delProgressDB(id){if(!hasProgress)return;sb.from('progress').delete().eq('id',id).then(function(){});}
   function putRoutine(r){if(!hasRoutines)return;sb.from('routines').upsert({id:r.id,ws:r.ws,project:r.project,title:r.title,cycle:r.cycle,imp:r.imp||1,sort:r.sort||0,active:!!r.active}).then(function(x){if(x.error)console.warn('routine',x.error.message);});}
   function delRoutineDB(id){if(!hasRoutines)return;sb.from('routines').delete().eq('id',id).then(function(){});}
-  function putJournal(j){if(!hasJournal)return;j.updated=new Date().toISOString();sb.from('journal').upsert({id:j.id,date:j.date,body:j.body,images:j.images||[],updated:j.updated}).then(function(r){if(r.error)console.warn('journal',r.error.message);});}
+  function putJournal(j){if(!hasJournal)return;j.updated=new Date().toISOString();var row={id:j.id,date:j.date,body:j.body,images:j.images||[],updated:j.updated};if(hasMonthGoal){row.goal=j.goal||'';row.musts=j.musts||[];}sb.from('journal').upsert(row).then(function(r){if(r.error)console.warn('journal',r.error.message);});}
   function putMemo(m){m.updated=new Date().toISOString();sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
   function delMemoDB(id){sb.from('memos').delete().eq('id',id).then(function(){});}
   function removeMemo(m){
@@ -824,7 +839,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -842,6 +857,7 @@
       hasJournal=!(res[17]&&res[17].error); // journal 테이블 있으면 저널 켜짐 (v2)
       hasRoutines=!(res[18]&&res[18].error);// routines 테이블 있으면 상시업무 켜짐 (v2)
       hasMemoPin=!(res[19]&&res[19].error); // memos.pinned 컬럼 있으면 메모 홈 고정 켜짐
+      hasMonthGoal=!(res[20]&&res[20].error);// journal.goal/musts 컬럼 있으면 월 목표·꼭 이뤄야 할 것 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -851,7 +867,7 @@
       state.agenda=(hasAgenda&&res[14].data)?res[14].data.map(function(r){return {id:r.id,ws:r.ws||'일',text:r.text||'',done:!!r.done,sort:r.sort||0};}):[];
       state.links=(hasLinks&&res[15].data)?res[15].data.map(function(r){return {id:r.id,title:r.title||'',url:r.url||'',grp:r.grp||'',pinned:!!r.pinned,sort:r.sort||0};}):[];
       state.progress=(hasProgress&&res[16].data)?res[16].data.map(function(r){return {id:r.id,todoId:r.todo_id,date:r.date||'',text:r.text||''};}):[];
-      state.journal=(hasJournal&&res[17].data)?res[17].data.map(function(r){return {id:r.id,date:r.date||'',body:r.body||'',images:Array.isArray(r.images)?r.images:[],updated:r.updated||''};}):[];
+      state.journal=(hasJournal&&res[17].data)?res[17].data.map(function(r){return {id:r.id,date:r.date||'',body:r.body||'',images:Array.isArray(r.images)?r.images:[],updated:r.updated||'',goal:r.goal||'',musts:Array.isArray(r.musts)?r.musts:[]};}):[];
       state.routines=(hasRoutines&&res[18].data)?res[18].data.map(function(r){return {id:r.id,ws:r.ws||'일',project:r.project||'',title:r.title||'',cycle:r.cycle||'monthly',imp:r.imp||1,sort:r.sort||0,active:r.active!==false,created:r.created||''};}):[];
       state.month=thisMonth();            // 항상 이번 달로 열림 (◀ ▶ 로 지난 달을 넘겨볼 수 있음)
       state.jDate=todayISO();             // 저널은 오늘 칸부터
@@ -963,7 +979,7 @@
   function jTodoDone(d){return state.todos.filter(function(t){return t.ws===state.ws&&t.doneAt&&t.doneAt.slice(0,10)===d;});}
   function jProg(d){return state.progress.filter(function(p){if(p.date!==d)return false;var t=tById(p.todoId);return !t||t.ws===state.ws;});}
   function jEntry(d){var j=state.journal.filter(function(x){return x.date===d;})[0];
-    if(!j){j={id:uid(),date:d,body:'',images:[],updated:''};state.journal.push(j);}return j;}
+    if(!j){j={id:uid(),date:d,body:'',images:[],updated:'',goal:'',musts:[]};state.journal.push(j);}return j;}
   function jAllDates(){
     var s={};
     state.todos.forEach(function(t){if(t.ws===state.ws&&t.doneAt)s[t.doneAt.slice(0,10)]=1;});
@@ -1110,6 +1126,16 @@
     var items=wsTodos().filter(function(t){return t.project&&t.bucket!=='inbox'&&tMonth(t)===m;});
     var dn=items.filter(function(t){return t.done;}).length;
     document.getElementById('monthCount').textContent=items.length?(dn+' / '+items.length+' 완료'):'이 달엔 아직 없어요';
+    renderMonthGoal();
+  }
+  function renderMonthGoal(){
+    var goalEl=document.getElementById('mgGoal');if(!goalEl)return;
+    var j=jEntry(state.month||thisMonth());
+    if(document.activeElement!==goalEl)goalEl.value=j.goal||'';
+    document.querySelectorAll('.mgmust').forEach(function(inp){
+      if(document.activeElement===inp)return;
+      var i=+inp.dataset.mi;inp.value=(j.musts||[])[i]||'';
+    });
   }
   // 안건이 정해지면 할일로 넘어가는 곳. 이 이름의 프로젝트는 없으면 담는 순간 자동으로 생김.
   var AGENDA_PROJECT='회의실행';
@@ -1605,7 +1631,12 @@
   document.getElementById('theme').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';c=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);state.theme=c;savePrefs();});
   document.getElementById('wsSeg').addEventListener('click',function(e){var b=e.target.closest('button[data-ws]');if(!b)return;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x===b);});state.ws=b.dataset.ws;savePrefs();renderAll();});
   var panels={home:document.getElementById('home'),journal:document.getElementById('journal'),memo:document.getElementById('memo'),cal:document.getElementById('cal'),drawer:document.getElementById('drawer'),art:document.getElementById('art')};
-  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);try{history.replaceState(null,'','#'+name);}catch(e){}}
+  function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);
+    // 메모 트리가 탭이 숨겨진(display:none) 상태에서 처음 그려지면 textarea.mseg의 scrollHeight가 0으로 잡혀
+    // 내용이 있어도 높이 0으로 보이지 않는 문제(다른 메모 들어갔다 오면 그때는 보이는 상태에서 다시 그려져 정상) →
+    // 메모 탭으로 들어올 때마다 이미 그려진 세그먼트 높이를 다시 계산해줌
+    if(name==='memo')document.querySelectorAll('#mbodyTree textarea.mseg').forEach(autoGrow);
+    try{history.replaceState(null,'','#'+name);}catch(e){}}
   document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){switchTab(b.dataset.tab);});});
   // URL 해시로 탭 딥링크(즐겨찾기용) — 예: haru.lolcv1294.workers.dev/#art 는 그림공부 탭으로 바로 열림.
   // switchTab이 매번 replaceState로 해시를 갱신해두니, 탭에 있는 채로 주소창의 링크를 복사하거나
@@ -1713,6 +1744,25 @@
   // 탭을 떠나거나 창을 닫을 때도 마지막 글이 안 날아가게
   window.addEventListener('pagehide',function(){clearTimeout(jSaveTimer);jSaveNow();});
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'){clearTimeout(jSaveTimer);jSaveNow();}});
+
+  // ===== v2 홈: 월 목표 · 꼭 이뤄야 할 것 =====
+  var mgSaveTimer=null;
+  function mgSaveNow(){
+    if(!hasJournal)return;
+    var j=jEntry(state.month||thisMonth());
+    var goal=document.getElementById('mgGoal').value;
+    var musts=[].map.call(document.querySelectorAll('.mgmust'),function(inp){return inp.value;});
+    if(j.goal===goal&&JSON.stringify(j.musts||[])===JSON.stringify(musts))return;
+    j.goal=goal;j.musts=musts;putJournal(j);
+  }
+  document.querySelector('.monthgoal').addEventListener('input',function(e){
+    if(!e.target.classList.contains('mgin'))return;
+    clearTimeout(mgSaveTimer);mgSaveTimer=setTimeout(mgSaveNow,600);});
+  document.querySelector('.monthgoal').addEventListener('blur',function(e){
+    if(!e.target.classList.contains('mgin'))return;
+    clearTimeout(mgSaveTimer);mgSaveNow();},true);
+  window.addEventListener('pagehide',function(){clearTimeout(mgSaveTimer);mgSaveNow();});
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'){clearTimeout(mgSaveTimer);mgSaveNow();}});
 
   // ===== v2 홈 조작: 월 이동 · 회의 안건 · 링크 =====
   function goMonth(m){state.month=m;renderMonthNav();renderProjects();}
