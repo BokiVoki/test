@@ -74,8 +74,12 @@
   .inboxtbl td.empty{flex:1 1 100%;text-align:left}
   .inboxtbl .tri{flex-wrap:wrap;gap:3px}
   .inboxtbl .tri button,.inboxtbl .tri select{font-size:10.5px;padding:2px 6px}
-  /* 회고는 책상에서 쓰는 칸 — 좁은 화면에선 숨겨서 표가 안 눌리게 */
-  @media (max-width:680px){.pjsec thead th:nth-child(3),.pjsec td.rvwcell{display:none}}
+  /* 진행사항·회고는 책상에서 쓰는 칸 — 좁은 화면에선 숨겨서 표가 안 눌리게
+     (칸 순서: 1체크 2할일 3진행사항 4회고 5마감 6예상 7중요) */
+  @media (max-width:680px){
+    .pjsec thead th:nth-child(3),.pjsec thead th:nth-child(4),
+    .pjsec td.prgcell,.pjsec td.rvwcell{display:none}
+  }
   .agrow{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;padding:3px 0}
   .agrow .agck{flex:none;cursor:pointer;color:var(--faint);line-height:1.5}
   .agrow.d{color:var(--faint);text-decoration:line-through}
@@ -104,6 +108,51 @@
   .rvw{display:block;min-width:60px;font-size:11.5px;color:var(--muted);outline:none;cursor:text}
   .rvw:empty::before{content:'＋';color:var(--faint)}
   .rvw:focus{color:var(--text)}
+  /* ===== 진행 기록 ===== */
+  .prg{display:block;min-width:60px;font-size:11.5px;color:var(--muted);cursor:pointer}
+  .prg:hover{color:var(--accent)}
+  .prg .pdate{font-size:10px;color:var(--faint);margin-right:5px}
+  .prg .pnone{color:var(--faint)}
+  .prg .pmore{color:var(--accent);margin-left:4px;font-size:10px}
+  tr.prgrow td{background:var(--sunk);border-bottom:1px solid var(--line)}
+  .prghist{display:flex;flex-direction:column;gap:3px;padding:4px 0 2px}
+  .prghist .ph{display:flex;gap:9px;align-items:baseline;font-size:12px;color:var(--muted)}
+  .prghist .ph time{font-size:10.5px;color:var(--faint);flex:none;width:42px}
+  .prghist .ph .pt{flex:1;min-width:0;word-break:break-word}
+  .prghist .ph .px{color:var(--faint);cursor:pointer;opacity:.55;font-size:11px}
+  .prghist .ph:hover .px{opacity:1}
+  .prgin{width:100%;font:inherit;font-size:12px;color:var(--text);background:transparent;border:0;border-top:1px solid var(--line);outline:none;padding:6px 0 2px;margin-top:4px}
+  .prgin::placeholder{color:var(--faint)}
+  .prgin:focus{border-top-color:var(--accent)}
+  /* ===== 저널 ===== */
+  .jgrid{display:grid;grid-template-columns:160px minmax(0,1fr);gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--panel)}
+  .jside{border-right:1px solid var(--line);padding:10px 12px;min-width:0}
+  .jlist{max-height:460px;overflow:auto;margin:0 -12px;padding:0 6px}
+  .jday{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 6px;font-size:12.5px;border-radius:3px;cursor:pointer;color:var(--text)}
+  .jday:hover{background:var(--sunk)}
+  .jday.sel{background:var(--accent-wash);color:var(--accent);font-weight:600}
+  .jday .n{font-size:10px;color:var(--faint);flex:none}
+  .jday.mon{border-top:1px solid var(--line);margin-top:6px;padding-top:9px;border-radius:0}
+  .jmain{padding:14px 16px;min-width:0}
+  .jhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .jhead h2{margin:0;font-size:16px}
+  .jsub{font-size:11.5px;color:var(--faint)}
+  .jauto{margin:10px 0 12px;padding:9px 11px;background:var(--sunk);border-left:2px solid var(--line-2);border-radius:2px}
+  .jauto .jrow{display:flex;gap:8px;align-items:baseline;font-size:12.5px;color:var(--muted);padding:1px 0}
+  .jauto .jrow b{font-weight:500;color:var(--text)}
+  .jauto .jmark{flex:none;color:var(--faint);width:12px}
+  .jauto .jempty{font-size:11.5px;color:var(--faint)}
+  .jauto .jcap{font-size:10.5px;color:var(--faint);margin-top:6px}
+  .jbody{width:100%;min-height:280px;resize:vertical;font:inherit;font-size:13.5px;line-height:1.7;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:3px;padding:10px 12px;outline:none}
+  .jbody:focus{border-color:var(--accent)}
+  .jbody::placeholder{color:var(--faint)}
+  @media (max-width:680px){
+    .jgrid{grid-template-columns:1fr}
+    .jside{border-right:0;border-bottom:1px solid var(--line)}
+    .jlist{max-height:none;display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}
+    .jday{white-space:nowrap}
+    .jday.mon{border-top:0;margin-top:0;padding-top:6px;border-left:1px solid var(--line);padding-left:10px}
+  }
   .caphint{font-size:12px;color:var(--faint);margin:0 2px 22px}.caphint b{color:var(--muted);font-weight:600}
   .goPocket{color:var(--accent);cursor:pointer;border-bottom:1px dashed var(--accent);font-weight:600}
   section.blk{margin-bottom:26px}
@@ -424,9 +473,22 @@
     </div>
   </div>
   <div id="journal" class="hidden">
-    <div class="bhead"><h2>저널</h2><div class="r" id="doneCount"></div></div>
-    <p class="caphint">날짜별 기록과 월간 회고는 다음 단계에서 붙어요 · 지금은 완료함으로 보낸 할일이 여기 쌓입니다</p>
-    <div id="doneList"></div>
+    <div class="jgrid">
+      <div class="jside">
+        <div class="bhead2"><h3>날짜</h3><button class="btn-s" id="jToday">오늘</button></div>
+        <div class="jlist" id="jList"></div>
+      </div>
+      <div class="jmain">
+        <div class="jhead"><h2 id="jTitle"></h2><span class="jsub" id="jSub"></span></div>
+        <div class="jauto" id="jAuto"></div>
+        <textarea class="jbody" id="jBody" placeholder="그날 있었던 일, 남길 말…" aria-label="저널 본문"></textarea>
+      </div>
+    </div>
+    <section class="blk" style="margin-top:28px">
+      <div class="bhead"><h2>완료함</h2><div class="r" id="doneCount"></div></div>
+      <p class="caphint">완료함으로 보낸 할일 전체 · 되돌리기 가능</p>
+      <div id="doneList"></div>
+    </section>
   </div>
   <div id="drawer" class="hidden">
     <section class="blk">
@@ -508,9 +570,12 @@
   var hasMonth=false;    // todos.month/review 컬럼이 있으면 true (월별 관리·회고, v2 마이그레이션 후)
   var hasAgenda=false;   // agenda 테이블이 있으면 true (회의 안건, v2)
   var hasLinks=false;    // links 테이블이 있으면 true (링크 보드, v2)
+  var hasProgress=false; // progress 테이블이 있으면 true (진행 기록, v2)
+  var hasJournal=false;  // journal 테이블이 있으면 true (저널, v2)
+  var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var nestSource=null;   // '하위로 이동' 중인 할일 id
-  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'home',q:'',artists:[],artworks:[],artSel:{type:'none'},month:'',agenda:[],links:[]};
+  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'home',q:'',artists:[],artworks:[],artSel:{type:'none'},month:'',agenda:[],links:[],progress:[],journal:[],jDate:''};
 
   // prefs (local only)
   function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder','tabOrder'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
@@ -560,6 +625,9 @@
   function delAgendaDB(id){if(!hasAgenda)return;sb.from('agenda').delete().eq('id',id).then(function(){});}
   function putLink(l){if(!hasLinks)return;sb.from('links').upsert({id:l.id,title:l.title,url:l.url,grp:l.grp||'',pinned:!!l.pinned,sort:l.sort||0}).then(function(r){if(r.error)console.warn('link',r.error.message);});}
   function delLinkDB(id){if(!hasLinks)return;sb.from('links').delete().eq('id',id).then(function(){});}
+  function putProgress(p){if(!hasProgress)return;sb.from('progress').upsert({id:p.id,todo_id:p.todoId,date:p.date,text:p.text}).then(function(r){if(r.error)console.warn('progress',r.error.message);});}
+  function delProgressDB(id){if(!hasProgress)return;sb.from('progress').delete().eq('id',id).then(function(){});}
+  function putJournal(j){if(!hasJournal)return;j.updated=new Date().toISOString();sb.from('journal').upsert({id:j.id,date:j.date,body:j.body,images:j.images||[],updated:j.updated}).then(function(r){if(r.error)console.warn('journal',r.error.message);});}
   function putMemo(m){m.updated=new Date().toISOString();sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
   function delMemoDB(id){sb.from('memos').delete().eq('id',id).then(function(){});}
   function removeMemo(m){
@@ -637,7 +705,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*')]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*')]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -651,6 +719,8 @@
       hasMonth=!(res[13]&&res[13].error);  // todos.month/review 있으면 월별 관리·회고 켜짐 (v2)
       hasAgenda=!(res[14]&&res[14].error); // agenda 테이블 있으면 회의 안건 켜짐 (v2)
       hasLinks=!(res[15]&&res[15].error);  // links 테이블 있으면 링크 보드 켜짐 (v2)
+      hasProgress=!(res[16]&&res[16].error);// progress 테이블 있으면 진행 기록 켜짐 (v2)
+      hasJournal=!(res[17]&&res[17].error); // journal 테이블 있으면 저널 켜짐 (v2)
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -659,7 +729,10 @@
       state.artworks=(hasArt&&res[9]&&!res[9].error&&res[9].data)?res[9].data.map(fromWork):[];
       state.agenda=(hasAgenda&&res[14].data)?res[14].data.map(function(r){return {id:r.id,ws:r.ws||'일',text:r.text||'',done:!!r.done,sort:r.sort||0};}):[];
       state.links=(hasLinks&&res[15].data)?res[15].data.map(function(r){return {id:r.id,title:r.title||'',url:r.url||'',grp:r.grp||'',pinned:!!r.pinned,sort:r.sort||0};}):[];
+      state.progress=(hasProgress&&res[16].data)?res[16].data.map(function(r){return {id:r.id,todoId:r.todo_id,date:r.date||'',text:r.text||''};}):[];
+      state.journal=(hasJournal&&res[17].data)?res[17].data.map(function(r){return {id:r.id,date:r.date||'',body:r.body||'',images:Array.isArray(r.images)?r.images:[],updated:r.updated||''};}):[];
       state.month=thisMonth();            // 항상 이번 달로 열림 (◀ ▶ 로 지난 달을 넘겨볼 수 있음)
+      state.jDate=todayISO();             // 저널은 오늘 칸부터
       dailyResetToday();
       document.getElementById('hours').value=state.hours;
       document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});
@@ -742,9 +815,77 @@
       // 지금 보고 있는 달의 항목만 — 월이 안 정해진 예전 할일은 tMonth()가 이번 달로 쳐줌
       var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox'&&tMonth(t)===m;}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
-        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+subTogHtml(t)+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로">🔁</button>')+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,6);}).join('');
+        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+subTogHtml(t)+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로">🔁</button>')+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+subRowHtml(t,7);}).join('');
       var dn=items.filter(function(t){return t.done;}).length;
-      return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+dn+'/'+items.length+'</span><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6" class="empty">'+monthLabel(m)+'엔 아직 없어요</td></tr>')+'</tbody></table><div class="pjadd"><input class="pjaddin" placeholder="이 프로젝트에 할일 추가…"><button class="btn-s" data-act="proj-add">추가</button></div></div></div>';}).join('');}
+      return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+dn+'/'+items.length+'</span><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>진행사항</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" class="empty">'+monthLabel(m)+'엔 아직 없어요</td></tr>')+'</tbody></table><div class="pjadd"><input class="pjaddin" placeholder="이 프로젝트에 할일 추가…"><button class="btn-s" data-act="proj-add">추가</button></div></div></div>';}).join('');}
+  // ===== v2: 진행 기록 — 덮어쓰지 않고 날짜별로 쌓임 =====
+  function mdOf(iso){var p=(iso||'').split('-');return p.length>=3?(p[1]+'.'+p[2]):(iso||'');}
+  function prgOf(id){return state.progress.filter(function(p){return p.todoId===id;}).sort(function(a,b){return a.date<b.date?1:(a.date>b.date?-1:0);});}
+  function prgCellHtml(t){
+    if(!hasProgress)return '<span class="prg pnone">—</span>';
+    var list=prgOf(t.id);
+    if(!list.length)return '<span class="prg" data-act="prg-open" title="진행 기록 쓰기"><span class="pnone">＋</span></span>';
+    return '<span class="prg" data-act="prg-open" title="진행 기록 펼치기"><span class="pdate">'+esc(mdOf(list[0].date))+'</span>'+esc(list[0].text)
+      +(list.length>1?'<span class="pmore">+'+(list.length-1)+'</span>':'')+'<span class="pmore">'+(prgOpen[t.id]?'▴':'▾')+'</span></span>';
+  }
+  function prgRowHtml(t){
+    if(!hasProgress||!prgOpen[t.id])return '';
+    var items=prgOf(t.id).map(function(p){
+      return '<div class="ph" data-prg="'+p.id+'"><time>'+esc(mdOf(p.date))+'</time><span class="pt">'+esc(p.text)+'</span><span class="px" data-act="prg-del" title="지우기">✕</span></div>';}).join('');
+    return '<tr class="prgrow" data-id="'+t.id+'"><td colspan="7"><div class="prghist">'+items
+      +'<input class="prgin" placeholder="+ 진행 기록 — 쓰면 그날 저널에도 같이 남아요" aria-label="진행 기록 추가"></div></td></tr>';
+  }
+  // ===== v2: 저널 =====
+  function jTodoDone(d){return state.todos.filter(function(t){return t.ws===state.ws&&t.doneAt&&t.doneAt.slice(0,10)===d;});}
+  function jProg(d){return state.progress.filter(function(p){if(p.date!==d)return false;var t=tById(p.todoId);return !t||t.ws===state.ws;});}
+  function jEntry(d){var j=state.journal.filter(function(x){return x.date===d;})[0];
+    if(!j){j={id:uid(),date:d,body:'',images:[],updated:''};state.journal.push(j);}return j;}
+  function jAllDates(){
+    var s={};
+    state.todos.forEach(function(t){if(t.ws===state.ws&&t.doneAt)s[t.doneAt.slice(0,10)]=1;});
+    state.progress.forEach(function(p){if(p.date){var t=tById(p.todoId);if(!t||t.ws===state.ws)s[p.date]=1;}});
+    state.journal.forEach(function(j){if(j.date&&j.date.length===10&&j.body)s[j.date]=1;});
+    s[todayISO()]=1;if(state.jDate&&state.jDate.length===10)s[state.jDate]=1;
+    return Object.keys(s).sort().reverse();
+  }
+  function jLabel(d){
+    if((d||'').length===7)return monthLabel(d)+' 회고';
+    var dt=new Date(d+'T00:00:00');
+    if(isNaN(dt.getTime()))return d||'';
+    return (dt.getMonth()+1)+'월 '+dt.getDate()+'일 '+DAY[dt.getDay()];
+  }
+  function renderJournal(){
+    var listEl=document.getElementById('jList');if(!listEl)return;
+    if(!state.jDate)state.jDate=todayISO();
+    var d=state.jDate;
+    var mons={};state.journal.forEach(function(j){if(j.date&&j.date.length===7)mons[j.date]=1;});
+    mons[thisMonth()]=1;if(d.length===7)mons[d]=1;
+    listEl.innerHTML=jAllDates().slice(0,60).map(function(x){
+        var n=jTodoDone(x).length+jProg(x).length;
+        return '<div class="jday'+(x===d?' sel':'')+'" data-jd="'+x+'"><span>'+esc(jLabel(x))+'</span>'+(n?'<span class="n">'+n+'</span>':'')+'</div>';}).join('')
+      +Object.keys(mons).sort().reverse().slice(0,6).map(function(x){
+        return '<div class="jday mon'+(x===d?' sel':'')+'" data-jd="'+x+'"><span>'+esc(monthLabel(x))+' 회고</span><span class="n">월말</span></div>';}).join('');
+    document.getElementById('jTitle').textContent=jLabel(d);
+    var auto=document.getElementById('jAuto'),sub=document.getElementById('jSub');
+    if(d.length===7){
+      var doneM=state.todos.filter(function(t){return t.ws===state.ws&&t.doneAt&&t.doneAt.slice(0,7)===d;});
+      var prgM=state.progress.filter(function(p){return (p.date||'').slice(0,7)===d;});
+      sub.textContent='한 달 정리';
+      auto.innerHTML='<div class="jrow"><span class="jmark">✓</span><span>완료한 할일 <b>'+doneM.length+'</b>개</span></div>'
+        +'<div class="jrow"><span class="jmark">✎</span><span>진행 기록 <b>'+prgM.length+'</b>건</span></div>'
+        +'<div class="jcap">그 달에 쌓인 것 — 아래에 한 줄 정리를 남겨두세요</div>';
+    }else{
+      var dn=jTodoDone(d),pg=jProg(d);
+      sub.textContent=(dn.length+pg.length)?'':'조용한 날';
+      var rows=dn.map(function(t){return '<div class="jrow"><span class="jmark">✓</span><span>'+(t.project?'<b>'+esc(t.project)+'</b> · ':'')+esc(t.title)+'</span></div>';})
+        .concat(pg.map(function(p){var t=tById(p.todoId);return '<div class="jrow"><span class="jmark">✎</span><span>'+(t?'<b>'+esc(t.title)+'</b> · ':'')+esc(p.text)+'</span></div>';}));
+      auto.innerHTML=rows.length?(rows.join('')+'<div class="jcap">✓ 체크한 할일 · ✎ 그날 쓴 진행 기록 — 자동으로 깔려요</div>')
+        :'<div class="jempty">'+(hasJournal?'이날 체크한 할일이나 진행 기록이 아직 없어요':'저널 표가 아직 없어요')+'</div>';
+    }
+    var body=document.getElementById('jBody');
+    if(document.activeElement!==body)body.value=jEntry(d).body||'';
+    body.placeholder=(d.length===7)?'이번 달 어땠는지 한 줄로…':'그날 있었던 일, 남길 말…';
+  }
   // ===== v2: 월 네비 · 회의 안건 · 링크 보드 =====
   function renderMonthNav(){
     var el=document.getElementById('monthTitle');if(!el)return;
@@ -1207,7 +1348,7 @@
     });
   })();
 
-  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderCal();renderMemos();renderDone();renderArt();if(state.q)runSearch();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderCal();renderMemos();renderJournal();renderDone();renderArt();if(state.q)runSearch();}
   // ===== 전체 검색 (띄어쓰기 무시) =====
   function norm(s){return (s||'').replace(/\s+/g,'').toLowerCase();}
   function locLabel(t){if(t.archived)return '완료함';if(t.bucket==='inbox')return '주머니';if(t.bucket==='later')return '나중';if(t.today||isRepeatDueToday(t))return '오늘';if(t.project)return t.project;return '할일';}
@@ -1286,7 +1427,42 @@
   document.getElementById('capToday').addEventListener('click',function(){capture(document.getElementById('capIn'),true);});
   document.getElementById('capIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this,e.shiftKey);});
   function addProjectTodo(proj,title,quiet){title=(title||'').trim();if(!proj||!title)return null;var t={id:uid(),title:title,ws:state.ws,project:proj,due:'',today:false,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:'active',lastDone:'',memoId:null,sort:0,subs:[],doneAt:'',archived:false,month:state.month||thisMonth(),review:''};state.todos.unshift(t);putTodo(t);renderProjects();renderMonthNav();if(!quiet)showToast(proj+'에 담았어요');return t;}
-  document.getElementById('projAll').addEventListener('keydown',function(e){var inp=e.target.closest('.pjaddin');if(!inp||e.key!=='Enter'||e.isComposing||e.keyCode===229)return;var sec=inp.closest('.pjsec');addProjectTodo(sec&&sec.dataset.proj,inp.value);inp.value='';});
+  document.getElementById('projAll').addEventListener('keydown',function(e){
+    if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
+    var inp=e.target.closest('.pjaddin');
+    if(inp){var sec=inp.closest('.pjsec');addProjectTodo(sec&&sec.dataset.proj,inp.value);inp.value='';return;}
+    // 진행 기록 한 줄 추가 — 오늘 날짜가 붙어서 쌓이고, 그날 저널에도 같이 뜸
+    var pin=e.target.closest('.prgin');
+    if(pin){
+      var tr=pin.closest('tr[data-id]'),tid=tr&&tr.dataset.id,v=pin.value.trim();
+      if(!tid||!v)return;
+      if(!hasProgress){showToast('진행 기록 표가 아직 없어요');return;}
+      var p={id:uid(),todoId:tid,date:todayISO(),text:v};
+      state.progress.push(p);putProgress(p);pin.value='';
+      renderProjects();renderJournal();
+      var again=document.querySelector('tr.prgrow[data-id="'+tid+'"] .prgin');if(again)again.focus();
+    }});
+
+  // ===== v2 저널 조작 =====
+  var jSaveTimer=null;
+  function jSaveNow(){
+    if(!hasJournal)return;
+    var body=document.getElementById('jBody'),j=jEntry(state.jDate);
+    if(j.body===body.value)return;
+    j.body=body.value;putJournal(j);
+  }
+  document.getElementById('jBody').addEventListener('input',function(){
+    clearTimeout(jSaveTimer);jSaveTimer=setTimeout(jSaveNow,600);});
+  document.getElementById('jBody').addEventListener('blur',function(){clearTimeout(jSaveTimer);jSaveNow();});
+  document.getElementById('jList').addEventListener('click',function(e){
+    var el=e.target.closest('[data-jd]');if(!el)return;
+    clearTimeout(jSaveTimer);jSaveNow();          // 날짜 옮기기 전에 쓰던 글부터 저장
+    state.jDate=el.dataset.jd;renderJournal();});
+  document.getElementById('jToday').addEventListener('click',function(){
+    clearTimeout(jSaveTimer);jSaveNow();state.jDate=todayISO();renderJournal();});
+  // 탭을 떠나거나 창을 닫을 때도 마지막 글이 안 날아가게
+  window.addEventListener('pagehide',function(){clearTimeout(jSaveTimer);jSaveNow();});
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'){clearTimeout(jSaveTimer);jSaveNow();}});
 
   // ===== v2 홈 조작: 월 이동 · 회의 안건 · 링크 =====
   function goMonth(m){state.month=m;renderMonthNav();renderProjects();}
@@ -1333,6 +1509,13 @@
     else if(act==='unarchive'&&t){t.archived=false;t.done=false;t.doneAt='';t.bucket=t.project?'active':'inbox';putTodo(t);renderAll();showToast('되돌렸어요 · 체크 해제된 상태로 돌아가요');}
     else if(act==='archive-all'){var dn=wsTodos().filter(function(x){return x.done&&x.repeat==='none';});if(!dn.length)return;dn.forEach(function(x){x.archived=true;putTodo(x);});renderAll();showToast(dn.length+'개 완료함으로 정리했어요');}
     else if(act==='proj-add'){var addSec=el.closest('.pjsec'),addInp=addSec&&addSec.querySelector('.pjaddin');if(addInp){addProjectTodo(addSec.dataset.proj,addInp.value);addInp.value='';}}
+    else if(act==='prg-open'&&t){if(!hasProgress){showToast('진행 기록 표가 아직 없어요');return;}
+      prgOpen[t.id]=!prgOpen[t.id];renderProjects();
+      if(prgOpen[t.id]){var pin0=document.querySelector('tr.prgrow[data-id="'+t.id+'"] .prgin');if(pin0)pin0.focus();}}
+    else if(act==='prg-del'){
+      var phEl=el.closest('[data-prg]'),pr=phEl&&state.progress.filter(function(x){return x.id===phEl.dataset.prg;})[0];
+      if(pr){var pri=state.progress.indexOf(pr);state.progress.splice(pri,1);delProgressDB(pr.id);renderProjects();renderJournal();
+        showToast('진행 기록을 지웠어요',function(){state.progress.splice(pri,0,pr);putProgress(pr);renderProjects();renderJournal();});}}
     else if(act==='ag-tog'||act==='ag-del'||act==='ag-add'){
       var agEl=el.closest('[data-ag]'),ag=agEl&&state.agenda.filter(function(x){return x.id===agEl.dataset.ag;})[0];
       if(!ag)return;
