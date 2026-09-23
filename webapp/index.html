@@ -80,8 +80,10 @@
   .agrow .agck{flex:none;cursor:pointer;color:var(--faint);line-height:1.5}
   .agrow.d{color:var(--faint);text-decoration:line-through}
   .agrow .agtx{flex:1;min-width:0;word-break:break-word;cursor:text}
-  .agrow .agdel{flex:none;color:var(--faint);cursor:pointer;opacity:0;font-size:11px}
-  .agrow:hover .agdel{opacity:1}
+  /* 담기/✕ 는 폰에선 hover가 없어서 항상 옅게 띄워두고 hover 때만 진해지게 */
+  .agrow .agadd,.agrow .agdel{flex:none;cursor:pointer;color:var(--faint);opacity:.55;font-size:11px}
+  .agrow .agadd{color:var(--accent);border-bottom:1px dashed var(--accent)}
+  .agrow:hover .agadd,.agrow:hover .agdel{opacity:1}
   .lkrow{display:flex;align-items:center;gap:7px;font-size:12.5px;padding:4px 0;border-bottom:1px dotted var(--line)}
   .lkrow:last-child{border-bottom:0}
   .lkrow a{color:var(--text);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
@@ -410,7 +412,7 @@
           <div class="boardscroll"><table class="tbl inboxtbl"><tbody id="inboxBody"></tbody></table></div>
         </section>
         <section class="board">
-          <div class="bhead2"><h3>회의 안건</h3><button class="btn-s" id="agendaClear" title="체크한 안건 지우기">정리</button></div>
+          <div class="bhead2"><h3>회의 안건</h3><span class="cnt">정해지면 담기</span></div>
           <div id="agendaList"></div>
           <input class="boardin" id="agendaIn" placeholder="+ 안건 추가 후 Enter" aria-label="회의 안건 추가">
         </section>
@@ -753,12 +755,14 @@
     var dn=items.filter(function(t){return t.done;}).length;
     document.getElementById('monthCount').textContent=items.length?(dn+' / '+items.length+' 완료'):'이 달엔 아직 없어요';
   }
+  // 안건이 정해지면 할일로 넘어가는 곳. 이 이름의 프로젝트는 없으면 담는 순간 자동으로 생김.
+  var AGENDA_PROJECT='회의실행';
   function renderAgenda(){
     var el=document.getElementById('agendaList');if(!el)return;
     if(!hasAgenda){el.innerHTML='<p class="boardempty">회의 안건 표가 아직 없어요</p>';return;}
     var list=state.agenda.filter(function(a){return a.ws===state.ws;}).sort(function(a,b){return (a.done-b.done)||((a.sort||0)-(b.sort||0));});
     el.innerHTML=list.length?list.map(function(a){
-      return '<div class="agrow'+(a.done?' d':'')+'" data-ag="'+a.id+'"><span class="agck" data-act="ag-tog">'+(a.done?'☑':'☐')+'</span><span class="agtx">'+esc(a.text)+'</span><span class="agdel" data-act="ag-del">✕</span></div>';
+      return '<div class="agrow'+(a.done?' d':'')+'" data-ag="'+a.id+'"><span class="agck" data-act="ag-tog" title="얘기 끝난 것으로 표시">'+(a.done?'☑':'☐')+'</span><span class="agtx">'+esc(a.text)+'</span><span class="agadd" data-act="ag-add" title="「'+esc(AGENDA_PROJECT)+'」 프로젝트에 할일로 담기">담기</span><span class="agdel" data-act="ag-del" title="지우기">✕</span></div>';
     }).join(''):'<p class="boardempty">회의 때 꺼낼 말을 적어두세요</p>';
   }
   function linkRow(l){
@@ -1281,7 +1285,7 @@
   document.getElementById('capBtn').addEventListener('click',function(){capture(document.getElementById('capIn'));});
   document.getElementById('capToday').addEventListener('click',function(){capture(document.getElementById('capIn'),true);});
   document.getElementById('capIn').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)capture(this,e.shiftKey);});
-  function addProjectTodo(proj,title){title=(title||'').trim();if(!proj||!title)return;var t={id:uid(),title:title,ws:state.ws,project:proj,due:'',today:false,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:'active',lastDone:'',memoId:null,sort:0,subs:[],doneAt:'',archived:false,month:state.month||thisMonth(),review:''};state.todos.unshift(t);putTodo(t);renderProjects();renderMonthNav();showToast(proj+'에 담았어요');}
+  function addProjectTodo(proj,title,quiet){title=(title||'').trim();if(!proj||!title)return null;var t={id:uid(),title:title,ws:state.ws,project:proj,due:'',today:false,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:'active',lastDone:'',memoId:null,sort:0,subs:[],doneAt:'',archived:false,month:state.month||thisMonth(),review:''};state.todos.unshift(t);putTodo(t);renderProjects();renderMonthNav();if(!quiet)showToast(proj+'에 담았어요');return t;}
   document.getElementById('projAll').addEventListener('keydown',function(e){var inp=e.target.closest('.pjaddin');if(!inp||e.key!=='Enter'||e.isComposing||e.keyCode===229)return;var sec=inp.closest('.pjsec');addProjectTodo(sec&&sec.dataset.proj,inp.value);inp.value='';});
 
   // ===== v2 홈 조작: 월 이동 · 회의 안건 · 링크 =====
@@ -1295,12 +1299,6 @@
     if(!hasAgenda){showToast('회의 안건 표가 아직 없어요');return;}
     var a={id:uid(),ws:state.ws,text:v,done:false,sort:Date.now()};
     state.agenda.push(a);putAgenda(a);this.value='';renderAgenda();});
-  document.getElementById('agendaClear').addEventListener('click',function(){
-    var gone=state.agenda.filter(function(a){return a.ws===state.ws&&a.done;});
-    if(!gone.length){showToast('체크한 안건이 없어요');return;}
-    gone.forEach(function(a){state.agenda.splice(state.agenda.indexOf(a),1);delAgendaDB(a.id);});
-    renderAgenda();
-    showToast(gone.length+'개 정리했어요',function(){gone.forEach(function(a){state.agenda.push(a);putAgenda(a);});renderAgenda();});});
   function addLink(){
     var ti=document.getElementById('linkTitle'),ur=document.getElementById('linkUrl'),gr=document.getElementById('linkGrp');
     var url=ur.value.trim();if(!url){ur.focus();return;}
@@ -1335,11 +1333,20 @@
     else if(act==='unarchive'&&t){t.archived=false;t.done=false;t.doneAt='';t.bucket=t.project?'active':'inbox';putTodo(t);renderAll();showToast('되돌렸어요 · 체크 해제된 상태로 돌아가요');}
     else if(act==='archive-all'){var dn=wsTodos().filter(function(x){return x.done&&x.repeat==='none';});if(!dn.length)return;dn.forEach(function(x){x.archived=true;putTodo(x);});renderAll();showToast(dn.length+'개 완료함으로 정리했어요');}
     else if(act==='proj-add'){var addSec=el.closest('.pjsec'),addInp=addSec&&addSec.querySelector('.pjaddin');if(addInp){addProjectTodo(addSec.dataset.proj,addInp.value);addInp.value='';}}
-    else if(act==='ag-tog'||act==='ag-del'){
+    else if(act==='ag-tog'||act==='ag-del'||act==='ag-add'){
       var agEl=el.closest('[data-ag]'),ag=agEl&&state.agenda.filter(function(x){return x.id===agEl.dataset.ag;})[0];
-      if(ag&&act==='ag-tog'){ag.done=!ag.done;putAgenda(ag);renderAgenda();}
-      else if(ag){var agi=state.agenda.indexOf(ag);state.agenda.splice(agi,1);delAgendaDB(ag.id);renderAgenda();
-        showToast('안건을 지웠어요',function(){state.agenda.splice(agi,0,ag);putAgenda(ag);renderAgenda();});}}
+      if(!ag)return;
+      var agi=state.agenda.indexOf(ag);
+      if(act==='ag-tog'){ag.done=!ag.done;putAgenda(ag);renderAgenda();}
+      else if(act==='ag-del'){state.agenda.splice(agi,1);delAgendaDB(ag.id);renderAgenda();
+        showToast('안건을 지웠어요',function(){state.agenda.splice(agi,0,ag);putAgenda(ag);renderAgenda();});}
+      else{ // 담기 — 정해진 안건을 할일로 넘기고 안건 목록에선 뺌(중복 방지)
+        var nt=addProjectTodo(AGENDA_PROJECT,ag.text,true);
+        if(!nt)return;
+        state.agenda.splice(agi,1);delAgendaDB(ag.id);renderAgenda();renderProjects();renderMonthNav();
+        showToast('「'+AGENDA_PROJECT+'」에 담았어요',function(){
+          var ni=state.todos.indexOf(nt);if(ni>=0)state.todos.splice(ni,1);delTodoDB(nt.id);
+          state.agenda.splice(agi,0,ag);putAgenda(ag);renderAgenda();renderProjects();renderMonthNav();});}}
     else if(act==='lk-pin'||act==='lk-del'){
       var lkEl=el.closest('[data-lk]'),lk=lkEl&&state.links.filter(function(x){return x.id===lkEl.dataset.lk;})[0];
       if(lk&&act==='lk-pin'){lk.pinned=!lk.pinned;putLink(lk);renderLinkBoards();showToast(lk.pinned?'홈에 고정했어요':'고정을 풀었어요');}
