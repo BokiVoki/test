@@ -171,6 +171,8 @@
   .lkrow .lkstar.on{color:var(--accent)}
   .lkrow .lkdel{flex:none;color:var(--faint);cursor:pointer;opacity:0;font-size:11px}
   .lkrow:hover .lkdel{opacity:1}
+  .lkrow .mktxt{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:pointer}
+  .lkrow .mktxt:hover{color:var(--accent);text-decoration:underline}
   .linkadd{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
   .linkadd input{flex:1 1 140px;min-width:0;font:inherit;font-size:12.5px;padding:6px 2px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text)}
   .linkadd input:focus{outline:none;border-bottom-color:var(--accent)}
@@ -354,7 +356,10 @@
   .mlist{overflow:auto}
   .mitem{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}
   .mitem[aria-selected="true"]{background:var(--accent-wash);box-shadow:inset 2px 0 0 var(--accent)}
-  .mitem .mt{font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mtrow{display:flex;align-items:center;gap:6px}
+  .mpin{cursor:pointer;flex:none;color:var(--faint);font-size:12px}
+  .mpin.on{color:var(--accent)}
+  .mitem .mt{flex:1;min-width:0;font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mitem .mp{font-size:12px;color:var(--faint);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mitem .ml{font-size:10.5px;color:var(--accent);margin-top:5px}
   .medit{display:flex;flex-direction:column;padding:18px 20px}
@@ -566,6 +571,10 @@
           <div class="bhead2"><h3>🔗 링크</h3><a class="minilink" id="goDrawer">관리</a></div>
           <div id="linkPins"></div>
         </section>
+        <section class="board pinned">
+          <div class="bhead2"><h3>📌 메모</h3><a class="minilink" id="goMemoTab">메모</a></div>
+          <div id="memoPins"></div>
+        </section>
       </aside>
     </div>
   </div>
@@ -671,6 +680,7 @@
   var hasSketch=false;   // art_works.sketch_url 컬럼이 있으면 true (손그림 저장, SQL 마이그레이션 후)
   var hasMemoUpd=false;  // memos에 updated 컬럼이 있으면 true (정렬용)
   var hasMemoImg=false;  // memos.images 컬럼이 있으면 true (사진 첨부, SQL 마이그레이션 후)
+  var hasMemoPin=false;  // memos.pinned 컬럼이 있으면 true (홈 보드 고정, SQL 마이그레이션 후)
   var hasDoneLog=false;  // todos.donelog 컬럼이 있으면 true (고정업무 완료 이력, SQL 마이그레이션 후)
   var hasMonth=false;    // todos.month/review 컬럼이 있으면 true (월별 관리·회고, v2 마이그레이션 후)
   var hasAgenda=false;   // agenda 테이블이 있으면 true (회의 안건, v2)
@@ -724,8 +734,8 @@
     if(hasMonth){r.month=t.month||(t.month=thisMonth());r.review=t.review||'';r.rolled=!!t.rolled;r.routine_id=t.routineId||null;}
     return r;}
   function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),stage:(typeof r.dep==='number'?r.dep:0),endd:r.endd||'',doneLog:Array.isArray(r.donelog)?r.donelog:[],month:r.month||'',review:r.review||'',rolled:!!r.rolled,routineId:r.routine_id||null};}
-  function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;if(hasMemoImg)r.images=m.images||[];return r;}
-  function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',images:r.images||[],updated:r.updated||''};}
+  function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;if(hasMemoImg)r.images=m.images||[];if(hasMemoPin)r.pinned=!!m.pinned;return r;}
+  function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',images:r.images||[],updated:r.updated||'',pinned:!!r.pinned};}
   function putTodo(t){sb.from('todos').upsert(rowT(t)).then(function(r){if(r.error)console.warn('todo',r.error.message);});}
   function delTodoDB(id){sb.from('todos').delete().eq('id',id).then(function(){});}
   function putAgenda(a){if(!hasAgenda)return;sb.from('agenda').upsert({id:a.id,ws:a.ws,text:a.text,done:!!a.done,sort:a.sort||0}).then(function(r){if(r.error)console.warn('agenda',r.error.message);});}
@@ -814,7 +824,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*')]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -831,6 +841,7 @@
       hasProgress=!(res[16]&&res[16].error);// progress 테이블 있으면 진행 기록 켜짐 (v2)
       hasJournal=!(res[17]&&res[17].error); // journal 테이블 있으면 저널 켜짐 (v2)
       hasRoutines=!(res[18]&&res[18].error);// routines 테이블 있으면 상시업무 켜짐 (v2)
+      hasMemoPin=!(res[19]&&res[19].error); // memos.pinned 컬럼 있으면 메모 홈 고정 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1122,6 +1133,15 @@
     var all=document.getElementById('linkAll');
     if(all)all.innerHTML=ls.length?ls.map(linkRow).join(''):'<p class="boardempty">자주 가는 곳을 아래에서 추가해보세요</p>';
   }
+  function memoRow(m){
+    return '<div class="lkrow" data-mk="'+m.id+'"><span class="lkstar on" data-act="mk-pin" title="고정 해제">★</span><span class="mktxt" data-act="mk-open">'+esc(m.title||'제목 없음')+'</span></div>';
+  }
+  function renderMemoPins(){
+    var pins=document.getElementById('memoPins');
+    if(!pins)return;
+    var p=state.memos.filter(function(m){return m.pinned;}).sort(function(a,b){return (b.updated||'').localeCompare(a.updated||'');});
+    pins.innerHTML=p.length?p.map(memoRow).join(''):'<p class="boardempty">'+(hasMemoPin?'메모에서 ☆ 누르면 여기 고정돼요':'메모 고정 기능 준비 중이에요')+'</p>';
+  }
   function renderDone(){var wrap=document.getElementById('doneList');var list=wsArchived().slice().sort(function(a,b){return (b.doneAt||'')<(a.doneAt||'')?-1:((b.doneAt||'')>(a.doneAt||'')?1:0);});
     document.getElementById('doneCount').textContent=list.length+'개';
     if(!list.length){wrap.innerHTML='<p class="empty">완료함이 비었어요 · 완료한 할일을 여기로 보낼 수 있어요</p>';return;}
@@ -1136,13 +1156,14 @@
   function renderMemos(){var mf=document.getElementById('mfolders');
     mf.innerHTML=FOLDERS.map(function(f){var cnt=f==='전체'?state.memos.length:state.memos.filter(function(m){return m.folder===f;}).length;return '<button data-f="'+f+'"'+(f===state.curFolder?' aria-selected="true"':'')+'>'+f+(f==='전체'?'':' '+cnt)+'</button>';}).join('');
     var list=state.memos.filter(function(m){return state.curFolder==='전체'||m.folder===state.curFolder;}).sort(function(a,b){return (b.updated||'').localeCompare(a.updated||'');});
-    document.getElementById('mlist').innerHTML=list.map(function(m){return '<div class="mitem" data-id="'+m.id+'"'+(state.curMemo===m.id?' aria-selected="true"':'')+'><div class="mt">'+esc(m.title||'제목 없음')+'</div><div class="mp">'+esc((m.body||'').replace(/\n/g,' ').slice(0,42)||'내용 없음')+'</div>'+(m.link?'<div class="ml">🔗 '+esc(m.link)+'</div>':'')+'</div>';}).join('')||'<div class="empty">메모 없음</div>';
+    document.getElementById('mlist').innerHTML=list.map(function(m){return '<div class="mitem" data-id="'+m.id+'"'+(state.curMemo===m.id?' aria-selected="true"':'')+'><div class="mtrow"><span class="mpin'+(m.pinned?' on':'')+'" data-act="m-pin" title="홈에 고정">'+(m.pinned?'★':'☆')+'</span><div class="mt">'+esc(m.title||'제목 없음')+'</div></div><div class="mp">'+esc((m.body||'').replace(/\n/g,' ').slice(0,42)||'내용 없음')+'</div>'+(m.link?'<div class="ml">🔗 '+esc(m.link)+'</div>':'')+'</div>';}).join('')||'<div class="empty">메모 없음</div>';
     document.getElementById('mfolsel').innerHTML=FOLDERS.slice(1).map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
     if(cur){state.curMemo=cur.id;document.getElementById('mtitle').value=cur.title;document.getElementById('mfolsel').value=cur.folder;
       document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';
       if(curTreeMemoId!==cur.id){resetMemoUndo();renderMemoTree(cur);}}
-    else{document.getElementById('mtitle').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyTree').innerHTML='';curTreeMemoId=null;resetMemoUndo();}}
+    else{document.getElementById('mtitle').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyTree').innerHTML='';curTreeMemoId=null;resetMemoUndo();}
+    renderMemoPins();}
   // ===== 메모 라이브 블록 에디터 (토글/체크박스/불릿은 그대로 텍스트, 토글만 실제 접기/펼치기 가능한 블록) =====
   var memoTree=[],curTreeMemoId=null,imgDragSeg=null;
   function memoLineIndent(line){return (line.match(/^(\s*)/)||['',''])[1].length;}
@@ -1634,6 +1655,7 @@
     document.getElementById('homeGrid').classList.add('show-board');
     var b=document.querySelector('.homeside .board');if(b)b.scrollIntoView({block:'center',behavior:'smooth'});});
   document.getElementById('goDrawer').addEventListener('click',function(){switchTab('drawer');});
+  document.getElementById('goMemoTab').addEventListener('click',function(){switchTab('memo');});
   document.getElementById('homeSeg').addEventListener('click',function(e){
     var el=e.target.closest('[data-hs]');if(!el)return;
     document.querySelectorAll('#homeSeg [data-hs]').forEach(function(x){x.classList.toggle('on',x===el);});
@@ -1795,6 +1817,11 @@
       if(lk&&act==='lk-pin'){lk.pinned=!lk.pinned;putLink(lk);renderLinkBoards();showToast(lk.pinned?'홈에 고정했어요':'고정을 풀었어요');}
       else if(lk){var lki=state.links.indexOf(lk);state.links.splice(lki,1);delLinkDB(lk.id);renderLinkBoards();
         showToast('링크를 지웠어요',function(){state.links.splice(lki,0,lk);putLink(lk);renderLinkBoards();});}}
+    else if(act==='mk-pin'||act==='mk-open'){
+      var mkEl=el.closest('[data-mk]'),mm=mkEl&&mById(mkEl.dataset.mk);
+      if(!mm)return;
+      if(act==='mk-pin'){mm.pinned=false;putMemo(mm);renderMemoPins();renderMemos();showToast('고정을 풀었어요');}
+      else{state.curMemo=mm.id;switchTab('memo');renderMemos();}}
     else if(act==='subtog'&&t){expanded[t.id]=!expanded[t.id];renderToday();renderProjects();}
     else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();renderDue();}}
     else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();renderDue();}}
@@ -1935,7 +1962,10 @@
   // memo events
   document.getElementById('mfolders').addEventListener('click',function(e){var b=e.target.closest('button[data-f]');if(!b)return;state.curFolder=b.dataset.f;savePrefs();renderMemos();});
   var memoEl=document.querySelector('.memo');
-  document.getElementById('mlist').addEventListener('click',function(e){var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();memoEl.classList.add('mob-edit');});
+  document.getElementById('mlist').addEventListener('click',function(e){
+    var star=e.target.closest('.mpin');
+    if(star){var pit=star.closest('.mitem'),pm=pit&&mById(pit.dataset.id);if(pm){pm.pinned=!pm.pinned;putMemo(pm);renderMemos();showToast(pm.pinned?'홈에 고정했어요':'고정을 풀었어요');}return;}
+    var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();memoEl.classList.add('mob-edit');var med=document.querySelector('.medit');if(med)med.scrollIntoView({block:'start'});});
   document.getElementById('mBackBtn').addEventListener('click',function(){memoEl.classList.remove('mob-edit');});
   var memoT;
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
