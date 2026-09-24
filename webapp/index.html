@@ -41,9 +41,6 @@
   .tabs button[aria-selected="true"]{color:var(--text);font-weight:600;border-bottom-color:var(--accent)}
   .tabs button.tabdragging{opacity:.4}
   .right{margin-left:auto;display:flex;align-items:center;gap:12px}
-  .seg{display:flex;gap:14px}
-  .seg button{font:inherit;font-size:13px;color:var(--faint);background:none;border:0;cursor:pointer;padding:0}
-  .seg button[aria-selected="true"]{color:var(--text);font-weight:600}
   .theme,.logout{border:1px solid var(--line-2);background:var(--panel);color:var(--muted);cursor:pointer}
   .theme{width:28px;height:28px;font-size:13px}
   .logout{font:inherit;font-size:12px;padding:5px 9px}
@@ -338,6 +335,9 @@
   .sitem .ssub{font-size:11px;color:var(--faint)}
   .sitem .stag{font-size:11px;color:var(--faint);margin-left:auto;white-space:nowrap}
   .sitem .sdue{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+  .subtabs{display:flex;gap:16px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+  .subtabs button{font:inherit;font-size:13px;color:var(--faint);background:none;border:0;cursor:pointer;padding:2px 0 8px;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .subtabs button[aria-selected="true"]{color:var(--text);font-weight:600;border-bottom-color:var(--accent)}
   .calnav{display:flex;align-items:center;gap:12px;margin-bottom:12px}
   .calnav h3{margin:0;font-size:16px}.calnav button{font:inherit;background:none;border:1px solid var(--line-2);color:var(--muted);cursor:pointer;padding:3px 9px}
   .calnav span{font-size:12px;color:var(--faint)}
@@ -524,10 +524,6 @@
       <button role="tab" aria-selected="false" data-tab="art">그림공부</button>
     </nav>
     <div class="right">
-      <div class="seg" id="wsSeg" role="tablist" aria-label="워크스페이스">
-        <button role="tab" aria-selected="true" data-ws="일">일</button>
-        <button role="tab" aria-selected="false" data-ws="개인작업">개인작업</button>
-      </div>
       <button class="theme" id="theme" title="테마 전환" aria-label="테마 전환">◐</button>
       <button class="logout" id="logout">로그아웃</button>
     </div>
@@ -639,8 +635,21 @@
     </section>
   </div>
   <div id="cal" class="hidden">
-    <div class="calnav"><button id="calPrev">‹</button><h3 id="calTitle"></h3><button id="calNext">›</button><span>끌어서 다른 날로 옮기기</span></div>
-    <div class="cgrid" id="cgrid"></div>
+    <div class="subtabs" id="calSubtabs" role="tablist" aria-label="캘린더 보기">
+      <button role="tab" aria-selected="true" data-caltab="grid">달력</button>
+      <button role="tab" aria-selected="false" data-caltab="routine">루틴</button>
+      <button role="tab" aria-selected="false" data-caltab="todo">투두</button>
+    </div>
+    <div id="calGridPanel">
+      <div class="calnav"><button id="calPrev">‹</button><h3 id="calTitle"></h3><button id="calNext">›</button><span>끌어서 다른 날로 옮기기</span></div>
+      <div class="cgrid" id="cgrid"></div>
+    </div>
+    <div id="calRoutinePanel" class="hidden">
+      <p class="caphint">루틴 — 다음 단계에서 만들 예정이에요 (자유 주기 + 요일/날짜 지정 체크리스트).</p>
+    </div>
+    <div id="calTodoPanel" class="hidden">
+      <p class="caphint">투두 — 다음 단계에서 만들 예정이에요 (캘린더에 안 뜨는 단순 체크리스트, 위젯 연동).</p>
+    </div>
   </div>
   <div id="memo" class="hidden">
     <div class="bhead"><h2>메모</h2><div class="r"><button class="btn-s" id="newMemo">+ 새 메모</button></div></div>
@@ -948,7 +957,6 @@
       dailyResetToday();
       monthlyRollIfNeeded();              // 달이 바뀌었으면 상시업무 복제 + 지난달 미완료 이월
       document.getElementById('hours').value=state.hours;
-      document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});
       renderAll();
       renderPushUI();
     });
@@ -1704,7 +1712,6 @@
 
   // ===== events =====
   document.getElementById('theme').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';c=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);state.theme=c;savePrefs();});
-  document.getElementById('wsSeg').addEventListener('click',function(e){var b=e.target.closest('button[data-ws]');if(!b)return;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x===b);});state.ws=b.dataset.ws;savePrefs();renderAll();});
   var panels={home:document.getElementById('home'),journal:document.getElementById('journal'),memo:document.getElementById('memo'),cal:document.getElementById('cal'),drawer:document.getElementById('drawer'),art:document.getElementById('art')};
   function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);
     // 메모 트리가 탭이 숨겨진(display:none) 상태에서 처음 그려지면 textarea.mseg의 scrollHeight가 0으로 잡혀
@@ -1742,7 +1749,7 @@
     if(kind==='memo'){state.curMemo=id;switchTab('memo');renderMemos();return;}
     var t=tById(id);if(!t)return;
     var viaSub=it.dataset.sub==='1',qn=norm(state.q);
-    if(t.ws!==state.ws){state.ws=t.ws;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});savePrefs();}
+    if(t.ws!==state.ws){state.ws=t.ws;savePrefs();}
     // 하위 항목이 보이는 뷰(오늘/프로젝트)로 보내고 부모를 펼침
     var target=t.archived?'journal':'home';
     if(viaSub)expanded[t.id]=true;
@@ -2036,6 +2043,14 @@
   function parseDue(v){v=(v||'').trim();if(!v)return '';var p=v.split(/[\/\-.]/);if(p.length>=2){var mo=+p[p.length-2],da=+p[p.length-1];if(mo&&da)return state.calYear+'-'+pad(mo)+'-'+pad(da);}return '';}
 
   // calendar drag
+  document.getElementById('calSubtabs').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-caltab]');if(!b)return;
+    var name=b.dataset.caltab;
+    document.querySelectorAll('#calSubtabs button').forEach(function(x){x.setAttribute('aria-selected',x===b);});
+    document.getElementById('calGridPanel').classList.toggle('hidden',name!=='grid');
+    document.getElementById('calRoutinePanel').classList.toggle('hidden',name!=='routine');
+    document.getElementById('calTodoPanel').classList.toggle('hidden',name!=='todo');
+  });
   document.getElementById('calPrev').addEventListener('click',function(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}savePrefs();renderCal();});
   document.getElementById('calNext').addEventListener('click',function(){state.calMonth++;if(state.calMonth>11){state.calMonth=0;state.calYear++;}savePrefs();renderCal();});
   var dragId=null,cg=document.getElementById('cgrid');
@@ -2381,7 +2396,7 @@
   document.getElementById('mfolsel').addEventListener('change',function(){var m=mById(state.curMemo);if(m){m.folder=this.value;putMemo(m);renderMemos();}});
   document.getElementById('mlinkbar').addEventListener('click',function(e){
     if(e.target.hasAttribute('data-unlink')){var m=mById(state.curMemo);if(m){state.todos.forEach(function(t){var ch=false;if(t.memoId===m.id){t.memoId=null;ch=true;}(t.subs||[]).forEach(function(s){if(s.memoId===m.id){s.memoId=null;ch=true;}});if(ch)putTodo(t);});m.link='';putMemo(m);renderAll();renderMemos();showToast('연결을 해제했어요');}return;}
-    if(e.target.hasAttribute('data-back')){var mm=mById(state.curMemo);var lt=mm&&state.todos.filter(function(t){return t.memoId===mm.id||(t.subs||[]).some(function(s){return s.memoId===mm.id;});})[0];if(lt&&lt.ws!==state.ws){state.ws=lt.ws;document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});savePrefs();renderAll();}switchTab('home');showToast('연결된 할일로 이동');}});
+    if(e.target.hasAttribute('data-back')){var mm=mById(state.curMemo);var lt=mm&&state.todos.filter(function(t){return t.memoId===mm.id||(t.subs||[]).some(function(s){return s.memoId===mm.id;});})[0];if(lt&&lt.ws!==state.ws){state.ws=lt.ws;savePrefs();renderAll();}switchTab('home');showToast('연결된 할일로 이동');}});
   document.getElementById('newMemo').addEventListener('click',function(){var f=state.curFolder==='전체'?'업무':state.curFolder;var m={id:'m'+uid(),folder:f,title:'',body:'',link:''};state.memos.unshift(m);putMemo(m);state.curMemo=m.id;renderMemos();memoEl.classList.add('mob-edit');document.getElementById('mtitle').focus();showToast('새 메모 · '+f);});
   document.getElementById('mDelBtn').addEventListener('click',function(){var m=mById(state.curMemo);if(m)removeMemo(m);});
 })();
