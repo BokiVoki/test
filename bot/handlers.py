@@ -19,6 +19,7 @@ from .cycle_sheet import CycleClient, PHASE_INFO
 from . import claude_client
 from . import figma_client
 from . import haru_app
+from . import webpush_notify
 from . import gcal
 from .mode_prompts import MODE_NAMES
 from .instagram_prompts import INSTAGRAM_AGENT_NAMES
@@ -1655,6 +1656,26 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_haru_daily(update.get_bot(), chat_id)
         else:
             await update.message.reply_text("하루앱 연결이 안 돼 있어요 (SUPABASE 환경변수 확인).")
+        return
+
+    # ── "푸시테스트" → 아이폰(홈 화면 설치) 등 등록된 기기로 테스트 알림 발송 ──
+    if text in ("푸시테스트", "알림테스트", "푸시테스트요"):
+        if not webpush_notify.is_configured():
+            await update.message.reply_text(
+                "웹 푸시가 아직 설정 안 됐어요. Railway에 VAPID_PRIVATE_KEY/"
+                "VAPID_PUBLIC_KEY를 넣고, 하루앱에서 서랍 → 🔔 알림 켜기부터 해주세요."
+            )
+        else:
+            try:
+                n = webpush_notify.send("하루 테스트 알림", "이게 보이면 성공이에요 🎉")
+                if n:
+                    await update.message.reply_text(f"{n}개 기기로 테스트 알림을 보냈어요.")
+                else:
+                    await update.message.reply_text(
+                        "등록된 기기가 없어요 — 하루앱에서 서랍 → 🔔 알림 켜기부터 해주세요."
+                    )
+            except Exception as e:
+                await update.message.reply_text(f"발송 실패: {e}")
         return
 
     # ── 재알람 직접 입력 대기 중 ──

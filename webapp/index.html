@@ -9,6 +9,11 @@
 <link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16">
 <link rel="icon" href="favicon-512.png" type="image/png" sizes="512x512">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="하루">
+<meta name="theme-color" content="#0E76AC">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
@@ -611,6 +616,11 @@
   </div>
   <div id="drawer" class="hidden">
     <section class="blk">
+      <div class="bhead"><h2>🔔 알림</h2><div class="r" id="pushStatus"></div></div>
+      <p class="caphint" id="pushHint"></p>
+      <button class="btn-s hidden" id="pushToggle">알림 켜기</button>
+    </section>
+    <section class="blk">
       <div class="bhead"><h2>링크</h2><div class="r">★ 누른 링크가 홈 오른쪽에 고정돼요</div></div>
       <div id="linkAll"></div>
       <div class="linkadd"><input id="linkTitle" placeholder="이름" aria-label="링크 이름"><input id="linkUrl" placeholder="https://" aria-label="링크 주소"><input id="linkGrp" placeholder="묶음 (노션/시트…)" aria-label="링크 묶음"><button class="btn-s" id="linkAdd">추가</button></div>
@@ -702,6 +712,7 @@
   var hasJournal=false;  // journal 테이블이 있으면 true (저널, v2)
   var hasRoutines=false; // routines 테이블이 있으면 true (상시업무, v2)
   var hasMonthGoal=false;// journal.goal/musts 컬럼이 있으면 true (월 목표·꼭 이뤄야 할 것, SQL 마이그레이션 후)
+  var hasPush=false;    // push_subscriptions 테이블이 있으면 true (아이폰 홈화면 설치+웹푸시, SQL 마이그레이션 후)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
@@ -835,10 +846,73 @@
     else{showAuth();}
   });
 
+  // ===== 웹 푸시 알림 =====
+  // 아이폰은 사파리에서 그냥 열어둔 탭으로는 웹 푸시를 못 받음 — 반드시 "홈 화면에 추가"로
+  // 설치한 뒤 그 아이콘으로 열어야만 알림 권한을 요청·수신할 수 있음(iOS 16.4+ 제약, 우회 불가).
+  // 발송은 Railway의 텔레그램 봇 쪽에서(bot/webpush_notify.py) — 이 앱은 구독 등록/해제만 담당.
+  var VAPID_PUBLIC_KEY='BJfQi1FWcfc-kWB1sDUgYWTopH8umrgovA80J-Hu76n0WLbjqZrVojTM9FWlkgHK4IYtsVlTnWtn-BeywIt4TWo';
+  function urlBase64ToUint8Array(base64String){
+    var padding='='.repeat((4-base64String.length%4)%4);
+    var base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+    var raw=atob(base64),arr=new Uint8Array(raw.length);
+    for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);
+    return arr;
+  }
+  function pushStandalone(){return window.navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);}
+  function pushIsIOS(){return /iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+  function pushSupported(){return 'serviceWorker' in navigator && 'PushManager' in window && typeof Notification!=='undefined';}
+  if(pushSupported()){navigator.serviceWorker.register('sw.js').catch(function(){});}
+  function subscribePush(){
+    if(!pushSupported())return Promise.reject(new Error('이 브라우저는 지원 안 해요'));
+    var owner;
+    return sb.auth.getUser().then(function(u){
+      owner=(u.data&&u.data.user)?u.data.user.id:null;
+      if(!owner)throw new Error('로그인 정보를 확인할 수 없어요');
+      return Notification.requestPermission();
+    }).then(function(perm){
+      if(perm!=='granted')throw new Error('알림 권한이 거부됐어요');
+      return navigator.serviceWorker.ready;
+    }).then(function(reg){
+      return reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
+    }).then(function(sub){
+      var j=sub.toJSON();
+      return sb.from('push_subscriptions').upsert({endpoint:j.endpoint,owner:owner,p256dh:j.keys.p256dh,auth:j.keys.auth,ua:navigator.userAgent.slice(0,200)}).then(function(r){
+        if(r.error)throw new Error(r.error.message);
+        return sub;
+      });
+    });
+  }
+  function unsubscribePush(){
+    if(!pushSupported())return Promise.resolve();
+    return navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription();}).then(function(sub){
+      if(!sub)return;
+      var endpoint=sub.endpoint;
+      return sub.unsubscribe().then(function(){return sb.from('push_subscriptions').delete().eq('endpoint',endpoint);});
+    });
+  }
+  function renderPushUI(){
+    var statusEl=document.getElementById('pushStatus'),hintEl=document.getElementById('pushHint'),btn=document.getElementById('pushToggle');
+    if(!statusEl)return;
+    if(!hasPush){statusEl.textContent='';hintEl.textContent='알림 표가 아직 없어요(마이그레이션 필요)';btn.classList.add('hidden');return;}
+    if(!pushSupported()){statusEl.textContent='지원 안 됨';hintEl.textContent='이 브라우저는 웹 푸시를 지원하지 않아요.';btn.classList.add('hidden');return;}
+    if(pushIsIOS()&&!pushStandalone()){statusEl.textContent='설치 필요';hintEl.textContent='아이폰에서 알림을 받으려면 먼저 공유 버튼 → "홈 화면에 추가"로 하루앱을 설치한 뒤, 그 아이콘으로 열어서 켜주세요.';btn.classList.add('hidden');return;}
+    navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription();}).then(function(sub){
+      if(sub){statusEl.textContent='켜짐';hintEl.textContent='이 기기로 알림을 받고 있어요.';btn.textContent='알림 끄기';btn.classList.remove('hidden');btn.dataset.on='1';}
+      else{statusEl.textContent='꺼짐';hintEl.textContent='버튼을 누르면 이 기기로 알림을 받아요.';btn.textContent='알림 켜기';btn.classList.remove('hidden');btn.dataset.on='0';}
+    }).catch(function(){});
+  }
+  document.getElementById('pushToggle').addEventListener('click',function(){
+    var btn=this;btn.disabled=true;
+    var task=btn.dataset.on==='1'?unsubscribePush():subscribePush();
+    task.then(function(){renderPushUI();showToast(btn.dataset.on==='1'?'알림을 껐어요':'알림을 켰어요');})
+      .catch(function(err){showToast('실패: '+(err&&err.message||err));})
+      .then(function(){btn.disabled=false;});
+  });
+
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -857,6 +931,7 @@
       hasRoutines=!(res[18]&&res[18].error);// routines 테이블 있으면 상시업무 켜짐 (v2)
       hasMemoPin=!(res[19]&&res[19].error); // memos.pinned 컬럼 있으면 메모 홈 고정 켜짐
       hasMonthGoal=!(res[20]&&res[20].error);// journal.goal/musts 컬럼 있으면 월 목표·꼭 이뤄야 할 것 켜짐
+      hasPush=!(res[21]&&res[21].error);   // push_subscriptions 테이블 있으면 알림 켜기 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -875,6 +950,7 @@
       document.getElementById('hours').value=state.hours;
       document.querySelectorAll('#wsSeg button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.ws===state.ws);});
       renderAll();
+      renderPushUI();
     });
   }
 

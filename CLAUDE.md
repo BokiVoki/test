@@ -105,7 +105,18 @@
   - **언제 도는지**(`monthlyRollIfNeeded`): `settings.routineMonth`가 이번 달과 다르면 로드 시 1회 — `todayResetDate`와 같은 패턴. ⚠️ **이 기능을 처음 쓰는 로드에선 이월을 건너뜀**(`first`) — 안 그러면 예전 할일이 무더기로 이번 달로 끌려옴. `putSettings()`가 `state.uid` 없으면 저장을 건너뛰므로 uid가 아직이면 800ms 뒤 한 번 재시도(안 그러면 다음 로드에 또 돌아서 토스트가 반복됨).
   - **배지**: 이월된 건 `↩︎이월`, 상시업무에서 온 건 `상시`(`.rolled` 스타일 공용).
   - **멈춤/삭제**: `켜짐/멈춤` 토글은 다음 달부터 안 올라오게만 하고, **이미 담긴 이번 달 할일은 그대로 둠**(삭제도 동일) — 마스터를 건드려서 진행 중인 달이 흔들리지 않게.
-- **서랍(v2)**: `링크`(전체 목록 + ★로 홈 고정) + `상시업무` 두 칸.
+- **서랍(v2)**: `🔔 알림`(웹 푸시, 아래 참고) + `링크`(전체 목록 + ★로 홈 고정) + `상시업무` 세 칸.
+- **🔔 아이폰 푸시 알림(2026-09-24, 기반만 — 트리거는 나중에)**: "아이폰 푸시알림도 넣어줄아"라는 요청. 잠금화면 위젯("투두 목록을 위젯처럼")은 **불가능**하다고 먼저 안내함 — WidgetKit은 네이티브 앱 전용이라 웹앱(PWA)은 위젯 시스템 자체에 접근할 방법이 없음(콘텐츠가 할일이든 명언이든 동일하게 막힘). 대신 웹 푸시(Web Push)는 가능해서 그 기반만 먼저 구현.
+  - **아이폰 제약**: iOS Safari는 **"홈 화면에 추가"로 설치한 PWA에서만** 웹 푸시 수신 가능(iOS 16.4+, 사파리 탭으로 그냥 열어둔 상태로는 원천 차단, 우회 불가). 그래서 `webapp/manifest.json`(설치용 매니페스트, 기존 `apple-touch-icon.png`180×180 + `favicon-512.png`512×512 재사용, 새 이미지 생성 안 함) + `<head>`에 `apple-mobile-web-app-capable` 등 메타 태그 추가.
+  - **서비스워커**(`webapp/sw.js`): `push` 이벤트에 `showNotification`, `notificationclick`에 해당 URL로 포커스/열기. 오프라인 캐싱은 안 함(항상 최신 Supabase 데이터를 봐야 해서).
+  - **구독 UI**(서랍 `🔔 알림`, `#pushStatus`/`#pushHint`/`#pushToggle`): `renderPushUI()`가 상태별로 다르게 보여줌 — ①`hasPush` 프로브 없으면 "마이그레이션 필요" ②`pushSupported()`(serviceWorker+PushManager+Notification) 없으면 "지원 안 됨" ③**아이폰인데(`pushIsIOS()`) 아직 설치 안 했으면**(`pushStandalone()`) "설치 필요"+버튼 숨김 ④그 외(데스크톱/안드로이드는 설치 없이도 되므로 아이폰만 이 게이트를 탐) 실제 구독 여부 확인해서 켜짐/꺼짐 버튼. **처음엔 이 아이폰 전용 게이트를 전체에 걸어서 데스크톱 크롬에서도 "설치 필요"만 뜨는 버그**가 있었음(헤드리스 테스트로 발견) → `pushIsIOS()`(UA + 아이패드가 Mac으로 위장하는 것 대응 `navigator.platform==='MacIntel'&&maxTouchPoints>1`)로 아이폰/아이패드에만 그 제약을 걸도록 수정.
+  - **구독 저장**(`subscribePush()`): `Notification.requestPermission()` → `pushManager.subscribe()` → 구독 정보(`endpoint`/`p256dh`/`auth`)를 Supabase `push_subscriptions`(신규 테이블, `owner uuid`+RLS)에 upsert(PK=`endpoint`라 같은 기기 중복 구독 방지, 기기 여러 대 등록 가능). `unsubscribePush()`는 반대로 구독 해제+DB에서 삭제.
+  - **VAPID 키**: 이 세션에서 1회 생성해서 고정(파이썬 `cryptography` 패키지가 샌드박스에서 깨져있어서 P-256 타원곡선 스칼라 곱셈을 직접 순수 파이썬으로 구현해서 생성, 커브 위에 있는 점인지 검증까지 함). 공개키는 `webapp/index.html`의 `VAPID_PUBLIC_KEY` 상수에, 비밀키는 Railway 환경변수 `VAPID_PRIVATE_KEY`에만 넣음(코드/문서에 노출 안 함) — **하나만 바꾸면 기존 구독이 다 깨지므로 재생성 금지**.
+  - **발송 쪽**(`bot/webpush_notify.py`, Railway 텔레그램 봇에서 담당 — 발송은 서버가 있어야 해서 웹앱 혼자서는 못 함): `haru_app.py`와 같은 방식으로 Supabase REST를 raw `requests`로 호출해 그 사용자의 구독 목록을 가져온 뒤 `pywebpush`로 하나씩 발송, 만료된 구독(410/404)은 조용히 DB에서 지움. `requirements.txt`에 `pywebpush==2.0.3` 추가. **텔레그램 `푸시테스트`** 명령으로 등록된 기기에 테스트 알림 즉시 발송(핸들러는 `마감`/`추천`과 같은 텍스트 매칭 패턴).
+  - **트리거는 아직 안 만듦**(사용자가 "일단 기반만" 요청) — 나중에 마감 임박/아침 체크인/회의 안건 등 중 골라서 `webpush_notify.send(title, body, url)` 호출만 연결하면 됨. 이미 저장 중인 이번 달 메모(`journal.goal`)·명언 같은 것도 나중에 알림 내용에 얹을 수 있음.
+  - **테스트 한계**: 헤드리스 샌드박스는 `file://`에서 서비스워커 등록 자체가 막혀 있어(Chromium이 file: origin을 지원 안 함) 로컬 HTTP 서버(`python -m http.server`)를 임시로 띄워서 등록·구독 버튼 클릭까지는 확인했지만, **실제 구글 푸시 서버로의 등록은 샌드박스 네트워크에서 막혀 실패**(`Registration failed`) — 버튼 동작·에러 처리까지는 검증됐고, 실제 수신 여부는 배포 후 진짜 기기(아이폰 설치 후, 또는 데스크톱 크롬)에서 직접 "🔔 알림 켜기" → 텔레그램 `푸시테스트`로 확인해야 함.
+  - **DB**: `push_subscriptions`(`endpoint` PK, `owner`, `p256dh`, `auth`, `ua`, `created`) 신규 테이블, RLS `owner=auth.uid()`.
+  - **다음 단계로 예고된 것**: 푸시 마무리되면 **위젯 전용 미니 네이티브 앱**(Swift/WidgetKit, 잠금화면 위젯) 착수 예정 — 앱 전체를 새로 만드는 게 아니라 위젯만 담당하는 작은 앱. 이 세션(리눅스 서버)엔 Xcode가 없어서 **코드는 짜줄 수 있어도 빌드·테스트·앱스토어 업로드는 맥+Xcode에서 직접 해야** 함.
 - **모바일 UX 개선(2026-09-23)**: "가독성이 안 좋다 · 오른쪽 보드가 모바일에서 너무 많다"는 피드백으로 손봄.
   - **홈을 900px 이하에서 「할일 / 보드」 탭으로 분리**(`#homeSeg`, `#homeGrid.show-board`): 기본은 「할일」(오늘 띠+월간 표)만 보이고, 「보드」를 누르면 오늘한줄·주머니·회의안건·링크 네 개만 보임 — 예전엔 이 넷이 월간 표 밑에 그대로 이어 붙어서 스크롤이 두 배로 길었음. 「보드」 탭엔 **주머니 개수 + 안 끝난 회의 안건 수** 배지(`updateHomeSegCount`, `renderAll` 끝에서 매번 갱신)가 붙어서 안 눌러봐도 뭔가 있는지 알 수 있음. 주머니(`goPocket`) 클릭 시에도 모바일이면 자동으로 「보드」 탭으로 전환.
   - **버그 발견: 호버로만 보이던 버튼들이 터치에선 원천적으로 안 보임** — `.rowdel`(할일 삭제)·`.pjdel`/`.pjren`(프로젝트 삭제·이름변경)·`.subadd0`(＋하위 첫 추가)·`.subitem .sdel`(하위항목 삭제)·`.rowbtn`(🔁 반복설정, 오늘 토글)·`.nest`(⤵하위로)·`.sdue2`/`.stoday`(하위항목 날짜·오늘)·`.lkrow .lkdel`(링크 삭제) 전부 `opacity:0`+`:hover{opacity:1}` 패턴이라, 마우스 호버가 없는 폰에서는 **존재하는지도 모르고 있었거나 알아도 좌표 찍어 blind click** 해야 했음. 680px 이하에서 전부 `opacity:.5!important`로 항상 옅게 보이게 바꿈(`.has` 붙은 것들은 `.9`로 구분 유지, 이건 채워진 값이 있다는 뜻이라 특이도 계산상 더 구체적인 선택자로 따로 처리).
@@ -178,7 +189,7 @@
 
 ## 배포 / 인프라 메모
 
-- **Railway**: 봇 2개(일정봇 / 인박스봇). Procfile `worker: python start.py`, `BOT_ROLE`로 구분.
+- **Railway**: 봇 2개(일정봇 / 인박스봇). Procfile `worker: python start.py`, `BOT_ROLE`로 구분. **웹 푸시 발송하려면 일정봇 서비스에 `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`(+ 이미 있는 `SUPABASE_URL`/`SUPABASE_SERVICE_KEY`/`HARU_OWNER_ID`)를 추가로 넣어야 함** — 안 넣으면 `푸시테스트` 명령이 "웹 푸시가 아직 설정 안 됐어요"라고 안내함.
 - **Cloudflare (하루 웹앱 호스팅)**: `haru.lolcv1294.workers.dev`. `main` 브랜치 push → 자동배포. `wrangler.toml`(repo 루트)이 `webapp/` 폴더를 정적 사이트(Workers Static Assets)로 배포(`npx wrangler deploy`, assets-only). **Netlify에서 이사함**(무료 크레딧 소진으로 production deploy 멈춰서). ⚠️ 예전 Netlify는 개발 브랜치를 봤지만 Cloudflare는 `main`을 봄 → 웹앱 배포하려면 `main`에도 push해야 함.
 - **Google**: `GOOGLE_CREDENTIALS_JSON`(서비스계정), `GOOGLE_DRIVE_FOLDER_ID`(사진), `SPREADSHEET_ID`.
 - **개발 브랜치**: `claude/content-archive-bot-xv3nx` (봇 개발용). 웹앱 변경은 `main`에도 fast-forward push해야 Cloudflare가 배포함.
