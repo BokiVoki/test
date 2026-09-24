@@ -284,6 +284,7 @@
   .ck{width:16px;height:16px;border:1.5px solid var(--line-2);background:var(--panel);cursor:pointer;display:grid;place-items:center}
   .ck svg{width:9px;height:9px;opacity:0}
   tr.done .ck{background:var(--accent);border-color:var(--accent)}tr.done .ck svg{opacity:1}
+  .ck.on{background:var(--accent);border-color:var(--accent)}.ck.on svg{opacity:1}
   tr.done .ttl{color:var(--faint);text-decoration:line-through}
   td.ckcell{width:30px;text-align:center;padding-left:2px}
   .tri{display:flex;flex-wrap:wrap;gap:2px;justify-content:flex-end}
@@ -674,7 +675,9 @@
       </div>
     </div>
     <div id="calTodoPanel" class="hidden">
-      <p class="caphint">투두 — 다음 단계에서 만들 예정이에요 (캘린더에 안 뜨는 단순 체크리스트, 위젯 연동).</p>
+      <p class="caphint">캘린더엔 안 뜨는 단순 체크리스트예요 — 잠금화면 위젯에서도 체크할 수 있게 만들 예정.</p>
+      <div id="calTodoList"></div>
+      <input class="boardin" id="ctIn" placeholder="+ 할일 추가 후 Enter" aria-label="투두 추가">
     </div>
   </div>
   <div id="memo" class="hidden">
@@ -749,11 +752,12 @@
   var hasMonthGoal=false;// journal.goal/musts 컬럼이 있으면 true (월 목표·꼭 이뤄야 할 것, SQL 마이그레이션 후)
   var hasPush=false;    // push_subscriptions 테이블이 있으면 true (아이폰 홈화면 설치+웹푸시, SQL 마이그레이션 후)
   var hasCalRoutines=false; // cal_routines 테이블이 있으면 true (캘린더 탭 루틴, SQL 마이그레이션 후)
+  var hasCalTodos=false; // cal_todos 테이블이 있으면 true (캘린더 탭 투두, SQL 마이그레이션 후)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var nestSource=null;   // '하위로 이동' 중인 할일 id
-  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'home',q:'',artists:[],artworks:[],artSel:{type:'none'},month:'',agenda:[],links:[],progress:[],journal:[],jDate:'',routines:[],calRoutines:[]};
+  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'home',q:'',artists:[],artworks:[],artSel:{type:'none'},month:'',agenda:[],links:[],progress:[],journal:[],jDate:'',routines:[],calRoutines:[],calTodos:[]};
 
   // prefs (local only)
   function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder','tabOrder'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
@@ -845,6 +849,9 @@
     else{h.doneToday=true;h.nextDue=habitNextDue(h,todayISO());}
     putCalRoutine(h);renderCalRoutines();
   }
+  // ===== 캘린더 탭 「투두」(캘린더에 안 뜨는 단순 체크리스트, 초기화 없음) =====
+  function putCalTodo(x){if(!hasCalTodos)return;sb.from('cal_todos').upsert({id:x.id,owner:state.uid,title:x.title,done:!!x.done,sort:x.sort||0,created:x.created||todayISO()}).then(function(r){if(r.error)console.warn('cal_todo',r.error.message);});}
+  function delCalTodoDB(id){if(!hasCalTodos)return;sb.from('cal_todos').delete().eq('id',id).then(function(){});}
   function putJournal(j){if(!hasJournal)return;j.updated=new Date().toISOString();var row={id:j.id,date:j.date,body:j.body,images:j.images||[],updated:j.updated};if(hasMonthGoal){row.goal=j.goal||'';row.musts=j.musts||[];}sb.from('journal').upsert(row).then(function(r){if(r.error)console.warn('journal',r.error.message);});}
   function putMemo(m){m.updated=new Date().toISOString();sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
   function delMemoDB(id){sb.from('memos').delete().eq('id',id).then(function(){});}
@@ -986,7 +993,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*')]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*')]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1007,6 +1014,7 @@
       hasMonthGoal=!(res[20]&&res[20].error);// journal.goal/musts 컬럼 있으면 월 목표·꼭 이뤄야 할 것 켜짐
       hasPush=!(res[21]&&res[21].error);   // push_subscriptions 테이블 있으면 알림 켜기 켜짐
       hasCalRoutines=!(res[22]&&res[22].error); // cal_routines 테이블 있으면 캘린더 루틴 켜짐
+      hasCalTodos=!(res[23]&&res[23].error); // cal_todos 테이블 있으면 캘린더 투두 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1019,6 +1027,7 @@
       state.journal=(hasJournal&&res[17].data)?res[17].data.map(function(r){return {id:r.id,date:r.date||'',body:r.body||'',images:Array.isArray(r.images)?r.images:[],updated:r.updated||'',goal:r.goal||'',musts:Array.isArray(r.musts)?r.musts:[]};}):[];
       state.routines=(hasRoutines&&res[18].data)?res[18].data.map(function(r){return {id:r.id,ws:r.ws||'일',project:r.project||'',title:r.title||'',cycle:r.cycle||'monthly',imp:r.imp||1,sort:r.sort||0,active:r.active!==false,created:r.created||''};}):[];
       state.calRoutines=(hasCalRoutines&&res[22].data)?res[22].data.map(fromCalRoutine):[];
+      state.calTodos=(hasCalTodos&&res[23].data)?res[23].data.map(function(r){return {id:r.id,title:r.title||'',done:!!r.done,sort:r.sort||0,created:r.created||''};}):[];
       state.month=thisMonth();            // 항상 이번 달로 열림 (◀ ▶ 로 지난 달을 넘겨볼 수 있음)
       state.jDate=todayISO();             // 저널은 오늘 칸부터
       dailyResetToday();
@@ -1282,6 +1291,17 @@
     var later=state.calRoutines.filter(function(h){return !habitDueToday(h);}).sort(function(a,b){return (a.nextDue||'').localeCompare(b.nextDue||'');});
     listEl.innerHTML=due.length?due.map(function(h){return calRoutineRow(h,true);}).join(''):'<p class="boardempty">오늘 체크할 루틴이 없어요 — 아래에서 추가해보세요</p>';
     if(upEl)upEl.innerHTML=later.length?later.map(function(h){return calRoutineRow(h,false);}).join(''):'<p class="boardempty">예정된 루틴 없음</p>';
+  }
+  function ctRow(x){
+    return '<div class="lkrow" data-ct="'+x.id+'"><span class="ck'+(x.done?' on':'')+'" data-act="ct-check" role="checkbox" tabindex="0">'+(x.done?svg():'')+'</span>'
+      +'<span class="mktxt"'+(x.done?' style="color:var(--faint);text-decoration:line-through;cursor:default"':' style="cursor:default"')+'>'+esc(x.title)+'</span>'
+      +'<span class="lkdel" data-act="ct-del" title="지우기">✕</span></div>';
+  }
+  function renderCalTodos(){
+    var el=document.getElementById('calTodoList');if(!el)return;
+    if(!hasCalTodos){el.innerHTML='<p class="boardempty">투두 표가 아직 없어요</p>';return;}
+    var list=state.calTodos.slice().sort(function(a,b){return (a.done-b.done)||((a.sort||0)-(b.sort||0));});
+    el.innerHTML=list.length?list.map(ctRow).join(''):'<p class="boardempty">아래에서 할일을 추가해보세요</p>';
   }
   // ===== v2: 월 네비 · 회의 안건 · 링크 보드 =====
   function renderMonthNav(){
@@ -1765,7 +1785,7 @@
     });
   })();
 
-  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCal();renderMemos();renderJournal();renderDone();renderArt();updateHomeSegCount();if(state.q)runSearch();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCalTodos();renderCal();renderMemos();renderJournal();renderDone();renderArt();updateHomeSegCount();if(state.q)runSearch();}
   // 모바일 "보드" 탭에 살짝 붙는 숫자 — 주머니 + 체크 안 한 회의 안건 합
   function updateHomeSegCount(){
     var el=document.getElementById('hsnCount');if(!el)return;
@@ -1979,6 +1999,12 @@
   document.getElementById('crAdd').addEventListener('click',addCalRoutine);
   document.getElementById('crTitle').addEventListener('keydown',function(e){
     if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addCalRoutine();});
+  document.getElementById('ctIn').addEventListener('keydown',function(e){
+    if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
+    var v=this.value.trim();if(!v)return;
+    if(!hasCalTodos){showToast('투두 표가 아직 없어요');return;}
+    var x={id:uid(),title:v,done:false,sort:Date.now(),created:todayISO()};
+    state.calTodos.push(x);putCalTodo(x);this.value='';renderCalTodos();});
   document.getElementById('agendaIn').addEventListener('keydown',function(e){
     if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
     var v=this.value.trim();if(!v)return;
@@ -2069,6 +2095,12 @@
       if(act==='cr-check'){checkCalRoutine(h);}
       else{var hi=state.calRoutines.indexOf(h);state.calRoutines.splice(hi,1);delCalRoutineDB(h.id);renderCalRoutines();
         showToast('루틴을 지웠어요',function(){state.calRoutines.splice(hi,0,h);putCalRoutine(h);renderCalRoutines();});}}
+    else if(act==='ct-check'||act==='ct-del'){
+      var ctEl=el.closest('[data-ct]'),x=ctEl&&state.calTodos.filter(function(y){return y.id===ctEl.dataset.ct;})[0];
+      if(!x)return;
+      if(act==='ct-check'){x.done=!x.done;putCalTodo(x);renderCalTodos();}
+      else{var xi=state.calTodos.indexOf(x);state.calTodos.splice(xi,1);delCalTodoDB(x.id);renderCalTodos();
+        showToast('투두를 지웠어요',function(){state.calTodos.splice(xi,0,x);putCalTodo(x);renderCalTodos();});}}
     else if(act==='subtog'&&t){expanded[t.id]=!expanded[t.id];renderToday();renderProjects();}
     else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();renderDue();}}
     else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();renderDue();}}
