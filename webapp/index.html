@@ -20,18 +20,18 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
-    --bg:#FFFFFF; --panel:#FFFFFF; --sunk:#FAFAFB; --line:#EBEBED; --line-2:#DBDCDF;
+    --bg:#F1F3F6; --panel:#FFFFFF; --sunk:#F8FAFC; --line:#E2E5E9; --line-2:#CFD2D7;
     --text:#161719; --muted:#6A6C72; --faint:#A6A8AE; --accent:#0E76AC; --accent-2:#7A2743; --accent-wash:#E3F1F9;
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
     --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
     --display:'Do Hyeon',var(--sans);
   }
   @media (prefers-color-scheme:dark){:root{--bg:#0E1013;--panel:#141619;--sunk:#181B1F;--line:#23262B;--line-2:#31353B;--text:#ECEDEF;--muted:#9598A0;--faint:#5F626A;--accent:#5FB4E6;--accent-2:#E58FA6;--accent-wash:#10202B;}}
-  :root[data-theme="light"]{--bg:#FFFFFF;--panel:#FFFFFF;--sunk:#FAFAFB;--line:#EBEBED;--line-2:#DBDCDF;--text:#161719;--muted:#6A6C72;--faint:#A6A8AE;--accent:#0E76AC;--accent-2:#7A2743;--accent-wash:#E3F1F9;}
+  :root[data-theme="light"]{--bg:#F1F3F6;--panel:#FFFFFF;--sunk:#F8FAFC;--line:#E2E5E9;--line-2:#CFD2D7;--text:#161719;--muted:#6A6C72;--faint:#A6A8AE;--accent:#0E76AC;--accent-2:#7A2743;--accent-wash:#E3F1F9;}
   :root[data-theme="dark"]{--bg:#0E1013;--panel:#141619;--sunk:#181B1F;--line:#23262B;--line-2:#31353B;--text:#ECEDEF;--muted:#9598A0;--faint:#5F626A;--accent:#5FB4E6;--accent-2:#E58FA6;--accent-wash:#10202B;}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:1000px;margin:0 auto;padding:18px 18px 90px}
+  .wrap{max-width:1000px;margin:0 auto;padding:14px 16px 80px}
   header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
   /* 앱 제목·월별 제목은 시스템 폰트 대신 좀 더 눈에 띄는 디스플레이 폰트로 */
   .brand{font-family:var(--display);font-size:22px;font-weight:400;letter-spacing:-.01em;color:var(--accent)}
@@ -51,7 +51,7 @@
   .capture input::placeholder{color:var(--faint)}
   .capture button{font:inherit;font-weight:600;font-size:13px;color:#fff;background:var(--accent);border:0;padding:8px 16px;cursor:pointer}
   .capture button:hover{background:var(--accent-2)}
-  .pjadd{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line-2);padding:8px 12px}
+  .pjadd{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line-2);padding:8px 2px}
   .pjadd input{flex:1;font:inherit;font-size:13.5px;color:var(--text);background:transparent;border:0;outline:none;padding:6px 0}
   .pjadd input::placeholder{color:var(--faint)}
   .pjadd button{font:inherit;font-weight:600;font-size:12px;color:#fff;background:var(--accent);border:0;padding:6px 12px;cursor:pointer}
@@ -60,7 +60,7 @@
   .homegrid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:22px;align-items:start}
   .homemain{min-width:0}
   /* 오늘의 집중/마감 임박은 은은한 면 배경을 깔아서 그 아래 월별 표와 한눈에 구분되게 */
-  .todayzone{background:var(--sunk);padding:14px 14px 2px;margin-bottom:22px}
+  .todayzone{background:var(--sunk);padding:10px 12px 2px;margin-bottom:16px}
   .todayzone section.blk{margin-bottom:16px}
   .todayzone section.blk:last-child{margin-bottom:6px}
   .homeside{display:flex;flex-direction:column;position:sticky;top:12px}
@@ -80,7 +80,7 @@
     #homeGrid:not(.show-board) .homeside{display:none}
   }
   /* 박스로 감싸지 않고, 보드끼리는 위 구분선 하나로만 나눔(첫 보드는 선 없이 바로 시작) */
-  .board{border:0;border-top:1px solid var(--line);padding:12px 0}
+  .board{border:0;border-top:1px solid var(--line);padding:9px 0}
   .board:first-child{border-top:0;padding-top:0}
   .board.pinned .bhead2 h3{color:var(--accent)}
   .bhead2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
@@ -236,14 +236,14 @@
   /* ===== 저널 ===== */
   /* 박스로 안 감싸고, 목록/본문 사이 세로줄 하나로만 구분(.jside의 border-right) */
   .jgrid{display:grid;grid-template-columns:160px minmax(0,1fr);gap:0}
-  .jside{border-right:1px solid var(--line);padding:10px 12px;min-width:0}
+  .jside{border-right:1px solid var(--line);padding:8px 10px;min-width:0}
   .jlist{max-height:460px;overflow:auto;margin:0 -12px;padding:0 6px}
   .jday{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 6px;font-size:12.5px;cursor:pointer;color:var(--text)}
   .jday:hover{background:var(--sunk)}
   .jday.sel{background:var(--accent-wash);color:var(--accent);font-weight:600}
   .jday .n{font-size:10px;color:var(--faint);flex:none}
   .jday.mon{border-top:1px solid var(--line);margin-top:6px;padding-top:9px}
-  .jmain{padding:14px 16px;min-width:0}
+  .jmain{padding:10px 12px;min-width:0}
   .jhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
   .jhead h2{margin:0;font-size:16px}
   .jsub{font-size:11.5px;color:var(--faint)}
@@ -272,15 +272,15 @@
   }
   .caphint{font-size:12px;color:var(--faint);margin:0 2px 22px}.caphint b{color:var(--muted);font-weight:600}
   .goPocket{color:var(--accent);cursor:pointer;border-bottom:1px dashed var(--accent);font-weight:600}
-  section.blk{margin-bottom:26px}
+  section.blk{margin-bottom:18px}
   .bhead{display:flex;align-items:baseline;gap:10px;margin:0 2px 8px;padding-bottom:7px;border-bottom:1px solid var(--line-2)}
   .bhead h2{font-size:13px;font-weight:700;margin:0}
   .bhead .r{margin-left:auto;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums}
   .hours{width:34px;font:inherit;font-size:12.5px;text-align:center;color:var(--text);background:transparent;border:0;border-bottom:1px solid var(--accent);padding:1px 0;font-family:var(--mono)}
   .budget b{color:var(--accent)}.budget.over b{color:var(--text);text-decoration:underline}
   table.tbl{width:100%;border-collapse:collapse}
-  .tbl th{font-size:10.5px;font-weight:600;color:var(--faint);text-align:left;padding:0 10px 7px;white-space:nowrap;letter-spacing:.03em}
-  .tbl td{font-size:14px;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .tbl th{font-size:10.5px;font-weight:600;color:var(--faint);text-align:left;padding:0 8px 5px;white-space:nowrap;letter-spacing:.03em}
+  .tbl td{font-size:13.5px;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
   .tbl tbody tr:hover td{background:var(--sunk)}
   .num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
   th.num{text-align:right}
@@ -290,9 +290,9 @@
   .due{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
   .due.over{color:var(--text);font-weight:700}
   .imp{color:var(--accent);font-size:9px;letter-spacing:2px;white-space:nowrap;cursor:pointer;user-select:none}
-  .grp td{font-size:10.5px;color:var(--faint);font-weight:600;padding:12px 10px 5px;letter-spacing:.03em;border-bottom:1px solid var(--line)}
+  .grp td{font-size:10.5px;color:var(--faint);font-weight:600;padding:9px 8px 4px;letter-spacing:.03em;border-bottom:1px solid var(--line)}
   .est{cursor:text;border-bottom:1px dashed transparent}tr:hover .est{border-bottom-color:var(--line-2)}.est:focus{outline:none;border-bottom-color:var(--accent)}
-  .empty{padding:18px 10px;text-align:center;color:var(--faint);font-size:13px}
+  .empty{padding:14px 8px;text-align:center;color:var(--faint);font-size:13px}
   .memolink{font-size:12px;color:var(--accent);margin-left:6px;cursor:pointer;text-decoration:none}
   .rowdel{color:var(--faint);cursor:pointer;font-size:12px;opacity:0;padding-left:6px}tr:hover .rowdel{opacity:1}
   .ck{width:16px;height:16px;border:1.5px solid var(--line-2);background:var(--panel);cursor:pointer;display:grid;place-items:center}
@@ -307,17 +307,17 @@
   .tri button.inbdue.has{color:var(--accent);font-family:var(--mono)}
   .tri button.inbdue.over{color:var(--text);font-weight:700}
   .tri select{font:inherit;font-size:11.5px;color:var(--faint);background:var(--panel);border:1px solid var(--line-2);padding:2px 4px}
-  .pjsec{border-bottom:1px solid var(--line-2)}
-  .pjtog{width:100%;display:flex;align-items:center;gap:8px;font:inherit;font-size:14.5px;font-weight:700;color:var(--text);background:none;border:0;cursor:pointer;padding:13px 4px;text-align:left}
+  .pjsec{border:1px solid var(--line-2);background:var(--panel);margin-bottom:12px;padding:0 10px}
+  .pjtog{width:100%;display:flex;align-items:center;gap:8px;font:inherit;font-size:14.5px;font-weight:700;color:var(--text);background:none;border:0;cursor:pointer;padding:9px 2px;text-align:left}
   .pjtog .n{font-family:var(--mono);font-size:11px;color:var(--faint);font-weight:400}
   .pjtog .chev{margin-left:auto;color:var(--faint);font-size:11px;transition:transform .15s}
   .pjtog[aria-expanded="false"] .chev{transform:rotate(-90deg)}
-  .pjbody.collapsed{display:none}.pjbody{padding-bottom:8px}
+  .pjbody.collapsed{display:none}.pjbody{padding-bottom:6px}
   .arch{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;border:0;background:none;font-family:inherit;padding-left:8px}tr:hover .arch{opacity:1}tr.done .arch{opacity:.75;color:var(--accent)}
   .pjhandle{cursor:grab;color:var(--faint);font-size:12px;margin-right:2px;user-select:none}
   .pjdel{color:var(--faint);cursor:pointer;font-size:12px;padding:0 6px;opacity:0}.pjsec:hover .pjdel{opacity:.9}.pjdel:hover{color:#c0392b}
   .pjsec.dragging{opacity:.4}.pjsec.dropbefore{border-top:2px solid var(--accent)}
-  .donerow{display:flex;align-items:center;gap:10px;padding:11px 8px;border-bottom:1px solid var(--line)}
+  .donerow{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--line)}
   .donerow .rt{text-decoration:line-through;color:var(--faint)}
   .donerow .rpj{font-size:11px;color:var(--faint)}
   .donerow .dt{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto;white-space:nowrap}
@@ -389,7 +389,7 @@
   .mfolders button{font:inherit;font-size:11.5px;color:var(--muted);background:none;border:1px solid var(--line-2);padding:3px 9px;cursor:pointer}
   .mfolders button[aria-selected="true"]{background:var(--accent-wash);color:var(--accent);border-color:var(--accent);font-weight:600}
   .mlist{overflow:auto}
-  .mitem{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+  .mitem{padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer}
   .mitem[aria-selected="true"]{background:var(--accent-wash);box-shadow:inset 2px 0 0 var(--accent)}
   .mtrow{display:flex;align-items:center;gap:6px}
   .mpin{cursor:pointer;flex:none;color:var(--faint);font-size:12px}
@@ -397,7 +397,7 @@
   .mitem .mt{flex:1;min-width:0;font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mitem .mp{font-size:12px;color:var(--faint);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mitem .ml{font-size:10.5px;color:var(--accent);margin-top:5px}
-  .medit{display:flex;flex-direction:column;padding:18px 20px}
+  .medit{display:flex;flex-direction:column;padding:14px 16px}
   .medit .mtitle{font:inherit;font-size:20px;font-weight:700;border:0;outline:none;background:transparent;color:var(--text);padding:0;margin-bottom:6px}
   .medit .mlinkbar{font-size:12px;color:var(--accent);min-height:18px;margin-bottom:10px}
   .mimgadd{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
