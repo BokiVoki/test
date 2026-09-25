@@ -2,11 +2,14 @@ import SwiftUI
 import WidgetKit
 import AppIntents
 
-// 홈 화면(systemMedium) 전용 — 잠금화면은 HaruRoutineWidget/HaruTodoWidget(각각 accessoryRectangular)으로
-// 분리됐음(2026-09-26, "잠금화면 위젯이 너무 작아서 루틴/투두를 양옆에 두 개로" 요청).
+// 홈 화면(systemMedium/systemLarge) 전용 — 잠금화면은 HaruRoutineWidget/HaruTodoWidget
+// (각각 accessoryRectangular)으로 분리됐음(2026-09-26). 위젯은 스크롤이 아예 안 되므로
+// (애플이 위젯을 정적 화면으로만 지원), 항목이 많으면 큰 사이즈(systemLarge)로 바꿔서
+// 보이게 함 — 아이폰에서 위젯 길게 눌러 "위젯 편집"으로 크기 변경 가능.
 struct HaruWidgetView: View {
+    @Environment(\.widgetFamily) var family
     var entry: HaruEntry
-    let limit = 8
+    var limit: Int { family == .systemLarge ? 16 : 6 }
 
     private let slotOrder = ["morning", "lunch", "evening", ""]
     private let slotLabel: [String: String] = ["morning": "아침", "lunch": "점심", "evening": "저녁", "": "시간 무관"]
@@ -31,7 +34,7 @@ struct HaruWidgetView: View {
         }
         let todoItems = Array(entry.todos.prefix(max(0, limit - shown)))
 
-        return VStack(alignment: .leading, spacing: 5) {
+        return VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text("하루").font(.headline)
                 Spacer()
