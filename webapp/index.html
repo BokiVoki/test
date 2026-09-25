@@ -241,6 +241,8 @@
   .mgmustrow{display:flex;align-items:center;gap:8px}
   .mgnum{flex:none;width:14px;text-align:center;font-size:11px;color:var(--faint)}
   .mgmust{flex:1;width:auto;min-width:0}
+  .okrobj{font-weight:700;color:var(--text);margin-bottom:2px}
+  .okrkr{font-size:12.5px}
   @media(max-width:680px){.mgmustcols{flex-direction:column;gap:9px}}
   .rvw{display:block;min-width:60px;font-size:11.5px;color:var(--muted);outline:none;cursor:text}
   .rvw:empty::before{content:'＋';color:var(--faint)}
@@ -620,16 +622,18 @@
         <div class="monthgoal">
           <div class="mgmustcols">
             <div class="mgmustcol">
-              <div class="mgcolhead">업무</div>
-              <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust" data-mi="0" placeholder="꼭 이뤄야 할 것" aria-label="업무 꼭 이뤄야 할 것 1"></div>
-              <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust" data-mi="1" placeholder="꼭 이뤄야 할 것" aria-label="업무 꼭 이뤄야 할 것 2"></div>
-              <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust" data-mi="2" placeholder="꼭 이뤄야 할 것" aria-label="업무 꼭 이뤄야 할 것 3"></div>
+              <div class="mgcolhead">업무 OKR</div>
+              <input class="mgin mgmust okrobj" data-mi="0" placeholder="목표 (Objective)" aria-label="업무 목표">
+              <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust okrkr" data-mi="1" placeholder="핵심 결과 (Key Result)" aria-label="업무 핵심 결과 1"></div>
+              <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust okrkr" data-mi="2" placeholder="핵심 결과 (Key Result)" aria-label="업무 핵심 결과 2"></div>
+              <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust okrkr" data-mi="3" placeholder="핵심 결과 (Key Result)" aria-label="업무 핵심 결과 3"></div>
             </div>
             <div class="mgmustcol">
-              <div class="mgcolhead">일상</div>
-              <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust" data-mi="3" placeholder="꼭 이뤄야 할 것" aria-label="일상 꼭 이뤄야 할 것 1"></div>
-              <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust" data-mi="4" placeholder="꼭 이뤄야 할 것" aria-label="일상 꼭 이뤄야 할 것 2"></div>
-              <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust" data-mi="5" placeholder="꼭 이뤄야 할 것" aria-label="일상 꼭 이뤄야 할 것 3"></div>
+              <div class="mgcolhead">일상 OKR</div>
+              <input class="mgin mgmust okrobj" data-mi="4" placeholder="목표 (Objective)" aria-label="일상 목표">
+              <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust okrkr" data-mi="5" placeholder="핵심 결과 (Key Result)" aria-label="일상 핵심 결과 1"></div>
+              <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust okrkr" data-mi="6" placeholder="핵심 결과 (Key Result)" aria-label="일상 핵심 결과 2"></div>
+              <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust okrkr" data-mi="7" placeholder="핵심 결과 (Key Result)" aria-label="일상 핵심 결과 3"></div>
             </div>
           </div>
           <input class="mgin mggoal" id="mgGoal" placeholder="📝 이번 달 메모" aria-label="이번 달 메모">
@@ -1618,13 +1622,20 @@
     document.getElementById('monthCount').textContent=items.length?(dn+' / '+items.length+' 완료'):'이 달엔 아직 없어요';
     renderMonthGoal();
   }
+  // 예전엔 "꼭 이뤄야 할 것" 3+3 단순 텍스트(musts 배열 6칸)였다가 OKR(목표+핵심결과 3개) 형식으로 바뀜(2026-09-26).
+  // 새 형식은 8칸(0=업무 목표,1~3=업무 핵심결과,4=일상 목표,5~7=일상 핵심결과) — 목표 칸이 새로 생긴 만큼
+  // musts.length<=6이면 예전 값으로 보고, 옛 핵심결과 3+3을 그대로 새 핵심결과 자리로 승계(목표 칸은 비워서 새로 채우게 함).
+  var OKR_LEGACY_MAP={1:0,2:1,3:2,5:3,6:4,7:5};
   function renderMonthGoal(){
     var goalEl=document.getElementById('mgGoal');if(!goalEl)return;
     var j=jEntry(state.month||thisMonth());
     if(document.activeElement!==goalEl)goalEl.value=j.goal||'';
+    var legacy=(j.musts||[]).length<=6;
     document.querySelectorAll('.mgmust').forEach(function(inp){
       if(document.activeElement===inp)return;
-      var i=+inp.dataset.mi;inp.value=(j.musts||[])[i]||'';
+      var i=+inp.dataset.mi;
+      if(legacy)inp.value=(i in OKR_LEGACY_MAP)?((j.musts||[])[OKR_LEGACY_MAP[i]]||''):'';
+      else inp.value=(j.musts||[])[i]||'';
     });
   }
   // 안건이 정해지면 할일로 넘어가는 곳. 이 이름의 프로젝트는 없으면 담는 순간 자동으로 생김.
