@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import AppIntents
 
 struct HaruWidgetView: View {
     @Environment(\.widgetFamily) var family
@@ -52,7 +53,7 @@ struct HaruWidgetView: View {
             HStack {
                 Text("하루").font(.headline)
                 Spacer()
-                Text("+ 추가").font(.caption).foregroundStyle(.accentColor)
+                Text("+ 추가").font(.caption).foregroundStyle(Color.accentColor)
             }
             if rows.isEmpty {
                 Text("오늘 체크할 루틴·투두가 없어요")
