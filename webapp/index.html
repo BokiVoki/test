@@ -199,6 +199,13 @@
   .crEditBox select:focus,.crEditBox input:focus{outline:none;border-bottom-color:var(--accent)}
   .crEditBox input[type="number"]{width:44px}
   .crSlotHead{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin:10px 0 2px}
+  .trkwrap{display:flex;flex-direction:column;gap:5px}
+  .trkrow{display:flex;align-items:center;gap:8px}
+  .trktitle{flex:0 0 140px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)}
+  .trkgrid{display:flex;gap:2px;flex:1;flex-wrap:nowrap;overflow-x:auto}
+  .trkcell{flex:none;width:10px;height:10px;background:var(--sunk);border:1px solid var(--line)}
+  .trkcell.on{background:var(--accent);border-color:var(--accent)}
+  @media(max-width:680px){.trktitle{flex-basis:88px;font-size:11px}.trkcell{width:8px;height:8px}}
   .crSlotHead:first-child{margin-top:0}
   .lkrow .mktxt[contenteditable]{cursor:text;outline:none}
   .lkrow .mktxt[contenteditable]:focus{color:var(--text)}
@@ -683,6 +690,7 @@
       <div id="calRoutineList"></div>
       <div class="bhead" style="margin-top:22px"><h2>예정된 루틴</h2><div class="r">체크하면 다음 주기 때까지 여기로 내려가요</div></div>
       <div id="calRoutineUpcoming"></div>
+      <div id="calRoutineTracker"></div>
       <div class="crform">
         <input id="crTitle" placeholder="루틴 이름 (예: 화분에 물주기)" aria-label="루틴 이름">
         <select id="crKind" aria-label="주기 종류">
@@ -781,6 +789,7 @@
   var hasCalTodos=false; // cal_todos 테이블이 있으면 true (캘린더 탭 투두, SQL 마이그레이션 후)
   var hasRoutineSlot=false; // cal_routines.slot 컬럼이 있으면 true (매일 루틴 아침/점심/저녁 구분, SQL 마이그레이션 후)
   var hasRoutineToggle=false; // routines.unit 컬럼이 있으면 true (상시업무 매일/주기/요일 체크리스트, SQL 마이그레이션 후, 2026-09-25)
+  var hasRoutineHistory=false; // cal_routines.history 컬럼이 있으면 true (루틴 트래커용 체크 기록, SQL 마이그레이션 후, 2026-09-25)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
@@ -842,8 +851,8 @@
   function putRoutine(r){if(!hasRoutines)return;var row={id:r.id,ws:r.ws,project:r.project,title:r.title,cycle:r.kind,imp:r.imp||1,sort:r.sort||0,active:!!r.active};if(hasRoutineToggle){row.unit=r.unit||null;row.n=r.n||null;row.weekdays=r.weekdays||[];row.next_due=r.nextDue||null;row.done_today=!!r.doneToday;}sb.from('routines').upsert(row).then(function(x){if(x.error)console.warn('routine',x.error.message);});}
   function delRoutineDB(id){if(!hasRoutines)return;sb.from('routines').delete().eq('id',id).then(function(){});}
   // ===== 캘린더 탭 「루틴」(습관 체크리스트, 자유 주기) =====
-  function fromCalRoutine(r){return {id:r.id,title:r.title||'',kind:r.kind||'daily',unit:r.unit||'day',n:r.n||1,weekdays:Array.isArray(r.weekdays)?r.weekdays:[],monthday:r.monthday||1,nextDue:r.next_due||'',doneToday:!!r.done_today,sort:r.sort||0,created:r.created||'',slot:r.slot||''};}
-  function putCalRoutine(h){if(!hasCalRoutines)return;var row={id:h.id,owner:state.uid,title:h.title,kind:h.kind,unit:h.unit||null,n:h.n||null,weekdays:h.weekdays||[],monthday:h.monthday||null,next_due:h.nextDue||null,done_today:!!h.doneToday,sort:h.sort||0,created:h.created||todayISO()};if(hasRoutineSlot)row.slot=h.slot||'';sb.from('cal_routines').upsert(row).then(function(x){if(x.error)console.warn('cal_routine',x.error.message);});}
+  function fromCalRoutine(r){return {id:r.id,title:r.title||'',kind:r.kind||'daily',unit:r.unit||'day',n:r.n||1,weekdays:Array.isArray(r.weekdays)?r.weekdays:[],monthday:r.monthday||1,nextDue:r.next_due||'',doneToday:!!r.done_today,sort:r.sort||0,created:r.created||'',slot:r.slot||'',history:Array.isArray(r.history)?r.history:[]};}
+  function putCalRoutine(h){if(!hasCalRoutines)return;var row={id:h.id,owner:state.uid,title:h.title,kind:h.kind,unit:h.unit||null,n:h.n||null,weekdays:h.weekdays||[],monthday:h.monthday||null,next_due:h.nextDue||null,done_today:!!h.doneToday,sort:h.sort||0,created:h.created||todayISO()};if(hasRoutineSlot)row.slot=h.slot||'';if(hasRoutineHistory)row.history=h.history||[];sb.from('cal_routines').upsert(row).then(function(x){if(x.error)console.warn('cal_routine',x.error.message);});}
   function delCalRoutineDB(id){if(!hasCalRoutines)return;sb.from('cal_routines').delete().eq('id',id).then(function(){});}
   // 체크 후 다음 예정일 계산 — from(오늘) 기준으로 그 주기 뒤 날짜를 돌려줌
   function habitNextDue(h,fromISO){
@@ -874,8 +883,17 @@
     return h.nextDue<=todayISO();
   }
   function checkCalRoutine(h){
-    if(h.kind==='daily'){h.doneToday=!h.doneToday;}
-    else{h.doneToday=true;h.nextDue=habitNextDue(h,todayISO());}
+    var ti=todayISO();h.history=h.history||[];
+    if(h.kind==='daily'){
+      h.doneToday=!h.doneToday;
+      var hi=h.history.indexOf(ti);
+      if(h.doneToday){if(hi<0)h.history.push(ti);}
+      else if(hi>=0)h.history.splice(hi,1);
+    }else{
+      h.doneToday=true;h.nextDue=habitNextDue(h,ti);
+      if(h.history.indexOf(ti)<0)h.history.push(ti);
+    }
+    if(h.history.length>400)h.history=h.history.slice(-400);
     putCalRoutine(h);renderCalRoutines();
   }
   // ===== 캘린더 탭 「투두」(캘린더에 안 뜨는 단순 체크리스트, 초기화 없음) =====
@@ -1022,7 +1040,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1046,6 +1064,7 @@
       hasCalTodos=!(res[23]&&res[23].error); // cal_todos 테이블 있으면 캘린더 투두 켜짐
       hasRoutineSlot=!(res[24]&&res[24].error); // cal_routines.slot 컬럼 있으면 아침/점심/저녁 구분 켜짐
       hasRoutineToggle=!(res[25]&&res[25].error); // routines.unit 컬럼 있으면 상시업무 매일/주기/요일 체크리스트 켜짐(2026-09-25)
+      hasRoutineHistory=!(res[26]&&res[26].error); // cal_routines.history 컬럼 있으면 루틴 트래커 켜짐(2026-09-25)
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1376,6 +1395,23 @@
     }
     listEl.innerHTML=otherDue.length?otherDue.map(function(h){return calRoutineRow(h,true);}).join(''):'<p class="boardempty">오늘 체크할 정기 루틴이 없어요</p>';
     if(upEl)upEl.innerHTML=later.length?later.map(function(h){return calRoutineRow(h,false);}).join(''):'<p class="boardempty">예정된 루틴 없음</p>';
+    renderRoutineTracker();
+  }
+  // 루틴 트래커 — 깃허브 잔디st, 체크한 날짜(h.history)를 최근 30일 가로줄로 보여줌.
+  // 과거 기록은 이 기능을 켠 시점부터 쌓이므로(그 전엔 오늘 상태만 저장했음) 처음엔 비어있는 게 정상.
+  function trackerDays(){var days=[];for(var i=29;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days.push(todayISO(d));}return days;}
+  function renderRoutineTracker(){
+    var el=document.getElementById('calRoutineTracker');if(!el)return;
+    if(!hasRoutineHistory||!state.calRoutines.length){el.innerHTML='';return;}
+    var days=trackerDays();
+    var list=state.calRoutines.slice().sort(function(a,b){return (a.sort||0)-(b.sort||0);});
+    el.innerHTML='<div class="bhead" style="margin-top:22px"><h2>📊 트래커</h2><div class="r">최근 30일</div></div>'
+      +'<div class="trkwrap">'+list.map(function(h){
+        var hist=h.history||[];
+        return '<div class="trkrow"><span class="trktitle">'+esc(h.title)+'</span><span class="trkgrid">'
+          +days.map(function(d){return '<span class="trkcell'+(hist.indexOf(d)>=0?' on':'')+'" title="'+d+'"></span>';}).join('')
+          +'</span></div>';
+      }).join('')+'</div>';
   }
   function ctRow(x){
     return '<div class="lkrow" data-ct="'+x.id+'"><span class="ck'+(x.done?' on':'')+'" data-act="ct-check" role="checkbox" tabindex="0">'+(x.done?svg():'')+'</span>'
