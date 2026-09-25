@@ -199,6 +199,23 @@
   .crEditBox select:focus,.crEditBox input:focus{outline:none;border-bottom-color:var(--accent)}
   .crEditBox input[type="number"]{width:44px}
   .crSlotHead{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin:10px 0 2px}
+  .archchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .archchip{font:inherit;font-size:12px;color:var(--muted);background:transparent;border:1px solid var(--line-2);padding:4px 10px;cursor:pointer}
+  .archchip.on{color:#fff;background:var(--accent);border-color:var(--accent)}
+  .archrow{gap:8px}
+  .arccover{flex:none;width:28px;height:38px;object-fit:cover;background:var(--sunk)}
+  .arccover-ph{border:1px dashed var(--line-2)}
+  .archstatus{font-size:11px;color:var(--muted);flex:none}
+  .archrating{font-size:11px;color:var(--accent-2);flex:none}
+  .archform{display:flex;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line);margin-top:6px}
+  .archform input{flex:1;font:inherit;font-size:13.5px;color:var(--text);background:transparent;border:0;border-bottom:1px solid var(--line-2);padding:6px 2px}
+  .archform input:focus{outline:none;border-bottom-color:var(--accent)}
+  .archform select{font:inherit;font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line-2);padding:4px}
+  .arcResults{display:flex;flex-direction:column;gap:4px;width:100%;padding-left:22px}
+  .arcResRow{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;padding:3px 0}
+  .arcResRow:hover{color:var(--accent)}
+  .arcResRow img{width:20px;height:28px;object-fit:cover;flex:none}
+  .archnote{width:100%;font:inherit;font-size:12.5px;color:var(--text);background:transparent;border:0;border-bottom:1px solid var(--line-2);padding:4px 2px;resize:vertical;min-height:40px}
   .trkwrap{display:flex;flex-direction:column;gap:5px}
   .trkrow{display:flex;align-items:center;gap:8px}
   .trktitle{flex:0 0 140px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)}
@@ -218,9 +235,13 @@
   .mgin{font:inherit;font-size:13px;padding:5px 2px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text)}
   .mgin:focus{outline:none;border-bottom-color:var(--accent)}
   .mggoal{width:100%;font-weight:600}
+  .mgmustcols{display:flex;gap:24px}
+  .mgmustcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .mgcolhead{font-size:11px;font-weight:700;color:var(--faint)}
   .mgmustrow{display:flex;align-items:center;gap:8px}
   .mgnum{flex:none;width:14px;text-align:center;font-size:11px;color:var(--faint)}
-  .mgmust{flex:1;width:auto}
+  .mgmust{flex:1;width:auto;min-width:0}
+  @media(max-width:680px){.mgmustcols{flex-direction:column;gap:9px}}
   .rvw{display:block;min-width:60px;font-size:11.5px;color:var(--muted);outline:none;cursor:text}
   .rvw:empty::before{content:'＋';color:var(--faint)}
   .rvw:focus{color:var(--text)}
@@ -324,6 +345,8 @@
   .pjtog[aria-expanded="false"] .chev{transform:rotate(-90deg)}
   .pjcat{font:inherit;font-size:11px;color:var(--muted);background:var(--panel);border:1px solid var(--line-2);padding:2px 4px;margin-left:8px;cursor:pointer}
   .pjbody.collapsed{display:none}.pjbody{padding-bottom:6px}
+  .pjrtwrap{padding:2px 0 6px;border-bottom:1px solid var(--line)}
+  .pjrtwrap .lkrow{padding:3px 2px}
   .arch{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;border:0;background:none;font-family:inherit;padding-left:8px}tr:hover .arch{opacity:1}tr.done .arch{opacity:.75;color:var(--accent)}
   .pjhandle{cursor:grab;color:var(--faint);font-size:12px;margin-right:2px;user-select:none}
   .pjdel{color:var(--faint);cursor:pointer;font-size:12px;padding:0 6px;opacity:0}.pjsec:hover .pjdel{opacity:.9}.pjdel:hover{color:#c0392b}
@@ -557,6 +580,7 @@
       <button role="tab" aria-selected="false" data-tab="daily">일상</button>
       <button role="tab" aria-selected="false" data-tab="drawer">서랍</button>
       <button role="tab" aria-selected="false" data-tab="art">그림공부</button>
+      <button role="tab" aria-selected="false" data-tab="archive">아카이브</button>
     </nav>
     <div class="right">
       <button class="theme" id="theme" title="테마 전환" aria-label="테마 전환">◐</button>
@@ -594,9 +618,20 @@
           <span class="mcount" id="monthCount"></span>
         </div>
         <div class="monthgoal">
-          <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust" data-mi="0" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 1"></div>
-          <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust" data-mi="1" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 2"></div>
-          <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust" data-mi="2" placeholder="꼭 이뤄야 할 것" aria-label="꼭 이뤄야 할 것 3"></div>
+          <div class="mgmustcols">
+            <div class="mgmustcol">
+              <div class="mgcolhead">업무</div>
+              <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust" data-mi="0" placeholder="꼭 이뤄야 할 것" aria-label="업무 꼭 이뤄야 할 것 1"></div>
+              <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust" data-mi="1" placeholder="꼭 이뤄야 할 것" aria-label="업무 꼭 이뤄야 할 것 2"></div>
+              <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust" data-mi="2" placeholder="꼭 이뤄야 할 것" aria-label="업무 꼭 이뤄야 할 것 3"></div>
+            </div>
+            <div class="mgmustcol">
+              <div class="mgcolhead">일상</div>
+              <div class="mgmustrow"><span class="mgnum">1</span><input class="mgin mgmust" data-mi="3" placeholder="꼭 이뤄야 할 것" aria-label="일상 꼭 이뤄야 할 것 1"></div>
+              <div class="mgmustrow"><span class="mgnum">2</span><input class="mgin mgmust" data-mi="4" placeholder="꼭 이뤄야 할 것" aria-label="일상 꼭 이뤄야 할 것 2"></div>
+              <div class="mgmustrow"><span class="mgnum">3</span><input class="mgin mgmust" data-mi="5" placeholder="꼭 이뤄야 할 것" aria-label="일상 꼭 이뤄야 할 것 3"></div>
+            </div>
+          </div>
           <input class="mgin mggoal" id="mgGoal" placeholder="📝 이번 달 메모" aria-label="이번 달 메모">
         </div>
         <div id="projAll"></div>
@@ -739,6 +774,19 @@
       <div class="art-main" id="artMain"></div>
     </div>
   </div>
+  <div id="archive" class="hidden">
+    <div id="archiveNoTable" class="hidden"><p class="caphint">⚠️ 아카이브 표가 아직 없어요 — Supabase에 SQL 마이그레이션을 먼저 실행해주세요.</p></div>
+    <div id="archiveBody">
+      <div class="bhead"><h2>아카이브</h2><div class="r">책·웹툰·영화… — 일정봇에서 기록한 것도 여기 같이 보여요</div></div>
+      <div class="archchips" id="archChips"></div>
+      <div id="archList"></div>
+      <div class="archform" id="archAddForm">
+        <input id="arcTitle" placeholder="+ 제목 추가" aria-label="제목">
+        <select id="arcType" aria-label="종류"></select>
+        <button class="btn-s" id="arcAdd">추가</button>
+      </div>
+    </div>
+  </div>
   <p class="foot">Supabase에 저장돼요 · 로그인한 기기 어디서든 동기화</p>
 </div>
 
@@ -794,6 +842,7 @@
   var hasRoutineSlot=false; // cal_routines.slot 컬럼이 있으면 true (매일 루틴 아침/점심/저녁 구분, SQL 마이그레이션 후)
   var hasRoutineToggle=false; // routines.unit 컬럼이 있으면 true (상시업무 매일/주기/요일 체크리스트, SQL 마이그레이션 후, 2026-09-25)
   var hasRoutineHistory=false; // cal_routines.history 컬럼이 있으면 true (루틴 트래커용 체크 기록, SQL 마이그레이션 후, 2026-09-25)
+  var hasContentArchive=false; // archive 테이블이 있으면 true (콘텐츠 아카이브 탭 — 일정봇 아카이브와 이름 겹쳐서 hasArchive 대신 이 이름 씀, 2026-09-26)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
@@ -903,6 +952,23 @@
   // ===== 캘린더 탭 「투두」(캘린더에 안 뜨는 단순 체크리스트, 초기화 없음) =====
   function putCalTodo(x){if(!hasCalTodos)return;sb.from('cal_todos').upsert({id:x.id,owner:state.uid,title:x.title,done:!!x.done,sort:x.sort||0,created:x.created||todayISO()}).then(function(r){if(r.error)console.warn('cal_todo',r.error.message);});}
   function delCalTodoDB(id){if(!hasCalTodos)return;sb.from('cal_todos').delete().eq('id',id).then(function(){});}
+  // ===== 콘텐츠 아카이브(책/웹툰/영화…) — 일정봇 아카이브와 같은 데이터를 하루앱에서도 보고 고침 =====
+  var ARCHIVE_TYPES=[['book','책'],['webtoon','웹툰'],['drama','드라마'],['movie','영화'],['anime','애니'],['manga','만화'],['article','아티클'],['podcast','팟캐스트'],['game','게임'],['graphic_book','그래픽북'],['documentary','다큐'],['exhibition','전시'],['other','기타']];
+  var ARCHIVE_TYPE_KR={};ARCHIVE_TYPES.forEach(function(p){ARCHIVE_TYPE_KR[p[0]]=p[1];});
+  var ARCHIVE_STATUS=[['not_started','시작 전'],['in_progress','진행 중'],['completed','완료'],['dropped','중단'],['on_hold','보류']];
+  var ARCHIVE_STATUS_KR={};ARCHIVE_STATUS.forEach(function(p){ARCHIVE_STATUS_KR[p[0]]=p[1];});
+  function fromArchive(r){return {id:r.id,title:r.title||'',type:r.type||'other',status:r.status||'not_started',progress:r.progress||'',
+    rating:(r.rating===null||r.rating===undefined)?null:+r.rating,notes:r.notes||'',tags:r.tags||'',dateAdded:r.date_added||'',
+    dateUpdated:r.date_updated||'',dateCompleted:r.date_completed||'',source:r.source||'',rawLog:r.raw_log||'',author:r.author||'',
+    yearWatched:r.year_watched||'',publisher:r.publisher||'',coverUrl:r.cover_url||'',sort:r.sort||0};}
+  function putArchiveEntry(x){if(!hasContentArchive)return;
+    x.dateUpdated=todayISO();
+    sb.from('archive').upsert({id:x.id,owner:state.uid,title:x.title||'',type:x.type||'other',status:x.status||'not_started',
+      progress:x.progress||'',rating:(x.rating===null||x.rating===undefined||x.rating==='')?null:+x.rating,notes:x.notes||'',
+      tags:x.tags||'',date_added:x.dateAdded||todayISO(),date_updated:x.dateUpdated,date_completed:x.dateCompleted||'',
+      source:x.source||'',raw_log:x.rawLog||'',author:x.author||'',year_watched:x.yearWatched||'',publisher:x.publisher||'',
+      cover_url:x.coverUrl||'',sort:x.sort||0}).then(function(r){if(r.error)console.warn('archive',r.error.message);});}
+  function delArchiveDB(id){if(!hasContentArchive)return;sb.from('archive').delete().eq('id',id).then(function(){});}
   function putJournal(j){if(!hasJournal)return;j.updated=new Date().toISOString();var row={id:j.id,date:j.date,body:j.body,images:j.images||[],updated:j.updated};if(hasMonthGoal){row.goal=j.goal||'';row.musts=j.musts||[];}sb.from('journal').upsert(row).then(function(r){if(r.error)console.warn('journal',r.error.message);});}
   function putMemo(m){m.updated=new Date().toISOString();sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
   function delMemoDB(id){sb.from('memos').delete().eq('id',id).then(function(){});}
@@ -950,6 +1016,64 @@
   function allArtTags(){var seen={},out=[];state.artists.forEach(function(a){(a.tags||[]).forEach(function(t){if(t&&!seen[t]){seen[t]=1;out.push(t);}});});state.artworks.forEach(function(w){(w.tags||[]).forEach(function(t){if(t&&!seen[t]){seen[t]=1;out.push(t);}});});return out.sort(function(x,y){return x.localeCompare(y,'ko');});}
   function parseTagsInput(s){return (s||'').split(/[,\s]+/).map(function(t){return t.trim().replace(/^#/,'');}).filter(Boolean);}
   function uploadArtImage(file){var path=(state.uid||'anon')+'/'+Date.now()+'_'+file.name.replace(/[^a-zA-Z0-9._.-]/g,'_');return sb.storage.from('art').upload(path,file,{upsert:false}).then(function(r){if(r.error)throw r.error;return sb.storage.from('art').getPublicUrl(path).data.publicUrl;});}
+
+  // ── 콘텐츠 아카이브 화면 ──
+  var arcOpen={};          // 항목 수정 펼침 상태(세션 한정, id→bool)
+  var arcFilterType='';    // 종류 필터 칩(세션 한정, ''=전체)
+  var arcSearchRes={};     // id→카카오/네이버 검색 결과 배열(세션 한정)
+  function archiveById(id){return state.archive.filter(function(a){return a.id===id;})[0];}
+  function archTypeOptions(sel){return ARCHIVE_TYPES.map(function(p){return '<option value="'+p[0]+'"'+(sel===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join('');}
+  function archStatusOptions(sel){return ARCHIVE_STATUS.map(function(p){return '<option value="'+p[0]+'"'+(sel===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join('');}
+  function archiveRow(a){
+    var open=!!arcOpen[a.id];
+    return '<div class="lkrow archrow" data-arc="'+a.id+'">'
+      +(a.coverUrl?'<img class="arccover" src="'+esc(a.coverUrl)+'">':'<span class="arccover arccover-ph"></span>')
+      +'<span class="mktxt" contenteditable="true" spellcheck="false" data-act="arc-rename">'+esc(a.title||'제목 없음')+'</span>'
+      +'<span class="rtcyc">'+esc(ARCHIVE_TYPE_KR[a.type]||a.type)+'</span>'
+      +'<span class="archstatus">'+esc(ARCHIVE_STATUS_KR[a.status]||a.status)+'</span>'
+      +(a.rating!=null?'<span class="archrating">★'+a.rating+'</span>':'')
+      +'<span class="crEditTog" data-act="arc-edit" title="수정">'+(open?'▴':'✎')+'</span>'
+      +'<span class="lkdel" data-act="arc-del" title="지우기">✕</span></div>'
+      +(open?archEditRow(a):'');
+  }
+  function archEditRow(a){
+    var res=arcSearchRes[a.id]||[];
+    return '<div class="crEditBox" data-arc="'+a.id+'">'
+      +'<select class="arcEType">'+archTypeOptions(a.type)+'</select>'
+      +'<select class="arcEStatus">'+archStatusOptions(a.status)+'</select>'
+      +'<input type="number" class="arcERating" min="0" max="5" step="0.5" placeholder="평점" value="'+(a.rating!=null?a.rating:'')+'" style="width:50px">'
+      +'<input class="arcEAuthor" placeholder="작가/감독" value="'+esc(a.author)+'">'
+      +'<input class="arcEPublisher" placeholder="출판사" value="'+esc(a.publisher)+'">'
+      +'<input class="arcEYear" placeholder="연도" value="'+esc(a.yearWatched)+'" style="width:64px">'
+      +'<input class="arcESource" placeholder="링크(선택)" value="'+esc(a.source)+'" style="flex:1 1 160px">'
+      +'<textarea class="archnote arcENotes" placeholder="메모">'+esc(a.notes)+'</textarea>'
+      +'<button class="btn-s" type="button" data-act="arc-search" title="카카오/네이버에서 표지·작가·출판사 자동으로 채우기">🔍 자동 채우기</button>'
+      +'<button class="btn-s" type="button" data-act="arc-save">저장</button>'
+      +(res.length?('<div class="arcResults">'+res.map(function(r,i){return '<div class="arcResRow" data-act="arc-pick" data-i="'+i+'">'+(r.cover_url?'<img src="'+esc(r.cover_url)+'">':'')+'<span>'+esc(r.title)+(r.author?' · '+esc(r.author):'')+(r.year?' · '+esc(r.year):'')+'</span></div>';}).join('')+'</div>'):'')
+      +'</div>';
+  }
+  function renderArchiveTab(){
+    var noTbl=document.getElementById('archiveNoTable'),body=document.getElementById('archiveBody');
+    if(!noTbl)return;
+    noTbl.classList.toggle('hidden',hasContentArchive);
+    body.classList.toggle('hidden',!hasContentArchive);
+    if(!hasContentArchive)return;
+    var chipsEl=document.getElementById('archChips');
+    var counts={};state.archive.forEach(function(a){counts[a.type]=(counts[a.type]||0)+1;});
+    chipsEl.innerHTML='<span class="archchip'+(arcFilterType===''?' on':'')+'" data-act="arc-filter" data-type="">전체 '+state.archive.length+'</span>'
+      +ARCHIVE_TYPES.filter(function(p){return counts[p[0]];}).map(function(p){return '<span class="archchip'+(arcFilterType===p[0]?' on':'')+'" data-act="arc-filter" data-type="'+p[0]+'">'+p[1]+' '+counts[p[0]]+'</span>';}).join('');
+    var list=state.archive.filter(function(a){return !arcFilterType||a.type===arcFilterType;}).sort(function(a,b){return (b.dateUpdated||'').localeCompare(a.dateUpdated||'');});
+    document.getElementById('archList').innerHTML=list.length?list.map(archiveRow).join(''):'<p class="boardempty">아직 아무것도 없어요 — 아래에서 추가하거나, 일정봇에서 아카이브에 기록해보세요</p>';
+    var typeSel=document.getElementById('arcType');if(typeSel&&!typeSel.options.length)typeSel.innerHTML=archTypeOptions('book');
+  }
+  function addArchive(){
+    var ti=document.getElementById('arcTitle'),ty=document.getElementById('arcType');
+    var title=ti.value.trim();if(!title){ti.focus();return;}
+    if(!hasContentArchive){showToast('아카이브 표가 아직 없어요');return;}
+    var a={id:uid(),title:title,type:ty.value||'other',status:'in_progress',progress:'',rating:null,notes:'',tags:'',
+      dateAdded:todayISO(),dateUpdated:todayISO(),dateCompleted:'',source:'',rawLog:'',author:'',yearWatched:'',publisher:'',coverUrl:'',sort:Date.now()};
+    state.archive.unshift(a);putArchiveEntry(a);ti.value='';arcOpen[a.id]=true;renderArchiveTab();
+  }
 
   // toast
   var toast=document.getElementById('toast'),toastMsg=document.getElementById('toastMsg'),toastUndo=document.getElementById('toastUndo'),tHide;
@@ -1045,7 +1169,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*')]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1070,6 +1194,7 @@
       hasRoutineSlot=!(res[24]&&res[24].error); // cal_routines.slot 컬럼 있으면 아침/점심/저녁 구분 켜짐
       hasRoutineToggle=!(res[25]&&res[25].error); // routines.unit 컬럼 있으면 상시업무 매일/주기/요일 체크리스트 켜짐(2026-09-25)
       hasRoutineHistory=!(res[26]&&res[26].error); // cal_routines.history 컬럼 있으면 루틴 트래커 켜짐(2026-09-25)
+      hasContentArchive=!(res[27]&&res[27].error); // archive 테이블 있으면 콘텐츠 아카이브 탭 켜짐(2026-09-26)
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1083,6 +1208,7 @@
       state.routines=(hasRoutines&&res[18].data)?res[18].data.map(function(r){return {id:r.id,ws:r.ws||'일',project:r.project||'',title:r.title||'',kind:r.cycle||'monthly',unit:r.unit||'day',n:r.n||1,weekdays:Array.isArray(r.weekdays)?r.weekdays:[],nextDue:r.next_due||'',doneToday:!!r.done_today,imp:r.imp||1,sort:r.sort||0,active:r.active!==false,created:r.created||''};}):[];
       state.calRoutines=(hasCalRoutines&&res[22].data)?res[22].data.map(fromCalRoutine):[];
       state.calTodos=(hasCalTodos&&res[23].data)?res[23].data.map(function(r){return {id:r.id,title:r.title||'',done:!!r.done,sort:r.sort||0,created:r.created||''};}):[];
+      state.archive=(hasContentArchive&&res[27].data)?res[27].data.map(fromArchive):[];
       state.month=thisMonth();            // 항상 이번 달로 열림 (◀ ▶ 로 지난 달을 넘겨볼 수 있음)
       state.jDate=todayISO();             // 저널은 오늘 칸부터
       dailyResetToday();
@@ -1160,7 +1286,7 @@
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
         return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.rolled?'<span class="rolled" title="지난달에 안 끝나서 따라온 항목">↩︎이월</span>':'')+(t.routineId?'<span class="rolled" title="상시업무에서 자동으로 올라온 항목">상시</span>':'')+subTogHtml(t)+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+subRowHtml(t,7);}).join('');
       var dn=items.filter(function(t){return t.done;}).length;
-      return '<div class="pjsec" data-proj="'+esc(name)+'"><div class="pjtog" role="button" tabindex="0" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+dn+'/'+items.length+'</span><select class="pjcat" data-act="proj-cat" data-proj="'+esc(name)+'" title="일상/업무/개인작업 — 저널에서 이 기준으로 묶여요">'+JOURNAL_CATS.map(function(c){return '<option value="'+c+'"'+(projCategory(name)===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></div><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>진행사항</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" class="empty">'+monthLabel(m)+'엔 아직 없어요</td></tr>')+'</tbody></table><div class="pjadd"><input class="pjaddin" placeholder="이 프로젝트에 할일 추가…"><button class="btn-s" data-act="proj-add">추가</button></div></div></div>';}).join('');}
+      return '<div class="pjsec" data-proj="'+esc(name)+'"><div class="pjtog" role="button" tabindex="0" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+dn+'/'+items.length+'</span><select class="pjcat" data-act="proj-cat" data-proj="'+esc(name)+'" title="일상/업무/개인작업 — 저널에서 이 기준으로 묶여요">'+JOURNAL_CATS.map(function(c){return '<option value="'+c+'"'+(projCategory(name)===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></div><div class="pjbody">'+projectRoutineRows(name)+'<table class="tbl"><thead><tr><th></th><th>할일</th><th>진행사항</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" class="empty">'+monthLabel(m)+'엔 아직 없어요</td></tr>')+'</tbody></table><div class="pjadd"><input class="pjaddin" placeholder="이 프로젝트에 할일 추가…"><button class="btn-s" data-act="proj-add">추가</button></div></div></div>';}).join('');}
   // ===== v2: 진행 기록 — 덮어쓰지 않고 날짜별로 쌓임 =====
   function mdOf(iso){var p=(iso||'').split('-');return p.length>=3?(p[1]+'.'+p[2]):(iso||'');}
   function prgOf(id){return state.progress.filter(function(p){return p.todoId===id;}).sort(function(a,b){return a.date<b.date?1:(a.date>b.date?-1:0);});}
@@ -1363,17 +1489,23 @@
   function checkRoutine(r){
     if(r.kind==='daily'){r.doneToday=!r.doneToday;}
     else{r.doneToday=true;r.nextDue=habitNextDue(r,todayISO());}
-    putRoutine(r);renderRoutines();
+    putRoutine(r);renderRoutines();renderProjects();
   }
-  function routineCheckRow(r){
+  function routineCheckRow(r,hideProj){
     var checked=r.kind==='daily'&&r.doneToday;
     var due=habitDueToday(r);
     var chk=due
       ?'<span class="ck'+(checked?' on':'')+'" data-act="rtc-check" role="checkbox" tabindex="0">'+(checked?svg():'')+'</span>'
       :'<span class="crdate">'+(r.nextDue?('다음 '+mmdd(r.nextDue)):'')+'</span>';
     return '<div class="lkrow" data-rtc="'+r.id+'">'+chk
-      +'<span class="mktxt">'+esc(r.title)+'</span>'+(r.project?'<span class="rtcyc">'+esc(r.project)+'</span>':'')
+      +'<span class="mktxt">'+esc(r.title)+'</span>'+(r.project&&!hideProj?'<span class="rtcyc">'+esc(r.project)+'</span>':'')
       +'<span class="lkdel" data-act="rtc-del" title="지우기">✕</span></div>';
+  }
+  // 매일/주기/요일 상시업무 중 이 프로젝트에 소속된 것 — 월간 표 위쪽에 체크리스트로 같이 보이게(서랍에도 그대로 남아있음)
+  function projectRoutineRows(name){
+    var list=state.routines.filter(function(r){return r.ws===state.ws&&r.project===name&&ROUTINE_TOGGLE.indexOf(r.kind)>=0;});
+    if(!list.length)return '';
+    return '<div class="pjrtwrap">'+list.map(function(r){return routineCheckRow(r,true);}).join('')+'</div>';
   }
   function renderRoutines(){
     var el=document.getElementById('routineAll');if(!el)return;
@@ -1394,7 +1526,7 @@
             +'<span class="rtsw" data-act="rt-tog" title="잠시 멈추거나 다시 켜기">'+(r.active?'켜짐':'멈춤')+'</span>'
             +'<span class="rtdel" data-act="rt-del" title="지우기">✕</span></div>';}).join('');}).join('');
     }
-    if(toggle.length)html+='<div class="rtgrp">매일·주기·요일 체크리스트</div>'+toggle.map(routineCheckRow).join('');
+    if(toggle.length)html+='<div class="rtgrp">매일·주기·요일 체크리스트</div>'+toggle.map(function(r){return routineCheckRow(r);}).join('');
     el.innerHTML=html;
   }
   var crOpen={};              // 루틴 주기 수정 펼침 상태(세션 한정, id→bool)
@@ -1957,7 +2089,7 @@
     });
   })();
 
-  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCalTodos();renderCal();renderMemos();renderJournal();renderDone();renderArt();updateHomeSegCount();if(state.q)runSearch();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCalTodos();renderCal();renderMemos();renderJournal();renderDone();renderArt();renderArchiveTab();updateHomeSegCount();if(state.q)runSearch();}
   // 모바일 "보드" 탭에 살짝 붙는 숫자 — 주머니 + 체크 안 한 회의 안건 합
   function updateHomeSegCount(){
     var el=document.getElementById('hsnCount');if(!el)return;
@@ -1987,7 +2119,7 @@
 
   // ===== events =====
   document.getElementById('theme').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';c=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);state.theme=c;savePrefs();});
-  var panels={home:document.getElementById('home'),journal:document.getElementById('journal'),memo:document.getElementById('memo'),cal:document.getElementById('cal'),daily:document.getElementById('daily'),drawer:document.getElementById('drawer'),art:document.getElementById('art')};
+  var panels={home:document.getElementById('home'),journal:document.getElementById('journal'),memo:document.getElementById('memo'),cal:document.getElementById('cal'),daily:document.getElementById('daily'),drawer:document.getElementById('drawer'),art:document.getElementById('art'),archive:document.getElementById('archive')};
   function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);
     // 메모 트리가 탭이 숨겨진(display:none) 상태에서 처음 그려지면 textarea.mseg의 scrollHeight가 0으로 잡혀
     // 내용이 있어도 높이 0으로 보이지 않는 문제(다른 메모 들어갔다 오면 그때는 보이는 상태에서 다시 그려져 정상) →
@@ -2148,7 +2280,7 @@
     }
     state.routines.push(r);putRoutine(r);ti.value='';
     document.querySelectorAll('#rtWeekdayFields input').forEach(function(c){c.checked=false;});
-    renderRoutines();
+    renderRoutines();renderProjects();
     showToast(ROUTINE_PERIODIC.indexOf(kind)>=0?'등록했어요 · 홈에서 「＋ 상시업무」를 누르면 이 달에 바로 담겨요':'등록했어요 · 여기서 바로 체크할 수 있어요');}
   document.getElementById('rtAdd').addEventListener('click',addRoutine);
   ['rtProj','rtTitle'].forEach(function(id){document.getElementById(id).addEventListener('keydown',function(e){
@@ -2244,6 +2376,15 @@
     if(!v){el.textContent=x.title;return;}
     if(v===x.title)return;
     x.title=v;putCalTodo(x);},true);
+  document.addEventListener('blur',function(e){
+    var el=e.target&&e.target.closest?e.target.closest('[data-act="arc-rename"]'):null;if(!el)return;
+    var arEl=el.closest('[data-arc]'),a=arEl&&archiveById(arEl.dataset.arc);if(!a)return;
+    var v=el.textContent.trim();
+    if(!v){el.textContent=a.title||'제목 없음';return;}
+    if(v===a.title)return;
+    a.title=v;putArchiveEntry(a);},true);
+  document.getElementById('arcAdd').addEventListener('click',addArchive);
+  document.getElementById('arcTitle').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addArchive();});
 
   function rowId(el){var tr=el.closest('tr[data-id]');return tr?tr.dataset.id:null;}
   function startNest(id){var t=tById(id);if(!t)return;nestSource=id;document.body.classList.add('nesting');var bar=document.getElementById('nestBar');bar.innerHTML='<span><b>「'+esc(t.title)+'」</b> 을(를) 하위로 넣을 <b>대상 할일</b>을 탭하세요</span><button id="nestCancel">취소</button>';bar.classList.remove('hidden');}
@@ -2274,8 +2415,47 @@
       var rtcEl=el.closest('[data-rtc]'),rc=rtcEl&&state.routines.filter(function(x){return x.id===rtcEl.dataset.rtc;})[0];
       if(!rc)return;
       if(act==='rtc-check'){checkRoutine(rc);}
-      else{var rci=state.routines.indexOf(rc);state.routines.splice(rci,1);delRoutineDB(rc.id);renderRoutines();
-        showToast('상시업무를 지웠어요',function(){state.routines.splice(rci,0,rc);putRoutine(rc);renderRoutines();});}}
+      else{var rci=state.routines.indexOf(rc);state.routines.splice(rci,1);delRoutineDB(rc.id);renderRoutines();renderProjects();
+        showToast('상시업무를 지웠어요',function(){state.routines.splice(rci,0,rc);putRoutine(rc);renderRoutines();renderProjects();});}}
+    else if(act==='arc-filter'){arcFilterType=el.dataset.type||'';renderArchiveTab();}
+    else if(act==='arc-edit'){
+      var arEl=el.closest('[data-arc]');if(!arEl)return;
+      arcOpen[arEl.dataset.arc]=!arcOpen[arEl.dataset.arc];renderArchiveTab();}
+    else if(act==='arc-del'){
+      var adEl=el.closest('[data-arc]'),a=adEl&&archiveById(adEl.dataset.arc);if(!a)return;
+      var ai=state.archive.indexOf(a);state.archive.splice(ai,1);delArchiveDB(a.id);renderArchiveTab();
+      showToast('아카이브에서 지웠어요',function(){state.archive.splice(ai,0,a);putArchiveEntry(a);renderArchiveTab();});}
+    else if(act==='arc-save'){
+      var boxS=el.closest('.crEditBox'),aS=boxS&&archiveById(boxS.dataset.arc);if(!aS)return;
+      aS.type=boxS.querySelector('.arcEType').value;
+      aS.status=boxS.querySelector('.arcEStatus').value;
+      var rv=boxS.querySelector('.arcERating').value.trim();aS.rating=rv===''?null:+rv;
+      aS.author=boxS.querySelector('.arcEAuthor').value.trim();
+      aS.publisher=boxS.querySelector('.arcEPublisher').value.trim();
+      aS.yearWatched=boxS.querySelector('.arcEYear').value.trim();
+      aS.source=boxS.querySelector('.arcESource').value.trim();
+      aS.notes=boxS.querySelector('.arcENotes').value;
+      putArchiveEntry(aS);arcSearchRes[aS.id]=null;showToast('저장했어요');renderArchiveTab();}
+    else if(act==='arc-search'){
+      var boxQ=el.closest('.crEditBox'),aQ=boxQ&&archiveById(boxQ.dataset.arc);if(!aQ)return;
+      var qType=boxQ.querySelector('.arcEType').value;
+      if(!aQ.title){showToast('제목을 먼저 입력해주세요');return;}
+      el.textContent='검색 중…';
+      sb.functions.invoke('archive-search',{body:{type:qType,query:aQ.title}}).then(function(r){
+        var data=(r&&r.data)||{};
+        if(data.configured===false){showToast('카카오/네이버 API 키가 아직 설정 안 됐어요');arcSearchRes[aQ.id]=[];}
+        else if(data.unsupported){showToast('이 종류는 자동 검색을 지원하지 않아요');arcSearchRes[aQ.id]=[];}
+        else if((data.results||[]).length){arcSearchRes[aQ.id]=data.results;}
+        else{showToast('검색 결과가 없어요');arcSearchRes[aQ.id]=[];}
+        renderArchiveTab();
+      }).catch(function(){showToast('검색에 실패했어요');});}
+    else if(act==='arc-pick'){
+      var boxP=el.closest('[data-arc]'),aP=boxP&&archiveById(boxP.dataset.arc);if(!aP)return;
+      var picks=arcSearchRes[aP.id]||[],r=picks[+el.dataset.i];if(!r)return;
+      if(r.title)aP.title=r.title;
+      aP.author=r.author||aP.author;aP.publisher=r.publisher||aP.publisher;
+      aP.yearWatched=r.year||aP.yearWatched;aP.coverUrl=r.cover_url||aP.coverUrl;
+      arcSearchRes[aP.id]=null;putArchiveEntry(aP);renderArchiveTab();}
     else if(act==='tl-del'){
       var lr=el.closest('[data-li]');if(!lr||!hasJournal)return;
       var jt=jEntry(todayISO()),before=jt.body||'',raw=before.split('\n');

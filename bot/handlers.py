@@ -16,6 +16,7 @@ from .cycle_sheet import CycleClient, PHASE_INFO
 from . import claude_client
 from . import figma_client
 from . import haru_app
+from . import archive_app
 from . import webpush_notify
 from . import gcal
 from .mode_prompts import MODE_NAMES
@@ -978,6 +979,26 @@ async def migrate_archive_fields_handler(update: Update, context: ContextTypes.D
         "Google Sheets N열(author), O열(year\\_watched), P열(publisher) 헤더를 추가해주세요.",
         parse_mode="Markdown"
     )
+
+
+async def sync_archive_to_haru_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/sync_archive_to_haru — 아카이브 전체(기존 기록 포함)를 하루앱 Supabase로 한 번에 복사.
+
+    앞으로 새로 추가/수정/삭제하는 건 자동으로 같이 반영되니(archive_app 거울복사),
+    이 명령은 처음 한 번 기존 기록을 옮길 때만 쓰면 됨. 여러 번 눌러도 안전(덮어쓰기).
+    """
+    if not _auth(update):
+        return
+    if not archive_app.is_configured():
+        await update.message.reply_text(
+            "하루앱 연결이 아직 안 됐어요. Railway에 SUPABASE_URL / SUPABASE_SERVICE_KEY / "
+            "HARU_OWNER_ID 가 이미 있다면(주머니 던지기용으로 이미 넣었을 거예요) 그대로 쓰여요."
+        )
+        return
+    await update.message.reply_text("⏳ 아카이브를 하루앱으로 옮기는 중...")
+    entries = _sheets.get_all_entries(force=True)
+    archive_app.batch_upsert(entries)
+    await update.message.reply_text(f"✅ {len(entries)}개 항목을 하루앱 아카이브 탭으로 옮겼어요!")
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):

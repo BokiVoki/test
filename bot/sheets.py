@@ -9,6 +9,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 from .models import ContentEntry, SHEET_COLUMNS, STATUS_KR, CONTENT_TYPE_KR
+from . import archive_app
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -89,6 +90,7 @@ class SheetsClient:
         # table_range='A1' 명시 — 시트 자동 감지 오류 방지
         sheet.append_row(entry.to_row(), value_input_option="USER_ENTERED", table_range="A1")
         self._invalidate_cache()
+        archive_app.upsert_entry(entry)  # 하루앱 거울복사 (실패해도 시트 저장엔 영향 없음)
         return entry
 
     def batch_add_entries(self, entries: list[ContentEntry]) -> int:
@@ -109,6 +111,7 @@ class SheetsClient:
         sheet = self._get_sheet()
         sheet.append_rows(rows, value_input_option="USER_ENTERED")
         self._invalidate_cache()
+        archive_app.batch_upsert(entries)
         return len(rows)
 
     def delete_entry(self, entry_id: str) -> bool:
@@ -118,6 +121,7 @@ class SheetsClient:
             if row and row[0] == entry_id:
                 sheet.delete_rows(i)
                 self._invalidate_cache()
+                archive_app.delete_entry(entry_id)
                 return True
         return False
 
@@ -133,6 +137,7 @@ class SheetsClient:
                     value_input_option="USER_ENTERED",
                 )
                 self._invalidate_cache()
+                archive_app.upsert_entry(entry)
                 return
         # id로 못 찾으면 새로 추가
         self.add_entry(entry)
@@ -158,6 +163,7 @@ class SheetsClient:
         if batch_data:
             sheet.batch_update(batch_data, value_input_option="USER_ENTERED")
         self._invalidate_cache()
+        archive_app.batch_upsert(entries)
         return len(batch_data)
 
     def get_recent(

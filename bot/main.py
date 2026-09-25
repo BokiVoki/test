@@ -85,6 +85,7 @@ def main():
     app.add_handler(CommandHandler("export", handlers.export_handler))
     app.add_handler(CommandHandler("import_archive", handlers.import_handler))
     app.add_handler(CommandHandler("migrate_archive_fields", handlers.migrate_archive_fields_handler))
+    app.add_handler(CommandHandler("sync_archive_to_haru", handlers.sync_archive_to_haru_handler))
 
     # 리마인더
     app.add_handler(CommandHandler("remind", handlers.remind_handler))
