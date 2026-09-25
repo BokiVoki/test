@@ -15,8 +15,10 @@ struct HaruWidgetView: View {
         switch family {
         case .accessoryRectangular:
             compactList(limit: 4)
+                .containerBackground(for: .widget) { Color.clear }
         default:
             mediumList(limit: 8)
+                .containerBackground(for: .widget) { Color(.systemBackground) }
         }
     }
 
