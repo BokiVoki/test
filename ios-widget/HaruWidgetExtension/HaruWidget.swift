@@ -9,7 +9,7 @@ struct HaruWidget: Widget {
             HaruWidgetView(entry: entry)
         }
         .configurationDisplayName("하루")
-        .description("오늘 체크할 루틴과 투두")
-        .supportedFamilies([.accessoryRectangular, .systemMedium])
+        .description("오늘 체크할 루틴과 투두 (홈 화면용)")
+        .supportedFamilies([.systemMedium])
     }
 }

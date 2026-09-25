@@ -39,7 +39,8 @@ if needed" 체크**하고, 아래처럼 타겟 멤버십(Target Membership)을 �
   → **두 타겟 모두 체크** (`HaruWidget` 앱 타겟 + `HaruWidgetExtension` 위젯 타겟).
   파일 선택 후 오른쪽 File Inspector에서 Target Membership 체크박스 두 개 다 켜기.
 - **`HaruWidgetExtension/` 안의 파일들**(`CheckItemIntent.swift`, `Provider.swift`,
-  `HaruWidgetView.swift`, `HaruWidget.swift`, `HaruWidgetBundle.swift`)
+  `HaruWidgetView.swift`, `HaruWidget.swift`, `HaruRoutineWidget.swift`,
+  `HaruTodoWidget.swift`, `HaruWidgetBundle.swift`)
   → **`HaruWidgetExtension` 타겟만** 체크.
   ⚠️ Xcode가 위젯 타겟 만들 때 자동으로 만들어준 예시 Swift 파일(비슷한 이름)이
   이미 있을 텐데, 그건 지우고 이 파일들로 교체하세요.
@@ -63,8 +64,11 @@ App Intents 기반 인터랙티브 위젯(잠금화면에서 바로 체크)은 *
      일반 → VPN 및 기기 관리에서 본인 Apple ID 신뢰 허용
    - **무료 Apple ID로 빌드하면 인증서가 7일마다 만료**돼요 — 1주일 지나면 Xcode에서
      다시 실행해서 재설치해야 함. ($99/년 유료 개발자 계정이면 이 제약 없음.)
-4. 앱이 설치되면 아이폰에서 **잠금화면 길게 누르기 → 사용자화 → 위젯 추가** (또는
-   홈 화면 길게 누르기 → + → "하루" 검색)로 위젯을 추가
+4. 앱이 설치되면 위젯 3종류 중 원하는 걸 추가:
+   - **홈 화면 길게 누르기 → + → "하루" 검색** → 루틴+투두가 같이 보이는 큰 위젯(홈 화면 전용)
+   - **잠금화면 길게 누르기 → 사용자화 → 위젯 추가** → "하루 루틴"과 "하루 투두"를
+     각각 따로 추가해서 **양옆에 나란히** 놓을 수 있음(잠금화면 위젯 한 칸이 너무 작아서
+     둘로 나눔, 2026-09-26)
 
 ## 6. 동작 확인
 
