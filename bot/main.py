@@ -13,11 +13,8 @@ from telegram.ext import (
 from .sheets import SheetsClient
 from .reminders_sheet import RemindersClient
 from .todos_sheet import TodosClient
-from .memos_sheet import MemosClient
-from .inventory_sheet import InventoryClient
-from .intake_sheet import IntakeLogClient
 from .cycle_sheet import CycleClient
-from .scheduler import check_reminders_job, send_briefing_job, send_haru_daily_job
+from .scheduler import check_reminders_job, send_haru_daily_job
 from . import handlers
 
 load_dotenv()
@@ -50,18 +47,6 @@ def main():
     handlers.init_todos(todos)
     logger.info("Todos 연결 완료")
 
-    memos = MemosClient(spreadsheet_id=spreadsheet_id)
-    handlers.init_memos(memos)
-    logger.info("Memos 연결 완료")
-
-    inventory = InventoryClient(spreadsheet_id=spreadsheet_id)
-    handlers.init_inventory(inventory)
-    logger.info("Inventory 연결 완료")
-
-    intake = IntakeLogClient(spreadsheet_id=spreadsheet_id)
-    handlers.init_intake(intake)
-    logger.info("IntakeLog 연결 완료")
-
     cycle = CycleClient(spreadsheet_id=spreadsheet_id)
     handlers.init_cycle(cycle)
     logger.info("Cycle 연결 완료")
@@ -71,7 +56,6 @@ def main():
     app = Application.builder().token(token).build()
     app.bot_data["reminders_client"] = reminders  # 기존 명령어 호환용
     app.bot_data["todos_client"] = todos
-    app.bot_data["intake_client"] = intake
     app.bot_data["cycle_client"] = cycle
     app.bot_data["user_id"] = user_id
 
@@ -116,33 +100,13 @@ def main():
     app.add_handler(CommandHandler("todo_done", handlers.todo_done_handler))
     app.add_handler(CommandHandler("todo_del", handlers.todo_del_handler))
 
-    # 메모
-    app.add_handler(CommandHandler("memos", handlers.memos_handler))
-    app.add_handler(CommandHandler("memo_del", handlers.memo_del_handler))
-
-    # 영양제/생리주기/ADHD
-    app.add_handler(CommandHandler("inventory", handlers.inventory_handler))
-    app.add_handler(CommandHandler("intake", handlers.intake_handler))
+    # 생리주기/ADHD
     app.add_handler(CommandHandler("cycle", handlers.cycle_handler))
-    app.add_handler(CommandHandler("setup_supplements", handlers.setup_supplements_handler))
 
     # 1분마다 투두 알람 + 생리주기 단계 알림 체크
     app.job_queue.run_repeating(check_reminders_job, interval=60, first=10)
 
     import datetime as _dt
-    # 브리핑: 오전(09:00) / 저녁(18:00) / 밤(23:00)
-    app.job_queue.run_daily(
-        send_briefing_job, time=_dt.time(0, 0, tzinfo=_dt.timezone.utc),  # KST 09:00
-        data={"type": "morning"},
-    )
-    app.job_queue.run_daily(
-        send_briefing_job, time=_dt.time(9, 0, tzinfo=_dt.timezone.utc),  # KST 18:00
-        data={"type": "evening"},
-    )
-    app.job_queue.run_daily(
-        send_briefing_job, time=_dt.time(14, 0, tzinfo=_dt.timezone.utc), # KST 23:00
-        data={"type": "night"},
-    )
     # 하루앱 전용: 매일 11시 오늘 추천 + 마감
     app.job_queue.run_daily(
         send_haru_daily_job, time=_dt.time(2, 0, tzinfo=_dt.timezone.utc),  # KST 11:00

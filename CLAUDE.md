@@ -7,7 +7,7 @@
 
 | 시스템 | 무엇 | 어디 사는가 | 상태 |
 |---|---|---|---|
-| **일정 비서봇** | 텔레그램 봇. 할일/알람/리마인더/영양제 재고/생리주기/브리핑 | Railway (BOT_ROLE 미설정) + Google Sheets | ✅ 운영 중 |
+| **일정 비서봇** | 텔레그램 봇. 할일/알람/리마인더/아카이브/생리주기/구글캘린더 | Railway (BOT_ROLE 미설정) + Google Sheets | ✅ 운영 중 |
 | **인박스봇** | 텔레그램 봇. 링크/생각/사진/쇼핑/책을 옵시디언 볼트로 자동 정리 | Railway (BOT_ROLE=inbox) + GitHub 볼트 `BokiVoki/obsidian-vault`(Private) | ✅ 운영 중 (Books/Inbox/Shopping 폴더에 커밋 중). 남은 건 옵시디언 앱에서 볼트 열기(Obsidian Git) |
 | **하루(Haru) 웹앱** | 개인 업무 할일 대시보드 (미니멀·딥그린) + 그림공부(작가별 그림 태그 상속) | **Cloudflare** + Supabase, 그림은 옵시디언에도 미러링 | ✅ 운영 중 (`webapp/index.html`, `haru.lolcv1294.workers.dev`) |
 
@@ -16,13 +16,12 @@
 ## 1. 일정 비서봇 (`bot/`)
 
 - **엔트리**: `python start.py` → `BOT_ROLE` 미설정이면 `bot.main` 실행
-- **저장소**: Google Sheets (`SPREADSHEET_ID`) — Archive / Todos / Reminders / Memos / Inventory / IntakeLog / Cycle 워크시트
+- **저장소**: Google Sheets (`SPREADSHEET_ID`) — Archive / Todos / Reminders / Cycle 워크시트
 - **LLM**: Anthropic API (`ANTHROPIC_API_KEY`) — Haiku로 자연어 파싱
 - **주요 기능**
   - 투두/알람: 자연어로 추가, 반복(daily/weekly/monthly/after:N분), 재알람, 완료
   - 아카이브: 책/웹툰/영화 등 기록, `/검색` 인라인 버튼, 사진 메모(Drive)
-  - 영양제 재고 + 복용 기록, 생리주기 추적 + 단계별 알림(PMS 등)
-  - 브리핑: 아침/저녁/밤 (매일 고정 알림은 브리핑에서 제외됨)
+  - 생리주기 추적 + 단계별 알림(PMS 등)
   - **하루앱 주머니 던지기**: `앱 <내용> [마감]` → 하루 웹앱 주머니(Supabase todos, `bucket='inbox'`)로 바로 저장 (`bot/haru_app.py`). 끝에 붙은 날짜(오늘/내일/모레/글피, 요일, `M/D`·`M.D`·`M-D`, `M월 D일`)를 `parse_pocket_due`로 떼어 due로 저장. 환경변수: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `HARU_OWNER_ID`, (선택 `HARU_WORKSPACE`, 기본 '일')
   - **구글 캘린더 일정**: 끝에 **`구캘`=캘린더만**, **`구할`=캘린더+하루앱 둘 다**(`_create_schedule(also_app)`), 앞에 `일정 `=캘린더만. 예: `출장 8/6-8/8 구캘`, `회의 8/6 구할` (`bot/gcal.py`, `parse_schedule`). 기간 `8/6-8/8`·`8월6일-8월8일`, 단일 `8/6`/`8월 3일`/오늘·내일, 시간 `8/6 14:00`(1시간). 서비스계정(GOOGLE_CREDENTIALS_JSON) 재사용 — **셋업**: Calendar API 사용설정 + 내 캘린더를 서비스계정 client_email에 '일정 변경'으로 공유 + env `GOOGLE_CALENDAR_ID`(기본캘린더면 내 gmail). **캘린더 + 하루앱 동시**: 성공 시 `haru_app.add_to_pocket(bucket='inbox', due=시작일, endd=종료일)`로 하루앱 주머니+캘린더에도 표시(기간이면 제목에 `~` + `todos.endd`로 캘린더에 시작~종료 쫙). 실패/미연결이면 답장에 이유 표시.
   - **하루앱 11시 체크인**: 매일 11:00(KST) 전용 메시지로 오늘 추천(우선순위순 `haru_app.list_open`)+마감(`list_due`)을 쏨 (`send_haru_daily`, `scheduler.send_haru_daily_job`, main.py UTC 02:00). 즉시 확인: `추천`/`체크인` 텍스트. 마감만: `마감` 텍스트 또는 `/deadlines`. (브리핑엔 합치지 않음)
@@ -31,8 +30,12 @@
   - "모든 알람 취소"에 되돌리기 버튼 추가
   - 체크인 기능 **삭제됨**
   - 날짜/요일 파싱 정확도 개선 (요일 문자열 전달)
-  - 브리핑에서 `repeat=daily` 고정 항목 숨김
   - PMS 단계 알림 중복 발송 버그 → Cycle 시트 note에 `[notified:...]` 영구 기록으로 해결
+  - **안 쓰는 기능 정리(2026-09-25)**: "요새 알림과 생리기록/배란기 정보 정도만 쓰고, 영양제 기능도 거의 안 쓴다"는 확인을 받고, 실제로 쓰는 기능(알림, 봇 자체 투두, 아카이브, 생리주기, 구글캘린더 연동, 하루앱 주머니 던지기)만 남기고 셋을 완전히 제거함:
+    - **영양제 재고+복용기록** — `/inventory` `/intake` `/setup_supplements` 명령, 자연어 라우팅, 알람완료·뽀모도로 완료 시 자동 복용기록 side-effect, `bot/inventory_sheet.py`/`bot/intake_sheet.py`(파일 삭제), `models.py`의 `InventoryItem`/`IntakeLogItem`. `cycle_sheet.py`의 `format_status()`가 영양제 재고 기반 추천을 보여주던 것도 함께 제거하고 하드코딩된 안내 문구로만 표시하게 단순화(파라미터 자체를 없앰).
+    - **봇 자체 메모** — `/memos` `/memo_del`, "기록해줘" 자연어 저장, `bot/memos_sheet.py`(파일 삭제), `models.py`의 `MemoEntry`. ⚠️ 하루앱의 메모 탭(리치 에디터)과는 완전히 다른, 훨씬 단순한 별개 기능이었음 — 하루앱 메모는 전혀 안 건드림.
+    - **브리핑(아침 9시/저녁 6시/밤 11시 하루 3번 요약)** — 날씨+봇 자체 투두 요약으로 만들던 옛 기능. `send_briefing`/`send_briefing_job`/`_fetch_weather` 제거, `main.py`의 3개 `run_daily` 스케줄 제거. **하루앱 11시 체크인(`send_haru_daily_job`)은 완전히 별개 기능이라 안 건드림** — 그대로 유지.
+    - 봇 자체 투두(`/todos` 등, Reminders와 같은 시트를 공유)와 아카이브·구글캘린더 연동·하루앱 주머니 던지기·웹 푸시·뽀모도로 기능 자체는 실제로 쓴다고 확인받아 손대지 않음.
 
 ## 2. 인박스봇 (`inbox_bot/`)
 
@@ -99,7 +102,7 @@
   - **저장**: 입력 600ms 디바운스 + 포커스 아웃 + **날짜 옮기기 직전**(`jSaveNow`) + `pagehide`/`visibilitychange` — /cha에서 겪은 "저장했는데 날아감"을 반복하지 않으려고 빠져나가는 길목마다 저장함.
   - **완료함은 저널 탭 아래쪽에 그대로** 남아있음(`doneList`, 되돌리기 포함) — 탭이 없어졌다고 기능을 잃지 않게.
 - **상시업무(v2 3단계)**: `routines` 테이블(`project`·`title`·`cycle`·`active`). 서랍에서 `대분류 + 업무 이름 + 주기`로 등록하고 대분류별로 묶여 보임(`renderRoutines`).
-  - **주기는 매월 / 두 달에 한 번 두 가지만**. 격월은 **등록한 달(`created`)을 기준**으로 한 달 걸러(`routineDueIn`). 매일·매주 반복은 기존 `🔁 고정업무`(`repeat`)가 하루 단위로 담당하므로 여기선 일부러 안 넣음 — 둘을 섞으면 같은 개념이 두 군데 생김.
+  - **주기는 원래 매월 / 두 달에 한 번 두 가지만이었고, 매일·매주 반복은 `🔁 고정업무`(`repeat`)가 따로 담당했으나, 2026-09-25에 그 `🔁 고정업무`를 여기로 완전히 흡수**하면서 매일/며칠·몇 주·몇 달마다/특정 요일마다까지 5가지로 늘어남(아래 "상시업무 ↔ 고정업무 통합" 참고). 격월은 **등록한 달(`created`)을 기준**으로 한 달 걸러(`routineDueIn`).
   - **복제**(`seedRoutines`): 그 달에 같은 `routine_id` 할일이 이미 있으면 건너뜀 → **여러 번 눌러도 안 늘어남**. 홈 월 네비의 `＋ 상시업무`(`#seedBtn`)로 **보고 있는 달**에 수동으로도 담을 수 있음.
   - **이월**(`rollOver`): 지난 달(들)의 **미완료 + 프로젝트 있는** 할일을 이번 달로 **옮김**(복사 아님 — 한 행이 한 달에만 속하므로). 주머니(프로젝트 없음)는 달 개념이 없어서 건드리지 않고, 완료·보관된 건 그대로 그 달에 남음.
   - **언제 도는지**(`monthlyRollIfNeeded`): `settings.routineMonth`가 이번 달과 다르면 로드 시 1회 — `todayResetDate`와 같은 패턴. ⚠️ **이 기능을 처음 쓰는 로드에선 이월을 건너뜀**(`first`) — 안 그러면 예전 할일이 무더기로 이번 달로 끌려옴. `putSettings()`가 `state.uid` 없으면 저장을 건너뛰므로 uid가 아직이면 800ms 뒤 한 번 재시도(안 그러면 다음 로드에 또 돌아서 토스트가 반복됨).
@@ -132,6 +135,11 @@
     - **매일 루틴 시간대 구분**: `cal_routines.slot` 컬럼 추가(`''`|`morning`|`lunch`|`evening`, `hasRoutineSlot` 프로브) — `kind==='daily'`일 때만 의미 있음(등록 폼·수정 박스 둘 다 `kind`가 `daily`일 때만 시간대 select 보임). **매일 루틴 / 그 외 정기 루틴 / 예정된 루틴 세 섹션으로 완전히 분리**(전엔 "오늘 체크할 루틴" 하나에 매일+그외가 섞여 있었음) — `#calRoutineDaily`가 매일 루틴만 아침→점심→저녁→시간무관 순서로 소제목(`.crSlotHead`) 나눠서 보여주고(그룹 안에 항목 없으면 그 소제목 자체를 생략), `#calRoutineList`는 그 외 정기 루틴 중 오늘 체크할 것만, `#calRoutineUpcoming`은 그 외 정기 루틴 중 아직 주기가 안 돌아온 것만(매일 루틴은 항상 "오늘" 개념이라 예정 목록에 안 감).
     - 헤드리스 테스트로 슬롯별 그룹핑 순서, 섹션 분리, 인라인 제목 수정(DB 반영까지), 주기 수정 박스의 실시간 필드 전환+저장 후 DB 반영(interval→weekday 변경 케이스로 검증) 전부 확인.
     - **버그: 모바일에서 루틴 삭제가 잘 안 됨(같은 날 발견·수정)**: ✎(주기 수정) 아이콘을 새로 추가하면서 `.lkrow` 한 줄에 제목(contenteditable)+✎+✕ 세 개가 붙어 있게 됐는데, ✎/✕ 둘 다 글자 크기 11px에 여백 없는 아이콘이라 탭 가능 영역이 실제로 14px 안팎밖에 안 됐음(애플 권장 최소 44pt에 한참 못 미침) — 손가락으로 누르면 옆 아이콘이나 빈 자리를 짚기 쉬워서 "삭제가 잘 안 된다"로 느껴졌던 것. `.lkrow .lkdel,.lkrow .crEditTog{padding+음수 마진}`으로 시각적 크기는 그대로 두고 실제 탭 영역만 20~36px 수준으로 키움(680px 이하 모바일 전용). 헤드리스에서 **실제 터치 탭(`page.tap`)으로 삭제가 되는지**까지 검증(단순 `page.click`이 아니라 모바일 뷰포트+`hasTouch`로 재현).
+- **상시업무 ↔ 고정업무(🔁) 통합, 대시보드 🔁 완전 제거(2026-09-25)**: 기능 중복 점검 요청으로 발견 — 업무 반복을 표현하는 시스템이 세 개(캘린더 탭 루틴=일상용, 서랍 상시업무=월/격월, 대시보드 행마다 붙이던 🔁 고정업무=매일/매주/매월)나 있었는데, 그중 **일상용 캘린더 루틴은 그대로 두고**(사용자가 명확히 "루틴은 일상, 상시업무/고정업무는 업무"라고 구분), **업무용 둘(상시업무·고정업무)만 서랍의 "상시업무" 하나로 합침**. 실제 데이터는 각각 1개뿐이라(`routines` 1개, `repeat` 걸린 할일 1개) 이 시점에 정리.
+  - **상시업무 주기가 매월/격월 2개 → 5개로 확장**: 매월·격월(기존, project 필수, 매달 그 달 월간 표에 새 할일로 자동 복제)에 **매일·며칠/몇 주/몇 달마다·특정 요일마다**(신규, project 선택)를 추가 — 이 셋은 월간 표에 안 올라오고 서랍 화면 그 자리에서 바로 체크만 토글되는 방식(캘린더 루틴의 `habitNextDue`/`habitDueToday` 계산 엔진을 그대로 재사용, `routines` 테이블에 `unit`/`n`/`weekdays`/`next_due`/`done_today` 컬럼 추가 — 마이그레이션 `routines_toggle_kinds`, `hasRoutineToggle` 프로브. DB 컬럼명은 기존 `cycle`을 그대로 재사용해 5가지 값을 다 담음, JS에서는 `kind`로 읽음). `routineDueIn()`이 매일/주기/요일 종류는 애초에 월간 표 시딩 대상에서 걸러내므로(`ROUTINE_PERIODIC`/`ROUTINE_TOGGLE` 배열로 구분) 월간 표는 안 건드림.
+  - **대시보드 🔁(고정업무) 완전 제거**: 할일 행마다 있던 🔁 버튼(`data-act="cad"`, daily/weekly/monthly 순환, `donelog` 완료 이력 카운트)과 관련 함수(`isRepeatDueToday`/`repLabel`/`repDoneCount`), "오늘의 집중"의 "고정 업무" 그룹, "완료함으로 정리"의 repeat 제외 조건을 모두 제거 — 이제 업무 반복은 서랍 상시업무 등록 하나로만 함. `todos.repeat`/`repday`/`lastdone`/`donelog` 컬럼 자체는 안 지움(스키마 변경 없이 항상 `'none'`/빈 값으로만 쓰이는 죽은 컬럼으로 남김, 데이터 손실 위험 있는 컬럼 드롭은 안 함). 참고로 `todos.donelog`는 애초에 실제 DB엔 컬럼이 생성된 적이 없어서(마이그레이션 누락) 고정업무의 "N회" 완료 카운트 기능은 원래도 동작한 적이 없었음.
+  - **기존 데이터 마이그레이션**: 유일하게 있던 `repeat='monthly'` 할일("그림그리기 & 그림연구 공부", 프로젝트 "자아실현")을 SQL로 새 `routines` 행(매월, 같은 프로젝트)으로 만들고, 그 할일 자체는 `repeat='none'`+`routine_id`로 새 상시업무를 가리키게 연결(같은 달에 중복 시딩 안 되게 — 새 행을 또 만드는 대신 기존 할일을 그대로 이어받음).
+  - 헤드리스 테스트(`routinemergetest.js`)로 매일 체크 토글·요일별 등록·N일마다 체크 후 다음 예정일 계산·삭제/되돌리기·매월 상시업무 기존 동작 유지·🔁 버튼이 실제로 사라졌는지까지 확인, 기존 회귀(`p3test`/`calroutinetest` 등) 전부 통과.
 - **모바일 UX 개선(2026-09-23)**: "가독성이 안 좋다 · 오른쪽 보드가 모바일에서 너무 많다"는 피드백으로 손봄.
   - **홈을 900px 이하에서 「할일 / 보드」 탭으로 분리**(`#homeSeg`, `#homeGrid.show-board`): 기본은 「할일」(오늘 띠+월간 표)만 보이고, 「보드」를 누르면 오늘한줄·주머니·회의안건·링크 네 개만 보임 — 예전엔 이 넷이 월간 표 밑에 그대로 이어 붙어서 스크롤이 두 배로 길었음. 「보드」 탭엔 **주머니 개수 + 안 끝난 회의 안건 수** 배지(`updateHomeSegCount`, `renderAll` 끝에서 매번 갱신)가 붙어서 안 눌러봐도 뭔가 있는지 알 수 있음. 주머니(`goPocket`) 클릭 시에도 모바일이면 자동으로 「보드」 탭으로 전환.
   - **버그 발견: 호버로만 보이던 버튼들이 터치에선 원천적으로 안 보임** — `.rowdel`(할일 삭제)·`.pjdel`/`.pjren`(프로젝트 삭제·이름변경)·`.subadd0`(＋하위 첫 추가)·`.subitem .sdel`(하위항목 삭제)·`.rowbtn`(🔁 반복설정, 오늘 토글)·`.nest`(⤵하위로)·`.sdue2`/`.stoday`(하위항목 날짜·오늘)·`.lkrow .lkdel`(링크 삭제) 전부 `opacity:0`+`:hover{opacity:1}` 패턴이라, 마우스 호버가 없는 폰에서는 **존재하는지도 모르고 있었거나 알아도 좌표 찍어 blind click** 해야 했음. 680px 이하에서 전부 `opacity:.5!important`로 항상 옅게 보이게 바꿈(`.has` 붙은 것들은 `.9`로 구분 유지, 이건 채워진 값이 있다는 뜻이라 특이도 계산상 더 구체적인 선택자로 따로 처리).
@@ -174,7 +182,7 @@
   - Project URL: `https://mfgiesampazjzgfliuje.supabase.co`
   - Publishable key(공개용, 앱에 하드코딩 OK): `sb_publishable_QBlLIrJ8coqH3I-Ij-Q7SA_OUB7KVwV`
   - ⚠️ secret key는 절대 코드/문서에 넣지 말 것
-  - 테이블: `todos`, `memos`, `settings`, `art_artists`, `art_works` (RLS `owner=auth.uid()`) + **v2 추가**: `progress`(진행 기록, `todo_id`·`date`·`text` — 덮어쓰지 않고 쌓임) · `routines`(상시업무 마스터) · `journal`(`date`가 `YYYY-MM`이면 그 달의 월간 회고, `goal`/`musts`엔 월 목표·꼭 이뤄야 할 것) · `links`(`pinned`면 홈 오른쪽 고정) · `agenda`(회의 안건) · `push_subscriptions`(웹 푸시 구독, `endpoint` PK) · `cal_routines`(캘린더 탭 루틴, 자유 주기 체크리스트 — 위 상시업무 `routines`와는 별개) · `cal_todos`(캘린더 탭 투두, 캘린더에 안 뜨는 단순 체크리스트). `todos`엔 `month`/`review`/`routine_id`/`rolled` 컬럼, `memos`엔 `pinned`(홈 오른쪽 고정, 2026-09-23), `journal`엔 `goal`(text)/`musts`(jsonb, 2026-09-23), `cal_routines`엔 `slot`(text, 2026-09-25 — 매일 루틴 아침/점심/저녁 구분) 컬럼 추가. 전부 추가만 한 마이그레이션이라 기존 행은 그대로.
+  - 테이블: `todos`, `memos`, `settings`, `art_artists`, `art_works` (RLS `owner=auth.uid()`) + **v2 추가**: `progress`(진행 기록, `todo_id`·`date`·`text` — 덮어쓰지 않고 쌓임) · `routines`(상시업무 — 매월/격월/매일/주기/요일 5종, 아래 참고) · `journal`(`date`가 `YYYY-MM`이면 그 달의 월간 회고, `goal`/`musts`엔 월 목표·꼭 이뤄야 할 것) · `links`(`pinned`면 홈 오른쪽 고정) · `agenda`(회의 안건) · `push_subscriptions`(웹 푸시 구독, `endpoint` PK) · `cal_routines`(캘린더 탭 루틴, 일상용 자유 주기 체크리스트 — 업무용 `routines`와는 완전히 별개, 안 섞음) · `cal_todos`(캘린더 탭 투두, 캘린더에 안 뜨는 단순 체크리스트). `todos`엔 `month`/`review`/`routine_id`/`rolled` 컬럼, `memos`엔 `pinned`(홈 오른쪽 고정, 2026-09-23), `journal`엔 `goal`(text)/`musts`(jsonb, 2026-09-23), `cal_routines`엔 `slot`(text, 2026-09-25 — 매일 루틴 아침/점심/저녁 구분), `routines`엔 `unit`/`n`/`weekdays`(jsonb)/`next_due`/`done_today`(2026-09-25, 마이그레이션 `routines_toggle_kinds` — 고정업무 통합, `hasRoutineToggle` 프로브) 컬럼 추가. 전부 추가만 한 마이그레이션이라 기존 행은 그대로.
   - **프로브 플래그**: 새 컬럼·테이블도 기존 방식대로 `hasMonth`/`hasAgenda`/`hasLinks`/`hasProgress`/`hasJournal`/`hasRoutines`로 확인 후 켜짐 — 마이그레이션 안 된 DB에서도 앱이 안 깨짐.
   - **헤드리스 테스트 하네스**(`scratchpad/mkstub.js`): 샌드박스에선 supabase.co·cdn.jsdelivr.net이 **에그레스 프록시에 막혀 있어** 실제 앱을 못 띄움 → `index.html` 복사본의 supabase CDN 스크립트를 **가짜 supabase 스텁**(체이너블 `from().select().eq().upsert()` + `auth`)으로 바꿔치기해서 Playwright로 돌림. 가짜 DB는 `sessionStorage`에 저장돼 **새로고침해도 유지됨** — "달이 바뀐 뒤 다시 열기"(이월) 같은 시나리오를 재현하려면 이게 필요함(안 그러면 reload마다 DB가 초기화돼서 테스트가 헛돎). 배포 전엔 이걸로 전 기능 회귀를 돌릴 것.
     - ⚠️ **이 스텁은 가짜라 실제 Postgres 제약(컬럼 타입·RLS·overflow)을 안 걸러냄** — v2 3단계 전체가 이 스텁으로만 검증되고 배포됐다가, 아래 `sort` 정수 오버플로 버그를 못 잡고 그대로 나간 전례가 있음. **진짜 저장 여부는 배포 후 `mcp__Supabase__execute_sql`로 실제 DB 행 수를 직접 세어서 확인할 것** — 스텁 테스트 통과를 저장 성공의 증거로 여기지 말 것.

@@ -290,8 +290,6 @@
   .due{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
   .due.over{color:var(--text);font-weight:700}
   .imp{color:var(--accent);font-size:9px;letter-spacing:2px;white-space:nowrap;cursor:pointer;user-select:none}
-  .cad{font-size:11px;color:var(--accent);margin-left:7px;cursor:pointer;border-bottom:1px dashed var(--accent);padding-bottom:1px}
-  .donen{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-left:5px}
   .grp td{font-size:10.5px;color:var(--faint);font-weight:600;padding:12px 10px 5px;letter-spacing:.03em;border-bottom:1px solid var(--line)}
   .est{cursor:text;border-bottom:1px dashed transparent}tr:hover .est{border-bottom-color:var(--line-2)}.est:focus{outline:none;border-bottom-color:var(--accent)}
   .empty{padding:18px 10px;text-align:center;color:var(--faint);font-size:13px}
@@ -647,16 +645,25 @@
       <div class="linkadd"><input id="linkTitle" placeholder="이름" aria-label="링크 이름"><input id="linkUrl" placeholder="https://" aria-label="링크 주소"><input id="linkGrp" placeholder="묶음 (노션/시트…)" aria-label="링크 묶음"><button class="btn-s" id="linkAdd">추가</button></div>
     </section>
     <section class="blk">
-      <div class="bhead"><h2>상시업무</h2><div class="r">매달 1일에 그 달 목록으로 자동 복제돼요</div></div>
+      <div class="bhead"><h2>상시업무</h2><div class="r">업무 반복은 여기 하나로 · 매월·격월은 그 달 목록에 자동 복제, 매일·주기·요일은 바로 체크</div></div>
       <div id="routineAll"></div>
-      <div class="linkadd">
-        <input id="rtProj" list="projNameList" placeholder="대분류 (콘텐츠·도서…)" aria-label="상시업무 대분류">
+      <div class="crform">
+        <input id="rtProj" list="projNameList" placeholder="대분류 (콘텐츠·도서…, 선택)" aria-label="상시업무 대분류">
         <input id="rtTitle" placeholder="업무 이름" aria-label="상시업무 이름">
-        <select id="rtCycle" aria-label="주기"><option value="monthly">매월</option><option value="bimonthly">두 달에 한 번</option></select>
+        <select id="rtKind" aria-label="주기 종류">
+          <option value="monthly">매월</option>
+          <option value="bimonthly">두 달에 한 번</option>
+          <option value="daily">매일</option>
+          <option value="interval">며칠/몇 주/몇 달마다</option>
+          <option value="weekday">특정 요일마다</option>
+        </select>
+        <span class="crfield hidden" id="rtIntervalFields"><input id="rtN" type="number" min="1" value="1">&nbsp;<select id="rtUnit"><option value="day">일</option><option value="week">주</option><option value="month">달</option></select>마다</span>
+        <span class="crfield crweekdays hidden" id="rtWeekdayFields">
+          <label><input type="checkbox" value="0">일</label><label><input type="checkbox" value="1">월</label><label><input type="checkbox" value="2">화</label><label><input type="checkbox" value="3">수</label><label><input type="checkbox" value="4">목</label><label><input type="checkbox" value="5">금</label><label><input type="checkbox" value="6">토</label>
+        </span>
         <button class="btn-s" id="rtAdd">추가</button>
       </div>
       <datalist id="projNameList"></datalist>
-      <p class="caphint">매일·매주 반복되는 건 여기 말고 할일 행의 <b>🔁</b>(고정업무)를 쓰세요 — 그쪽은 하루 단위, 여기는 달 단위예요.</p>
     </section>
   </div>
   <div id="cal" class="hidden">
@@ -773,6 +780,7 @@
   var hasCalRoutines=false; // cal_routines 테이블이 있으면 true (캘린더 탭 루틴, SQL 마이그레이션 후)
   var hasCalTodos=false; // cal_todos 테이블이 있으면 true (캘린더 탭 투두, SQL 마이그레이션 후)
   var hasRoutineSlot=false; // cal_routines.slot 컬럼이 있으면 true (매일 루틴 아침/점심/저녁 구분, SQL 마이그레이션 후)
+  var hasRoutineToggle=false; // routines.unit 컬럼이 있으면 true (상시업무 매일/주기/요일 체크리스트, SQL 마이그레이션 후, 2026-09-25)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
@@ -813,6 +821,7 @@
       if(ch)putTodo(t);
     });
     state.calRoutines.forEach(function(h){if(h.kind==='daily'&&h.doneToday){h.doneToday=false;putCalRoutine(h);}});
+    state.routines.forEach(function(r){if(r.kind==='daily'&&r.doneToday){r.doneToday=false;putRoutine(r);}});
     state.settings.todayResetDate=ti;putSettings();
   }
   function rowT(t){var r={id:t.id,title:t.title,ws:t.ws,project:t.project,due:t.due||null,today:!!t.today,done:!!t.done,imp:t.imp,est:t.est,repeat:t.repeat,repday:t.repDay||'',bucket:t.bucket,lastdone:t.lastDone||null,memoid:t.memoId||null,sort:t.sort||0};if(hasArchive){r.doneat=t.doneAt||null;r.archived=!!t.archived;}if(hasSubs){r.subs=t.subs||[];}if(hasDep){r.dep=(typeof t.stage==='number'?t.stage:0);}if(hasEnd){r.endd=t.endd||null;}if(hasDoneLog){r.donelog=t.doneLog||[];}
@@ -830,7 +839,7 @@
   function delLinkDB(id){if(!hasLinks)return;sb.from('links').delete().eq('id',id).then(function(){});}
   function putProgress(p){if(!hasProgress)return;sb.from('progress').upsert({id:p.id,todo_id:p.todoId,date:p.date,text:p.text}).then(function(r){if(r.error)console.warn('progress',r.error.message);});}
   function delProgressDB(id){if(!hasProgress)return;sb.from('progress').delete().eq('id',id).then(function(){});}
-  function putRoutine(r){if(!hasRoutines)return;sb.from('routines').upsert({id:r.id,ws:r.ws,project:r.project,title:r.title,cycle:r.cycle,imp:r.imp||1,sort:r.sort||0,active:!!r.active}).then(function(x){if(x.error)console.warn('routine',x.error.message);});}
+  function putRoutine(r){if(!hasRoutines)return;var row={id:r.id,ws:r.ws,project:r.project,title:r.title,cycle:r.kind,imp:r.imp||1,sort:r.sort||0,active:!!r.active};if(hasRoutineToggle){row.unit=r.unit||null;row.n=r.n||null;row.weekdays=r.weekdays||[];row.next_due=r.nextDue||null;row.done_today=!!r.doneToday;}sb.from('routines').upsert(row).then(function(x){if(x.error)console.warn('routine',x.error.message);});}
   function delRoutineDB(id){if(!hasRoutines)return;sb.from('routines').delete().eq('id',id).then(function(){});}
   // ===== 캘린더 탭 「루틴」(습관 체크리스트, 자유 주기) =====
   function fromCalRoutine(r){return {id:r.id,title:r.title||'',kind:r.kind||'daily',unit:r.unit||'day',n:r.n||1,weekdays:Array.isArray(r.weekdays)?r.weekdays:[],monthday:r.monthday||1,nextDue:r.next_due||'',doneToday:!!r.done_today,sort:r.sort||0,created:r.created||'',slot:r.slot||''};}
@@ -1013,7 +1022,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1036,6 +1045,7 @@
       hasCalRoutines=!(res[22]&&res[22].error); // cal_routines 테이블 있으면 캘린더 루틴 켜짐
       hasCalTodos=!(res[23]&&res[23].error); // cal_todos 테이블 있으면 캘린더 투두 켜짐
       hasRoutineSlot=!(res[24]&&res[24].error); // cal_routines.slot 컬럼 있으면 아침/점심/저녁 구분 켜짐
+      hasRoutineToggle=!(res[25]&&res[25].error); // routines.unit 컬럼 있으면 상시업무 매일/주기/요일 체크리스트 켜짐(2026-09-25)
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1046,7 +1056,7 @@
       state.links=(hasLinks&&res[15].data)?res[15].data.map(function(r){return {id:r.id,title:r.title||'',url:r.url||'',grp:r.grp||'',pinned:!!r.pinned,sort:r.sort||0};}):[];
       state.progress=(hasProgress&&res[16].data)?res[16].data.map(function(r){return {id:r.id,todoId:r.todo_id,date:r.date||'',text:r.text||''};}):[];
       state.journal=(hasJournal&&res[17].data)?res[17].data.map(function(r){return {id:r.id,date:r.date||'',body:r.body||'',images:Array.isArray(r.images)?r.images:[],updated:r.updated||'',goal:r.goal||'',musts:Array.isArray(r.musts)?r.musts:[]};}):[];
-      state.routines=(hasRoutines&&res[18].data)?res[18].data.map(function(r){return {id:r.id,ws:r.ws||'일',project:r.project||'',title:r.title||'',cycle:r.cycle||'monthly',imp:r.imp||1,sort:r.sort||0,active:r.active!==false,created:r.created||''};}):[];
+      state.routines=(hasRoutines&&res[18].data)?res[18].data.map(function(r){return {id:r.id,ws:r.ws||'일',project:r.project||'',title:r.title||'',kind:r.cycle||'monthly',unit:r.unit||'day',n:r.n||1,weekdays:Array.isArray(r.weekdays)?r.weekdays:[],nextDue:r.next_due||'',doneToday:!!r.done_today,imp:r.imp||1,sort:r.sort||0,active:r.active!==false,created:r.created||''};}):[];
       state.calRoutines=(hasCalRoutines&&res[22].data)?res[22].data.map(fromCalRoutine):[];
       state.calTodos=(hasCalTodos&&res[23].data)?res[23].data.map(function(r){return {id:r.id,title:r.title||'',done:!!r.done,sort:r.sort||0,created:r.created||''};}):[];
       state.month=thisMonth();            // 항상 이번 달로 열림 (◀ ▶ 로 지난 달을 넘겨볼 수 있음)
@@ -1066,14 +1076,7 @@
   function parseMin(s){var h=/(\d+)\s*h/.exec(s),m=/(\d+)\s*m/.exec(s);var t=(h?+h[1]*60:0)+(m?+m[1]:0);if(!t){var n=parseInt(s,10);t=isNaN(n)?0:n;}return t;}
   function mmdd(iso){if(!iso)return '—';var p=iso.split('-');return (+p[1])+'/'+(+p[2]);}
   function daysTo(iso){if(!iso)return null;return Math.round((new Date(iso)-new Date(todayISO()))/86400000);}
-  function isRepeatDueToday(t){if(t.repeat==='none')return false;var d=new Date();
-    if(t.repeat==='daily')return true;
-    if(t.repeat==='weekly')return String(d.getDay())===String(t.repDay||'1');
-    if(t.repeat==='monthly'){var last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return (t.repDay==='last')?d.getDate()===last:d.getDate()===(+t.repDay||1);}
-    return false;}
-  function repLabel(t){if(t.repeat==='daily')return '매일';if(t.repeat==='weekly')return '매주 '+(DAY[+t.repDay]||'')+'요일';if(t.repeat==='monthly')return t.repDay==='last'?'매월 말일':'매월 '+t.repDay+'일';return '';}
   function priority(t){var s=t.imp*25,d=daysTo(t.due);if(d!==null){if(d<0)s+=100;else if(d<=1)s+=60;else if(d<=3)s+=30;}if(t.est&&t.est<=20)s+=10;return s;}
-  function repDoneCount(t){return (t.doneLog||[]).length;}
   function dots(n){return '●●●'.slice(0,n);}
 
   function subTogHtml(t){var s=t.subs||[],open=!!expanded[t.id];
@@ -1084,26 +1087,22 @@
     return '<tr class="subrow" data-id="'+t.id+'"><td colspan="'+cols+'"><div class="subwrap">'+items+'<input class="subnew" data-act="subnew" placeholder="+ 하위 항목 추가 후 Enter" aria-label="하위 항목 추가"></div></td></tr>';}
   function taskRow(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
     return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td>'+
-      '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>'+(repDoneCount(t)?'<span class="donen" title="지금까지 완료한 횟수">'+repDoneCount(t)+'회</span>':''):'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로 설정">🔁</button>')+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td>'+
+      '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td>'+
       '<td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td>'+
       '<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+subRowHtml(t,6);}
   function renderToday(){
     var body=document.getElementById('todayBody');
-    var _ti=todayISO();
-    var list=wsTodos().filter(function(t){if(t.repeat!=='none')return isRepeatDueToday(t)&&t.lastDone!==_ti;
+    var list=wsTodos().filter(function(t){
       if(t.today||daysTo(t.due)===0)return true;
       return (t.subs||[]).some(function(s){return !s.d&&(s.today||daysTo(s.due)===0);});});
-    var fixed=list.filter(function(t){return t.repeat!=='none';}).sort(function(a,b){return priority(b)-priority(a);});
-    var pick=list.filter(function(t){return t.repeat==='none';}).sort(function(a,b){return (a.done-b.done)||(priority(b)-priority(a));});
-    var html='';
-    if(fixed.length){html+='<tr class="grp"><td colspan="6">고정 업무</td></tr>';fixed.forEach(function(t){html+=taskRow(t);});}
-    html+='<tr class="grp"><td colspan="6">오늘 할 일</td></tr>';
+    var pick=list.slice().sort(function(a,b){return (a.done-b.done)||(priority(b)-priority(a));});
+    var html='<tr class="grp"><td colspan="6">오늘 할 일</td></tr>';
     html+=pick.length?pick.map(taskRow).join(''):'<tr><td colspan="6" class="empty">주머니·프로젝트에서 오늘 할 일을 골라 담아보세요</td></tr>';
     body.innerHTML=html;
     var mins=list.filter(function(t){return !t.done;}).reduce(function(s,t){return s+(t.est||0);},0);
     var cap=(+state.hours||0)*60,bd=document.getElementById('budget');
     bd.innerHTML='· 예상 <b>'+fmtEst(mins)+'</b> / '+(+state.hours||0)+'h';bd.classList.toggle('over',mins>cap&&cap>0);
-    var dn=wsTodos().filter(function(t){return t.done&&t.repeat==='none';}).length,aa=document.getElementById('archAll');
+    var dn=wsTodos().filter(function(t){return t.done;}).length,aa=document.getElementById('archAll');
     aa.classList.toggle('hidden',!dn);aa.textContent='완료한 '+dn+'개 → 완료함';
   }
   function renderDue(){var body=document.getElementById('dueBody');
@@ -1135,7 +1134,7 @@
       // 지금 보고 있는 달의 항목만 — 월이 안 정해진 예전 할일은 tMonth()가 이번 달로 쳐줌
       var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox'&&tMonth(t)===m;}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
-        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.rolled?'<span class="rolled" title="지난달에 안 끝나서 따라온 항목">↩︎이월</span>':'')+(t.routineId?'<span class="rolled" title="상시업무에서 자동으로 올라온 항목">상시</span>':'')+subTogHtml(t)+(t.repeat!=='none'?'<span class="cad" data-act="cad">'+repLabel(t)+'</span>':'<button class="rowbtn rep" data-act="cad" title="반복(고정업무)로">🔁</button>')+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+subRowHtml(t,7);}).join('');
+        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.rolled?'<span class="rolled" title="지난달에 안 끝나서 따라온 항목">↩︎이월</span>':'')+(t.routineId?'<span class="rolled" title="상시업무에서 자동으로 올라온 항목">상시</span>':'')+subTogHtml(t)+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+subRowHtml(t,7);}).join('');
       var dn=items.filter(function(t){return t.done;}).length;
       return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+dn+'/'+items.length+'</span><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>진행사항</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" class="empty">'+monthLabel(m)+'엔 아직 없어요</td></tr>')+'</tbody></table><div class="pjadd"><input class="pjaddin" placeholder="이 프로젝트에 할일 추가…"><button class="btn-s" data-act="proj-add">추가</button></div></div></div>';}).join('');}
   // ===== v2: 진행 기록 — 덮어쓰지 않고 날짜별로 쌓임 =====
@@ -1238,11 +1237,19 @@
   }
   // ===== v2 3단계: 상시업무 — 매달 그 달 목록으로 복제 + 지난달 미완료 이월 =====
   function monthIndex(m){var p=(m||'').split('-');return p.length===2?((+p[0])*12+(+p[1]-1)):0;}
-  function cycleLabel(c){return c==='bimonthly'?'두 달에 한 번':'매월';}
-  // 격월은 "등록한 달"을 기준으로 한 달 걸러 한 번
+  function cycleLabel(k){
+    if(k==='bimonthly')return '두 달에 한 번';
+    if(k==='daily')return '매일';
+    if(k==='interval')return '며칠/몇 주/몇 달마다';
+    if(k==='weekday')return '특정 요일마다';
+    return '매월';
+  }
+  var ROUTINE_PERIODIC=['monthly','bimonthly'];       // 그 달 목록에 새 항목으로 복제되는 것
+  var ROUTINE_TOGGLE=['daily','interval','weekday'];  // 캘린더 루틴처럼 그 자리에서 체크만 토글되는 것
+  // 격월은 "등록한 달"을 기준으로 한 달 걸러 한 번. 매일/주기/요일마다는 월간 표에 안 실리므로 늘 false.
   function routineDueIn(r,m){
-    if(!r.active)return false;
-    if(r.cycle!=='bimonthly')return true;
+    if(!r.active||ROUTINE_PERIODIC.indexOf(r.kind)<0)return false;
+    if(r.kind!=='bimonthly')return true;
     var anchor=(r.created||'').slice(0,7)||m;
     return Math.abs(monthIndex(m)-monthIndex(anchor))%2===0;
   }
@@ -1282,20 +1289,43 @@
     if(made||moved)setTimeout(function(){
       showToast([made?('상시업무 '+made+'개 담았어요'):'',moved?('지난달 미완료 '+moved+'개 이월'):''].filter(Boolean).join(' · '));},900);
   }
+  // 매일/며칠마다/요일마다 상시업무는 월간 표에 안 싣고 그 자리에서 체크만 토글(캘린더 루틴과 같은 엔진 재사용)
+  function checkRoutine(r){
+    if(r.kind==='daily'){r.doneToday=!r.doneToday;}
+    else{r.doneToday=true;r.nextDue=habitNextDue(r,todayISO());}
+    putRoutine(r);renderRoutines();
+  }
+  function routineCheckRow(r){
+    var checked=r.kind==='daily'&&r.doneToday;
+    var due=habitDueToday(r);
+    var chk=due
+      ?'<span class="ck'+(checked?' on':'')+'" data-act="rtc-check" role="checkbox" tabindex="0">'+(checked?svg():'')+'</span>'
+      :'<span class="crdate">'+(r.nextDue?('다음 '+mmdd(r.nextDue)):'')+'</span>';
+    return '<div class="lkrow" data-rtc="'+r.id+'">'+chk
+      +'<span class="mktxt">'+esc(r.title)+'</span>'+(r.project?'<span class="rtcyc">'+esc(r.project)+'</span>':'')
+      +'<span class="lkdel" data-act="rtc-del" title="지우기">✕</span></div>';
+  }
   function renderRoutines(){
     var el=document.getElementById('routineAll');if(!el)return;
     var dl=document.getElementById('projNameList');
     if(dl)dl.innerHTML=projectNames().map(function(p){return '<option value="'+esc(p)+'">';}).join('');
     if(!hasRoutines){el.innerHTML='<p class="boardempty">상시업무 표가 아직 없어요</p>';return;}
     var list=state.routines.filter(function(r){return r.ws===state.ws;});
-    if(!list.length){el.innerHTML='<p class="boardempty">매달 반복되는 업무를 아래에서 등록해보세요 — 다음 달부터 자동으로 이 달 목록에 올라와요</p>';return;}
-    var groups={};list.forEach(function(r){(groups[r.project||'분류 없음']=groups[r.project||'분류 없음']||[]).push(r);});
-    el.innerHTML=Object.keys(groups).map(function(g){
-      return '<div class="rtgrp">'+esc(g)+'</div>'+groups[g].map(function(r){
-        return '<div class="rtrow'+(r.active?'':' off')+'" data-rt="'+r.id+'"><span class="rtt">'+esc(r.title)+'</span>'
-          +'<span class="rtcyc">'+cycleLabel(r.cycle)+'</span>'
-          +'<span class="rtsw" data-act="rt-tog" title="잠시 멈추거나 다시 켜기">'+(r.active?'켜짐':'멈춤')+'</span>'
-          +'<span class="rtdel" data-act="rt-del" title="지우기">✕</span></div>';}).join('');}).join('');
+    if(!list.length){el.innerHTML='<p class="boardempty">반복되는 업무를 아래에서 등록해보세요 — 매월·격월은 다음 달부터 자동으로 이 달 목록에 올라오고, 매일·주기·요일은 바로 여기서 체크해요</p>';return;}
+    var periodic=list.filter(function(r){return ROUTINE_PERIODIC.indexOf(r.kind)>=0;});
+    var toggle=list.filter(function(r){return ROUTINE_TOGGLE.indexOf(r.kind)>=0;});
+    var html='';
+    if(periodic.length){
+      var groups={};periodic.forEach(function(r){(groups[r.project||'분류 없음']=groups[r.project||'분류 없음']||[]).push(r);});
+      html+=Object.keys(groups).map(function(g){
+        return '<div class="rtgrp">'+esc(g)+'</div>'+groups[g].map(function(r){
+          return '<div class="rtrow'+(r.active?'':' off')+'" data-rt="'+r.id+'"><span class="rtt">'+esc(r.title)+'</span>'
+            +'<span class="rtcyc">'+cycleLabel(r.kind)+'</span>'
+            +'<span class="rtsw" data-act="rt-tog" title="잠시 멈추거나 다시 켜기">'+(r.active?'켜짐':'멈춤')+'</span>'
+            +'<span class="rtdel" data-act="rt-del" title="지우기">✕</span></div>';}).join('');}).join('');
+    }
+    if(toggle.length)html+='<div class="rtgrp">매일·주기·요일 체크리스트</div>'+toggle.map(routineCheckRow).join('');
+    el.innerHTML=html;
   }
   var crOpen={};              // 루틴 주기 수정 펼침 상태(세션 한정, id→bool)
   var SLOT_LABEL={morning:'아침',lunch:'점심',evening:'저녁','':'시간 무관'};
@@ -2011,23 +2041,35 @@
   document.getElementById('mThis').addEventListener('click',function(){goMonth(thisMonth());});
   document.getElementById('seedBtn').addEventListener('click',function(){
     if(!hasRoutines){showToast('상시업무 표가 아직 없어요');return;}
-    if(!state.routines.filter(function(r){return r.ws===state.ws&&r.active;}).length){
-      showToast('서랍에 등록된 상시업무가 없어요');switchTab('drawer');return;}
+    if(!state.routines.filter(function(r){return r.ws===state.ws&&r.active&&ROUTINE_PERIODIC.indexOf(r.kind)>=0;}).length){
+      showToast('서랍에 등록된 월간·격월 상시업무가 없어요');switchTab('drawer');return;}
     var made=seedRoutines(state.month||thisMonth());
     renderProjects();renderMonthNav();
     showToast(made?(made+'개 담았어요'):'이 달엔 이미 다 담겨 있어요');});
-  // 상시업무 등록 (서랍)
+  // 상시업무 등록 (서랍) — 매월/격월은 그 달 목록에 복제, 매일/주기/요일은 그 자리에서 체크만
   function addRoutine(){
-    var pj=document.getElementById('rtProj'),ti=document.getElementById('rtTitle'),cy=document.getElementById('rtCycle');
-    var title=ti.value.trim(),proj=pj.value.trim();
+    var pj=document.getElementById('rtProj'),ti=document.getElementById('rtTitle'),ky=document.getElementById('rtKind');
+    var title=ti.value.trim(),proj=pj.value.trim(),kind=ky.value;
     if(!title){ti.focus();return;}
     if(!hasRoutines){showToast('상시업무 표가 아직 없어요');return;}
-    var r={id:uid(),ws:state.ws,project:proj,title:title,cycle:cy.value,imp:1,sort:Date.now(),active:true,created:new Date().toISOString()};
-    state.routines.push(r);putRoutine(r);ti.value='';renderRoutines();
-    showToast('등록했어요 · 홈에서 「＋ 상시업무」를 누르면 이 달에 바로 담겨요');}
+    var r={id:uid(),ws:state.ws,project:proj,title:title,kind:kind,unit:'day',n:1,weekdays:[],nextDue:'',doneToday:false,imp:1,sort:Date.now(),active:true,created:new Date().toISOString()};
+    if(kind==='interval'){r.unit=document.getElementById('rtUnit').value;r.n=Math.max(1,+document.getElementById('rtN').value||1);}
+    else if(kind==='weekday'){
+      r.weekdays=[].map.call(document.querySelectorAll('#rtWeekdayFields input:checked'),function(c){return +c.value;});
+      if(!r.weekdays.length){showToast('요일을 하나 이상 선택해주세요');return;}
+    }
+    state.routines.push(r);putRoutine(r);ti.value='';
+    document.querySelectorAll('#rtWeekdayFields input').forEach(function(c){c.checked=false;});
+    renderRoutines();
+    showToast(ROUTINE_PERIODIC.indexOf(kind)>=0?'등록했어요 · 홈에서 「＋ 상시업무」를 누르면 이 달에 바로 담겨요':'등록했어요 · 여기서 바로 체크할 수 있어요');}
   document.getElementById('rtAdd').addEventListener('click',addRoutine);
   ['rtProj','rtTitle'].forEach(function(id){document.getElementById(id).addEventListener('keydown',function(e){
     if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addRoutine();});});
+  document.getElementById('rtKind').addEventListener('change',function(){
+    var k=this.value;
+    document.getElementById('rtIntervalFields').classList.toggle('hidden',k!=='interval');
+    document.getElementById('rtWeekdayFields').classList.toggle('hidden',k!=='weekday');
+  });
   // 캘린더 탭 「루틴」 등록
   document.getElementById('crKind').addEventListener('change',function(){
     var k=this.value;
@@ -2122,10 +2164,10 @@
   document.addEventListener('click',function(e){
     if(nestSource){var cx=e.target.closest('#nestCancel');if(cx){cancelNest();return;}var tr=e.target.closest('tr[data-id]');if(tr&&!tr.classList.contains('subrow')&&tr.dataset.id!==nestSource){doNest(nestSource,tr.dataset.id);return;}cancelNest();return;}
     var el=e.target.closest('[data-act]');if(!el||!appEl.contains(el))return;var act=el.dataset.act,id=rowId(el),t=id?tById(id):null;
-    if(act==='done'&&t){if(t.repeat!=='none'){var _ti2=todayISO();if(t.lastDone!==_ti2){t.doneLog=t.doneLog||[];t.doneLog.push(_ti2);if(t.doneLog.length>400)t.doneLog=t.doneLog.slice(-400);}t.lastDone=_ti2;}else{t.done=!t.done;t.doneAt=t.done?new Date().toISOString():'';}putTodo(t);renderAll();}
+    if(act==='done'&&t){t.done=!t.done;t.doneAt=t.done?new Date().toISOString():'';putTodo(t);renderAll();}
     else if(act==='archive'&&t){t.archived=true;putTodo(t);renderAll();showToast('완료함으로 옮겼어요',function(){t.archived=false;putTodo(t);renderAll();});}
     else if(act==='unarchive'&&t){t.archived=false;t.done=false;t.doneAt='';t.bucket=t.project?'active':'inbox';putTodo(t);renderAll();showToast('되돌렸어요 · 체크 해제된 상태로 돌아가요');}
-    else if(act==='archive-all'){var dn=wsTodos().filter(function(x){return x.done&&x.repeat==='none';});if(!dn.length)return;dn.forEach(function(x){x.archived=true;putTodo(x);});renderAll();showToast(dn.length+'개 완료함으로 정리했어요');}
+    else if(act==='archive-all'){var dn=wsTodos().filter(function(x){return x.done;});if(!dn.length)return;dn.forEach(function(x){x.archived=true;putTodo(x);});renderAll();showToast(dn.length+'개 완료함으로 정리했어요');}
     else if(act==='proj-add'){var addSec=el.closest('.pjsec'),addInp=addSec&&addSec.querySelector('.pjaddin');if(addInp){addProjectTodo(addSec.dataset.proj,addInp.value);addInp.value='';}}
     else if(act==='rt-tog'||act==='rt-del'){
       var rtEl=el.closest('[data-rt]'),rt=rtEl&&state.routines.filter(function(x){return x.id===rtEl.dataset.rt;})[0];
@@ -2134,6 +2176,12 @@
         showToast(rt.active?'다음 달부터 다시 올라와요':'멈췄어요 · 이미 담긴 이번 달 할일은 그대로예요');}
       else{var rti=state.routines.indexOf(rt);state.routines.splice(rti,1);delRoutineDB(rt.id);renderRoutines();
         showToast('상시업무에서 뺐어요 · 이미 담긴 할일은 그대로예요',function(){state.routines.splice(rti,0,rt);putRoutine(rt);renderRoutines();});}}
+    else if(act==='rtc-check'||act==='rtc-del'){
+      var rtcEl=el.closest('[data-rtc]'),rc=rtcEl&&state.routines.filter(function(x){return x.id===rtcEl.dataset.rtc;})[0];
+      if(!rc)return;
+      if(act==='rtc-check'){checkRoutine(rc);}
+      else{var rci=state.routines.indexOf(rc);state.routines.splice(rci,1);delRoutineDB(rc.id);renderRoutines();
+        showToast('상시업무를 지웠어요',function(){state.routines.splice(rci,0,rc);putRoutine(rc);renderRoutines();});}}
     else if(act==='tl-del'){
       var lr=el.closest('[data-li]');if(!lr||!hasJournal)return;
       var jt=jEntry(todayISO()),before=jt.body||'',raw=before.split('\n');
@@ -2211,10 +2259,6 @@
       renderAll();showToast('프로젝트 이름을 바꿨어요');return;}
     else if(act==='proj-del'){e.stopPropagation();delProject(el.dataset.proj);return;}
     else if(act==='del'&&t){removeTodo(t,'삭제했어요');}
-    else if(act==='cad'&&t){var seq=['daily','weekly','monthly','none'];t.repeat=seq[(seq.indexOf(t.repeat)+1)%4];
-      if(t.repeat==='weekly'){var wd=prompt('매주 무슨 요일? (0=일 · 1=월 · … · 6=토)',t.repDay||'1');if(wd!==null&&/^[0-6]$/.test((wd||'').trim()))t.repDay=(wd).trim();else if(!t.repDay)t.repDay='1';}
-      if(t.repeat==='monthly'){var md=prompt('매월 며칠? (1~31, 또는 last=말일)',t.repDay||'last');if(md!==null&&(md||'').trim())t.repDay=(md).trim();else if(!t.repDay)t.repDay='last';}
-      putTodo(t);renderAll();showToast(t.repeat==='none'?'반복 해제':'고정업무: '+repLabel(t));}
     else if(act==='toggle-today'&&t){t.today=!t.today;if(t.today)t.bucket='active';putTodo(t);renderAll();showToast(t.today?'오늘의 집중에 넣었어요':'오늘에서 뺐어요');}
     else if(act==='subdue'&&t){var di=+el.dataset.i;if(t.subs&&t.subs[di]){var cur=t.subs[di].due?mmdd(t.subs[di].due):'';var v=prompt('하위 항목 날짜 (예: 8/5, 비우면 없음)',cur);if(v!==null){t.subs[di].due=parseDue(v);putTodo(t);renderToday();renderProjects();renderDue();}}return;}
     else if(act==='subtoday'&&t){var sti=+el.dataset.i;if(t.subs&&t.subs[sti]){var sw=t.subs[sti];sw.today=!sw.today;putTodo(t);renderToday();renderProjects();showToast(sw.today?'오늘의 집중에 넣었어요':'오늘에서 뺐어요');}return;}

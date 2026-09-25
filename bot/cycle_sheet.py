@@ -230,7 +230,7 @@ class CycleClient:
         }
 
     @staticmethod
-    def format_status(status: dict, inventory_items: list = None) -> str:
+    def format_status(status: dict) -> str:
         if "error" in status:
             return f"❌ {status['error']}"
         phase = status["phase"]
@@ -242,15 +242,7 @@ class CycleClient:
         days_str = f"{days_until}일 후" if days_until >= 0 else f"{abs(days_until)}일 지남"
         pms_str = "\n⚠️ PMS 구간 — 에프람/뉴프람/인데놀 챙기세요" if status["pms_alert"] else ""
 
-        # 영양제 추천: Inventory 데이터 우선, 없으면 하드코딩 텍스트 fallback
-        if inventory_items:
-            phase_items = [i for i in inventory_items if i.matches_phase(phase)]
-            if phase_items:
-                supp_str = ", ".join(i.name for i in phase_items)
-            else:
-                supp_str = info.get("supplements", "")
-        else:
-            supp_str = info.get("supplements", "")
+        supp_str = info.get("supplements", "")
 
         lines = [
             f"{emoji} **{phase}** ({cycle_day}일차)",

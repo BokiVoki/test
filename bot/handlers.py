@@ -8,13 +8,10 @@ from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes
 
-from .models import BotMode, ContentEntry, Reminder, TodoItem, MemoEntry, STATUS_KR, CONTENT_TYPE_KR
+from .models import BotMode, ContentEntry, Reminder, TodoItem, STATUS_KR, CONTENT_TYPE_KR
 from .sheets import SheetsClient
 from .reminders_sheet import RemindersClient
 from .todos_sheet import TodosClient
-from .memos_sheet import MemosClient
-from .inventory_sheet import InventoryClient
-from .intake_sheet import IntakeLogClient
 from .cycle_sheet import CycleClient, PHASE_INFO
 from . import claude_client
 from . import figma_client
@@ -40,9 +37,6 @@ _current_instagram_agent: str = "manager"  # designer | writer | manager
 _sheets: Optional[SheetsClient] = None
 _reminders: Optional[RemindersClient] = None
 _todos: Optional[TodosClient] = None
-_memos: Optional[MemosClient] = None
-_inventory: Optional[InventoryClient] = None
-_intake: Optional[IntakeLogClient] = None
 _cycle: Optional[CycleClient] = None
 _undo_state: dict[str, dict] = {}  # key → undo payload (in-memory, TTL 없음)
 _pending_snooze: dict[int, str] = {}  # chat_id → reminder_id (직접입력 대기 중)
@@ -67,21 +61,6 @@ def init_reminders(reminders: RemindersClient):
 def init_todos(todos: TodosClient):
     global _todos
     _todos = todos
-
-
-def init_memos(memos: MemosClient):
-    global _memos
-    _memos = memos
-
-
-def init_inventory(inventory: InventoryClient):
-    global _inventory
-    _inventory = inventory
-
-
-def init_intake(intake: IntakeLogClient):
-    global _intake
-    _intake = intake
 
 
 def init_cycle(cycle: CycleClient):
@@ -196,13 +175,6 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/todos · /remind · /reminders · /cancel_reminder [ID]\n"
         "/migrate_reminders — 기존 리마인더 → 투두 이전\n\n"
 
-        "**💊 영양제·약 재고**\n"
-        "• `비타민C 먹었어` — 복용 기록 + 재고 차감\n"
-        "• `셀레늄 얼마나 남았어` — 재고 조회\n"
-        "• `오메가3 60정 추가해줘` — 신규 등록\n"
-        "• `비타민C 120정 새로 샀어` — 보충(재입고)\n"
-        "/inventory · /intake · /setup_supplements\n\n"
-
         "**🌸 생리주기**\n"
         "• `생리 시작했어` / `생리 끝났어`\n"
         "• `지금 몇 기야` / `다음 생리 언제야`\n"
@@ -210,22 +182,14 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         "**🧠 ADHD 지원**\n"
         "• `25분 집중할게` — 포모도로 타이머\n"
-        "• `발표 준비 어떻게 시작해` — 과제 분해 → 투두 생성\n"
+        "• `발표 준비 어떻게 시작해` — 과제 분해 → 투두 생성\n\n"
 
-
-        "**📣 자동 브리핑**\n"
-        "09:00 날씨 + 오늘 할 일\n"
-        "18:00 오늘 남은 일\n"
-        "23:00 오늘 남은 일 + 내일 할 일\n\n"
-
-        "**📝 메모**\n"
-        "• `기록해줘` — 현재 대화 요약 저장\n"
-        "• `이전에 말한 거 기억해?` — 저장 메모 자동 참고\n"
-        "/memos · /memo_del [ID]\n\n"
+        "**🌞 하루앱 체크인**\n"
+        "매일 11:00 오늘 추천 + 마감 안내\n"
+        "`추천`/`체크인` — 즉시 확인 · `마감`/`/deadlines` — 마감만\n\n"
 
         "**📱 인스타그램 팀**\n"
-        "/designer · /writer · /igmanager\n"
-        "에이전트별 대화 내용 중요 결정 자동 저장\n\n"
+        "/designer · /writer · /igmanager\n\n"
 
         "**기타**\n"
         "/import_archive — CSV 일괄 가져오기\n"
@@ -305,7 +269,7 @@ _search_results: list = []
 
 PERSISTENT_KEYBOARD = ReplyKeyboardMarkup(
     [[KeyboardButton("🔍 검색"), KeyboardButton("🕐 최근검색"), KeyboardButton("➕ 작품추가")],
-     [KeyboardButton("📋 할일"), KeyboardButton("💊 영양제"), KeyboardButton("📊 통계")]],
+     [KeyboardButton("📋 할일"), KeyboardButton("📊 통계")]],
     resize_keyboard=True,
     is_persistent=True,
 )
@@ -650,64 +614,6 @@ async def todo_del_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     _todos.delete(item.id)
     await update.message.reply_text(f"🗑 **{item.text}** 삭제했어요.", parse_mode="Markdown")
-
-
-_MEMO_SAVE_KEYWORDS = ("기록해줘", "저장해줘", "메모해줘", "기억해줘", "기록해", "저장해", "메모해", "기억해", "적어줘", "노트해줘")
-_MEMO_LIST_KEYWORDS = ("기록 목록", "메모 목록", "저장 목록", "기록 보여", "메모 보여", "노트 보여", "기록 뭐", "메모 뭐")
-_MEMO_MODE_KR = {"secretary": "비서", "finance": "금융전문가", "consultant": "컨설턴트"}
-
-
-async def _save_memo(update: Update, mode: str, content: str):
-    """대화 내용을 Memos 시트에 저장"""
-    entry = _memos.add(mode, content)
-    dt = datetime.fromisoformat(entry.created_at).strftime("%m/%d %H:%M")
-    key, markup = _undo_keyboard("↩️ 삭제")
-    _undo_state[key] = {"type": "delete_memo", "memo_id": entry.id}
-    await update.message.reply_text(
-        f"📝 저장했어요! ({_MEMO_MODE_KR.get(mode, mode)} / {dt})",
-        reply_markup=markup
-    )
-
-
-async def memos_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/memos [mode] — 메모 목록"""
-    if not _auth(update):
-        return
-    mode = _current_mode.value
-    if context and context.args:
-        arg = context.args[0].lower()
-        if arg in ("finance", "금융"):
-            mode = "finance"
-        elif arg in ("consultant", "컨설턴트"):
-            mode = "consultant"
-        elif arg in ("secretary", "비서"):
-            mode = "secretary"
-    try:
-        entries = _memos.get_by_mode(mode)
-    except Exception as e:
-        await update.message.reply_text(f"❌ 오류: {e}")
-        return
-    if not entries:
-        await update.message.reply_text(f"저장된 {_MEMO_MODE_KR.get(mode, mode)} 메모가 없어요.")
-        return
-    lines = [f"**📝 {_MEMO_MODE_KR.get(mode, mode)} 메모**\n"]
-    for i, e in enumerate(entries, 1):
-        dt = e.created_at[:10] if e.created_at else ""
-        preview = e.content[:60] + ("..." if len(e.content) > 60 else "")
-        lines.append(f"{i}. [{dt}] {preview}  `{e.id}`")
-    lines.append("\n삭제: `/memo_del [ID]`")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def memo_del_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/memo_del [id]"""
-    if not _auth(update):
-        return
-    if not context.args:
-        await update.message.reply_text("`/memo_del [ID]`", parse_mode="Markdown")
-        return
-    ok = _memos.delete(context.args[0])
-    await update.message.reply_text("🗑 삭제했어요." if ok else "찾지 못했어요.")
 
 
 async def _handle_todo_natural(update: Update, text: str):
@@ -1145,10 +1051,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ok = _todos.delete(state["todo_id"])
             await query.edit_message_text("↩️ 취소했어요!" if ok else "❌ 이미 삭제됐어요.")
 
-        elif t == "delete_memo":
-            ok = _memos.delete(state["memo_id"])
-            await query.edit_message_text("🗑 메모 삭제했어요." if ok else "❌ 이미 삭제됐어요.")
-
         elif t == "restore_alarms":
             alarms = state.get("alarms", [])
             _todos.restore_alarms(alarms)
@@ -1284,55 +1186,6 @@ def _next_trigger_manual(trigger_at: str, repeat: str) -> datetime:
     return datetime.combine(next_date, t_time)
 
 
-def _load_memo_context(mode: str, query: str = "", limit: int = 20) -> str:
-    """
-    Memos 시트에서 mode별 메모를 불러와 query와 관련된 것만 반환.
-    query가 없거나 트리거 단어 없으면 빈 문자열 반환 (토큰 절약).
-    """
-    if _memos is None:
-        return ""
-
-    # 메모 참고가 필요한 트리거 단어
-    MEMO_TRIGGER_WORDS = (
-        "아까", "이전에", "저번에", "전에", "기억", "메모", "기록",
-        "말했", "얘기했", "정했", "결정했", "확정", "했던", "봤던",
-        "지난번", "지난달", "지난주", "어제", "예전",
-    )
-    q = query.lower()
-    has_trigger = any(w in q for w in MEMO_TRIGGER_WORDS)
-
-    # 트리거 없으면 메모 주입 스킵 (속도·비용 절약)
-    if not has_trigger:
-        return ""
-
-    try:
-        all_memos = _memos.get_by_mode(mode, limit=limit)
-        if not all_memos:
-            return ""
-
-        # 키워드 관련성 점수: query 단어가 메모 내용에 몇 개 포함되는지
-        query_words = [w for w in q.split() if len(w) > 1]
-        if query_words:
-            scored = []
-            for m in all_memos:
-                content_lower = m.content.lower()
-                score = sum(1 for w in query_words if w in content_lower)
-                scored.append((score, m))
-            # 관련 있는 것 우선, 최근 3개
-            scored.sort(key=lambda x: (-x[0], -all_memos.index(x[1])))
-            relevant = [m for score, m in scored if score > 0][:3]
-            if not relevant:
-                # 관련 키워드 없으면 가장 최근 2개만
-                relevant = all_memos[:2]
-        else:
-            relevant = all_memos[:3]
-
-        lines = [f"[{m.created_at[:10]}] {m.content}" for m in relevant]
-        return "\n---\n".join(lines)
-    except Exception:
-        return ""
-
-
 def _fmt_interval(minutes: int) -> str:
     """분 단위를 사람이 읽기 좋은 문자열로 변환"""
     if minutes < 60:
@@ -1380,9 +1233,6 @@ async def _handle_remind_callback(query, data: str):
         else:
             _todos.complete(todo_id)
             await query.edit_message_text("✅ 완료했어요!")
-        # 영양제/약 이름 매칭 → 복용 기록 + 재고 자동차감
-        if todo_item:
-            _auto_log_intake_from_todo(todo_item.text)
 
     elif action == "snooze":
         original_text = query.message.text or "🔔 알림"
@@ -1511,7 +1361,7 @@ def _detect_instagram_agent(text: str) -> str | None:
     return None
 
 
-async def _handle_instagram(update: Update, text: str, memo_context: str = ""):
+async def _handle_instagram(update: Update, text: str):
     """인스타그램 에이전트에게 메시지 라우팅 (자연어 감지 포함)"""
     global _current_instagram_agent
 
@@ -1524,32 +1374,8 @@ async def _handle_instagram(update: Update, text: str, memo_context: str = ""):
 
     agent = _current_instagram_agent
     history_key = f"instagram_{agent}"
-    memo_mode = f"instagram_{agent}"  # Memos 시트에 저장할 mode 키
-
-    # 메모 저장 요청 감지
-    t = text.lower()
-    if any(kw in t for kw in _MEMO_SAVE_KEYWORDS):
-        remaining = text
-        for kw in _MEMO_SAVE_KEYWORDS:
-            remaining = remaining.replace(kw, "").replace(kw.replace("줘", ""), "")
-        remaining = remaining.strip(" \n.,")
-        await update.message.chat.send_action("typing")
-        if len(remaining) > 20:
-            content = remaining
-        else:
-            hist = _history.get(history_key, [])
-            if not hist:
-                await update.message.reply_text("저장할 내용이 없어요. 대화 후 기록해줘 해주세요.")
-                return
-            content = claude_client.summarize_conversation(hist[-10:], memo_mode)
-        if content:
-            await _save_memo(update, memo_mode, content)
-        return
 
     await update.message.chat.send_action("typing")
-
-    # memo_context: 상위에서 _load_memo_context(mode, query)로 전달받음
-    # (트리거 단어 있을 때만 주입, 없으면 빈 문자열)
 
     # 디자이너 모드: 피그마 컴포넌트 컨텍스트 포함
     figma_context = ""
@@ -1571,20 +1397,9 @@ async def _handle_instagram(update: Update, text: str, memo_context: str = ""):
         agent, text,
         history=_history[history_key][:-1],
         figma_context=figma_context,
-        memo_context=memo_context,
     )
     _add_history(history_key, "assistant", reply)
     await update.message.reply_text(reply)
-
-    # 자동 메모 저장: 중요 결정/피드백 감지 시 자동 저장
-    if _memos is not None:
-        try:
-            if claude_client.detect_important_decision(reply):
-                summary = claude_client.summarize_instagram_decision(reply, agent)
-                if summary:
-                    _memos.add(memo_mode, summary)
-        except Exception:
-            pass
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1835,9 +1650,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "📋 할일":
         await todos_handler(update, context)
         return
-    if text == "💊 영양제":
-        await inventory_handler(update, context)
-        return
     if text == "📊 통계":
         await stats_handler(update, context)
         return
@@ -1926,54 +1738,16 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode = _current_mode.value
     t = text.lower()
 
-    # 메모 저장 감지 (모든 모드)
-    if any(kw in t for kw in _MEMO_SAVE_KEYWORDS):
-        # 저장 키워드를 제거한 나머지 텍스트
-        remaining = text
-        for kw in _MEMO_SAVE_KEYWORDS:
-            remaining = remaining.replace(kw, "").replace(kw.replace("줘", ""), "")
-        remaining = remaining.strip(" \n.,")
-
-        await update.message.chat.send_action("typing")
-
-        if len(remaining) > 20:
-            # 메시지 안에 내용이 있으면 그걸 그대로 저장
-            content = remaining
-        else:
-            # 대화 히스토리 요약
-            hist = _history.get(mode, [])
-            if not hist:
-                await update.message.reply_text(
-                    "저장할 내용이 없어요.\n내용을 직접 입력하거나 대화 후 기록해줘 해주세요.\n\n예: `청년적금 35만원, 투자 20만원 기록해줘`",
-                    parse_mode="Markdown"
-                )
-                return
-            content = claude_client.summarize_conversation(hist[-10:], mode)
-
-        if not content:
-            await update.message.reply_text("요약할 내용이 없어요.")
-            return
-        await _save_memo(update, mode, content)
-        return
-
-    # 메모 목록 감지 (모든 모드)
-    if any(kw in t for kw in _MEMO_LIST_KEYWORDS):
-        await memos_handler(update, None)
-        return
-
-    # 메모 컨텍스트 로드 (트리거 단어 있을 때만 관련 메모 주입)
-    memo_context = _load_memo_context(mode, query=text)
-
     # 비서 모드
     if mode == "secretary":
-        await _handle_secretary(update, context, text, memo_context=memo_context)
+        await _handle_secretary(update, context, text)
     elif mode == "instagram":
-        await _handle_instagram(update, text, memo_context=memo_context)
+        await _handle_instagram(update, text)
     else:
         # 금융/컨설턴트 모드: Claude 대화
         await update.message.chat.send_action("typing")
         _add_history(mode, "user", text)
-        reply = claude_client.chat(mode, text, memo_context=memo_context, history=_history[mode][:-1])
+        reply = claude_client.chat(mode, text, history=_history[mode][:-1])
         _add_history(mode, "assistant", reply)
         await update.message.reply_text(reply)
 
@@ -2045,15 +1819,6 @@ def _is_reminder_intent(t: str, keywords: tuple) -> bool:
     return has_reminder_word and has_keyword
 
 
-_INVENTORY_KEYWORDS = (
-    "영양제", "약 먹", "약먹", "남은 약", "재고", "복용",
-    "오늘 뭐 먹었", "뭐 먹었어", "먹었어", "챙겼어", "챙겼나",
-    "얼마나 남", "몇 정", "남았어", "약 현황", "영양제 현황",
-    "수면", "음수", "물 마",
-    # 신규 등록 / 보충
-    "새로 샀", "새로샀", "샀어", "구매했", "추가해줘", "추가해 줘",
-    "등록해줘", "등록해 줘", "보충", "재입고", "새로 생겼",
-)
 _CYCLE_KEYWORDS = (
     "생리", "월경", "여포기", "배란기", "황체기", "생리기",
     "주기", "생리 주기", "생리 언제", "생리 시작", "생리 끝",
@@ -2063,7 +1828,7 @@ _POMO_KEYWORDS = ("포모도로", "집중 타이머", "집중 시작", "분 집�
 _BREAKDOWN_KEYWORDS = ("어떻게 시작", "뭐부터 해", "막막해", "쪼개줘", "단계별로", "분해해줘", "시작이 막막")
 
 
-async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, memo_context: str = ""):
+async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
     t = text.lower()
 
     # 투두/알람은 최우선 — "투두"가 있으면 다른 키워드보다 먼저 처리
@@ -2074,11 +1839,6 @@ async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     # 생리주기
     if any(w in t for w in _CYCLE_KEYWORDS):
         await _handle_cycle_natural(update, text)
-        return
-
-    # 영양제/약/수면/음수 복용 기록
-    if any(w in t for w in _INVENTORY_KEYWORDS):
-        await _handle_inventory_natural(update, text)
         return
 
     # 포모도로 타이머
@@ -2098,7 +1858,7 @@ async def _handle_secretary(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         # 일반 비서 대화로 처리
         await update.message.chat.send_action("typing")
         _add_history("secretary", "user", text)
-        reply = claude_client.chat("secretary", text, memo_context=memo_context, history=_history["secretary"][:-1])
+        reply = claude_client.chat("secretary", text, history=_history["secretary"][:-1])
         _add_history("secretary", "assistant", reply)
         await update.message.reply_text(reply)
         return
@@ -2269,236 +2029,6 @@ def _format_entry_detail(entry: ContentEntry) -> str:
 
 
 # ═══════════════════════════════════════════════════════════
-# 영양제 재고 관리
-# ═══════════════════════════════════════════════════════════
-
-def _auto_log_intake_from_todo(todo_text: str):
-    """투두 완료 시 영양제/약 이름 매칭 → 복용 기록 + 재고 차감"""
-    if _inventory is None or _intake is None:
-        return
-    t = todo_text.lower()
-    # "아침 영양제" 패턴 → daily 아이템 전부 처리
-    if "영양제" in t:
-        for item in _inventory.get_daily():
-            new_qty = max(0, item.qty - 1)
-            _inventory.update_qty(item.id, new_qty)
-            _intake.log(item.name, 1, new_qty, "알람완료")
-        return
-    # 개별 이름 매칭
-    for item in _inventory.get_all():
-        if item.name.lower() in t or t in item.name.lower():
-            new_qty = max(0, item.qty - 1)
-            _inventory.update_qty(item.id, new_qty)
-            _intake.log(item.name, 1, new_qty, "알람완료")
-            return
-
-
-async def _handle_inventory_natural(update: Update, text: str):
-    """자연어 영양제/약 복용 기록 및 재고 조회"""
-    if _inventory is None:
-        await update.message.reply_text("❌ 재고 관리가 초기화되지 않았어요. `/setup_supplements` 를 실행해주세요.")
-        return
-
-    item_names = [item.name for item in _inventory.get_all()]
-    kst_str = _now_kst().strftime("%Y-%m-%d %H:%M")
-    try:
-        parsed = claude_client.parse_intake_message(text, item_names)
-    except Exception as e:
-        await update.message.reply_text(f"이해하지 못했어요. (`{e}`)")
-        return
-
-    action = parsed.get("action", "log")
-    items_list = parsed.get("items", [])
-
-    if action == "log":
-        if not items_list:
-            # "먹었어" 단독 발화 → 오늘 데일리 전체로 해석
-            items_list = [{"name": i.name, "qty": 1, "note": ""} for i in _inventory.get_daily()]
-        lines = []
-        for item_info in items_list:
-            name = item_info.get("name", "")
-            qty = int(item_info.get("qty", 1) or 1)
-            note = item_info.get("note", "") or ""
-            inv_item = _inventory.get_by_name(name)
-            if not inv_item:
-                lines.append(f"❓ '{name}'을(를) 목록에서 찾지 못했어요.")
-                continue
-            new_qty = max(0, inv_item.qty - qty)
-            _inventory.update_qty(inv_item.id, new_qty)
-            if _intake:
-                _intake.log(inv_item.name, qty, new_qty, note)
-            warn = " ⚠️ 곧 소진!" if new_qty <= inv_item.low_threshold else ""
-            lines.append(f"✅ {inv_item.name} — {new_qty}정 남음{warn}")
-        if lines:
-            await update.message.reply_text("\n".join(lines))
-        else:
-            await update.message.reply_text("복용 기록할 항목을 찾지 못했어요.")
-
-    elif action == "query_stock":
-        target = parsed.get("target_name")
-        if target:
-            inv_item = _inventory.get_by_name(target)
-            if not inv_item:
-                await update.message.reply_text(f"'{target}'을(를) 목록에서 찾지 못했어요.")
-                return
-            warn = " ⚠️" if inv_item.qty <= inv_item.low_threshold else ""
-            await update.message.reply_text(
-                f"💊 **{inv_item.name}**: {inv_item.qty}정 남음{warn}", parse_mode="Markdown"
-            )
-        else:
-            await inventory_handler(update, None)
-
-    elif action == "query_today":
-        await intake_handler(update, None)
-
-    elif action == "add_item":
-        new_item_info = parsed.get("new_item") or {}
-        name = new_item_info.get("name") or (items_list[0].get("name") if items_list else "")
-        if not name:
-            await update.message.reply_text("이름을 인식하지 못했어요. 예: '오메가3 60정 추가해줘'")
-            return
-        qty = int(new_item_info.get("qty") or (items_list[0].get("qty") if items_list else 30))
-        category = new_item_info.get("category") or "daily"
-        daily = bool(new_item_info.get("daily", False))
-        note = new_item_info.get("note") or ""
-        phases = new_item_info.get("phases") or ""
-        low = 7 if category != "prescription" else 5
-        item = _inventory.add_item(name, qty, category=category, low_threshold=low, daily=daily, note=note, phases=phases)
-        daily_str = " (매일 복용)" if daily else ""
-        phase_str = f"\n주기 추천: {phases}" if phases else ""
-        await update.message.reply_text(
-            f"✅ **{item.name}** 등록했어요!\n{qty}정 · {category}{daily_str}{phase_str}\n\n"
-            "매일 알람에 추가하려면 '투두 아침 {이름} 09:00 매일' 이라고 말해줘요.",
-            parse_mode="Markdown",
-        )
-
-    elif action == "restock":
-        if not items_list:
-            await update.message.reply_text("보충할 항목을 인식하지 못했어요.")
-            return
-        lines = []
-        for item_info in items_list:
-            name = item_info.get("name", "")
-            qty = int(item_info.get("qty", 30) or 30)
-            inv_item = _inventory.get_by_name(name)
-            if not inv_item:
-                lines.append(f"❓ '{name}'을(를) 목록에서 찾지 못했어요. '추가해줘'로 신규 등록하세요.")
-                continue
-            new_qty = inv_item.qty + qty
-            _inventory.update_qty(inv_item.id, new_qty)
-            lines.append(f"✅ **{inv_item.name}** {inv_item.qty}→{new_qty}정")
-        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def inventory_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/inventory — 전체 재고 현황"""
-    if not _auth(update):
-        return
-    if _inventory is None:
-        await update.message.reply_text("❌ 재고 관리 초기화 실패. `/setup_supplements` 를 실행하세요.")
-        return
-    try:
-        items = _inventory.get_all()
-    except Exception as e:
-        await update.message.reply_text(f"❌ 오류: {e}")
-        return
-    if not items:
-        await update.message.reply_text("재고 데이터가 없어요. `/setup_supplements` 로 초기화하세요.", parse_mode="Markdown")
-        return
-
-    low_ids = {i.id for i in _inventory.get_low_stock()}
-    cat_labels = {"daily": "매일 복용", "prescription": "처방약", "situational": "상황별", "pms": "PMS"}
-    by_cat: dict[str, list] = {}
-    for item in items:
-        by_cat.setdefault(item.category, []).append(item)
-
-    lines = ["**💊 영양제/약 재고 현황**\n"]
-    for cat in ["daily", "prescription", "situational", "pms"]:
-        cat_items = by_cat.get(cat, [])
-        if not cat_items:
-            continue
-        lines.append(f"**{cat_labels.get(cat, cat)}**")
-        for item in cat_items:
-            warn = " ⚠️" if item.id in low_ids else ""
-            lines.append(f"  • {item.name}: {item.qty}정{warn}")
-    if low_ids:
-        low_names = ", ".join(i.name for i in _inventory.get_low_stock())
-        lines.append(f"\n⚠️ 부족 주의: {low_names}")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def intake_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/intake — 오늘 복용 내역"""
-    if not _auth(update):
-        return
-    if _intake is None:
-        await update.message.reply_text("❌ 복용 기록 초기화 실패.")
-        return
-    try:
-        logs = _intake.get_today()
-    except Exception as e:
-        await update.message.reply_text(f"❌ 오류: {e}")
-        return
-    if not logs:
-        await update.message.reply_text(f"오늘({_now_kst().strftime('%m/%d')}) 복용 기록이 없어요.")
-        return
-    lines = [f"**📋 오늘 복용 내역** ({_now_kst().strftime('%m/%d')})\n"]
-    for log in logs:
-        t = log.taken_at[11:16] if len(log.taken_at) > 11 else ""
-        note_str = f" ({log.note})" if log.note else ""
-        lines.append(f"• {log.item_name} {log.qty_taken}정{note_str} — {t}")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def setup_supplements_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/setup_supplements — 영양제 초기 데이터 등록"""
-    if not _auth(update):
-        return
-    if _inventory is None:
-        await update.message.reply_text("❌ 재고 관리 초기화 실패.")
-        return
-    await update.message.chat.send_action("typing")
-    n = _inventory.setup_initial()
-    cycle_ok = _cycle.setup_initial("2026-03-17") if _cycle else False
-
-    todos_created = 0
-    if _todos and n > 0:
-        daily_items = _inventory.get_daily()
-        from datetime import date as _date
-        today = _date.today().isoformat()
-
-        # 점심 영양제 (셀레늄, 크랜베리 — 식후)
-        LUNCH_SUPPLEMENTS = {"셀레늄", "크랜베리"}
-        lunch_items = [i for i in daily_items if i.name in LUNCH_SUPPLEMENTS and i.category not in ("prescription",)]
-        morning_items = [i for i in daily_items if i.name not in LUNCH_SUPPLEMENTS and i.category not in ("prescription",)]
-        prescription_items = [i for i in daily_items if i.category == "prescription"]
-
-        if morning_items:
-            names = "·".join(i.name for i in morning_items)
-            _todos.add(TodoItem(text=f"아침 영양제 ({names})", trigger_at=f"{today}T09:00:00", repeat="daily"))
-            todos_created += 1
-        if lunch_items:
-            names = "·".join(i.name for i in lunch_items)
-            _todos.add(TodoItem(text=f"점심 영양제 ({names})", trigger_at=f"{today}T12:30:00", repeat="daily"))
-            todos_created += 1
-        for pres in prescription_items:
-            _todos.add(TodoItem(text=pres.name, trigger_at=f"{today}T09:00:00", repeat="daily"))
-            todos_created += 1
-
-    if n == 0:
-        await update.message.reply_text("이미 재고 데이터가 있어요. (초기화 스킵)")
-        return
-
-    msg_lines = [f"✅ 영양제/약 {n}종 등록 완료!"]
-    if todos_created:
-        msg_lines.append(f"⏰ 데일리 알람 {todos_created}개 생성 (매일 오전 9시)")
-    if cycle_ok:
-        msg_lines.append("🌸 생리주기 초기 설정 완료 (3/17 기준, 오늘 21일차 황체기)")
-    msg_lines.append("\n`/inventory` 재고확인  `/cycle` 주기확인")
-    await update.message.reply_text("\n".join(msg_lines), parse_mode="Markdown")
-
-
-# ═══════════════════════════════════════════════════════════
 # 생리주기
 # ═══════════════════════════════════════════════════════════
 
@@ -2518,13 +2048,11 @@ async def _handle_cycle_natural(update: Update, text: str):
     date_str = parsed.get("date") or _now_kst().strftime("%Y-%m-%d")
     note = parsed.get("note", "") or ""
 
-    inv_items = _inventory.get_all() if _inventory else None
-
     if action == "start_period":
         _cycle.start_period(date_str, note)
         status = _cycle.get_current_status()
         await update.message.reply_text(
-            f"🩸 생리 시작 기록했어요! ({date_str})\n\n" + CycleClient.format_status(status, inv_items),
+            f"🩸 생리 시작 기록했어요! ({date_str})\n\n" + CycleClient.format_status(status),
             parse_mode="Markdown"
         )
     elif action == "end_period":
@@ -2535,7 +2063,7 @@ async def _handle_cycle_natural(update: Update, text: str):
             await update.message.reply_text("생리 시작 기록이 없거나 이미 종료 처리됐어요.")
     else:
         status = _cycle.get_current_status()
-        await update.message.reply_text(CycleClient.format_status(status, inv_items), parse_mode="Markdown")
+        await update.message.reply_text(CycleClient.format_status(status), parse_mode="Markdown")
 
 
 async def cycle_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2547,11 +2075,10 @@ async def cycle_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         status = _cycle.get_current_status()
-        inv_items = _inventory.get_all() if _inventory else None
     except Exception as e:
         await update.message.reply_text(f"❌ 오류: {e}")
         return
-    await update.message.reply_text(CycleClient.format_status(status, inv_items), parse_mode="Markdown")
+    await update.message.reply_text(CycleClient.format_status(status), parse_mode="Markdown")
 
 
 # ═══════════════════════════════════════════════════════════
@@ -2573,12 +2100,6 @@ async def pomo_done_callback(context):
         parse_mode="Markdown",
     )
     context.bot_data.get("pomo_jobs", {}).pop(chat_id, None)
-    intake_client = context.bot_data.get("intake_client")
-    if intake_client:
-        try:
-            intake_client.log("포모도로", 1, 0, f"{minutes}분 완료")
-        except Exception:
-            pass
 
 
 async def _handle_pomo_natural(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
@@ -2605,11 +2126,6 @@ async def _handle_pomo_natural(update: Update, context: ContextTypes.DEFAULT_TYP
         data={"minutes": minutes},
     )
     pomo_jobs[chat_id] = job
-    if _intake:
-        try:
-            _intake.log("포모도로", 1, 0, f"{minutes}분 시작")
-        except Exception:
-            pass
 
 
 async def _handle_breakdown(update: Update, text: str):
@@ -2918,113 +2434,3 @@ async def deadlines_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _auth(update):
         return
     await _send_haru_deadlines(update)
-
-
-async def send_briefing(bot, chat_id: int, briefing_type: str, todos_client=None):
-    """브리핑 발송: morning / evening / night"""
-    from .scheduler import _fetch_weather
-    today = _now_kst().date()
-    tomorrow = today + timedelta(days=1)
-
-    def _fmt_todos(items) -> str:
-        if not items:
-            return "없어요 🎉"
-        # 중요 항목 먼저
-        imp = [t for t in items if _is_important(t.text)]
-        nml = [t for t in items if not _is_important(t.text)]
-        sorted_items = (imp + nml)[:10]
-        lines = []
-        for t in sorted_items:
-            prefix = "🍎 " if _is_important(t.text) else "• "
-            due = f" (~{t.due_date[5:]})" if t.due_date else ""
-            alarm = ""
-            if t.trigger_at:
-                try:
-                    dt = datetime.fromisoformat(t.trigger_at)
-                    alarm = f" ⏰{dt.strftime('%H:%M')}"
-                except Exception:
-                    pass
-            lines.append(f"{prefix}{t.text}{due}{alarm}")
-        if len(items) > 15:
-            lines.append(f"  … 외 {len(items)-15}개")
-        return "\n".join(lines)
-
-    all_todos = todos_client.get_all() if todos_client else []
-    undone = [t for t in all_todos if not t.done]
-
-    def _is_fixed_daily(t) -> bool:
-        """매일 반복 고정 알림 — 브리핑에서 제외"""
-        return t.repeat == "daily"
-
-    # 오늘 할 일 판정
-    def _is_today(t):
-        today_str = today.isoformat()
-        tomorrow_str = tomorrow.isoformat()
-        # trigger_at / due_date 가 오늘이면 항상 포함
-        for field in (t.trigger_at, t.due_date):
-            if field and field[:10] == today_str:
-                return True
-        # daily: 알람이 오늘 발사되어 내일로 재스케줄됐을 경우에도 표시
-        #   단, 사용자가 직접 완료(done=1)하면 already filtered out above
-        if t.repeat == "daily" and t.trigger_at and t.trigger_at[:10] == tomorrow_str:
-            return True
-        # after:N: 완료 후 N분뒤 재알람 → 오늘~내일 범위면 포함
-        if t.repeat.startswith("after:") and t.trigger_at:
-            return t.trigger_at[:10] <= tomorrow_str
-        # weekly/monthly: trigger_at이 오늘인 경우만 (위에서 이미 처리됨)
-        # 날짜 없는 일반 투두
-        return not t.trigger_at and not t.due_date
-
-    def _is_tomorrow(t):
-        for field in (t.trigger_at, t.due_date):
-            if field and field[:10] == tomorrow.isoformat():
-                return True
-        return False
-
-    if briefing_type == "morning":
-        weather = _fetch_weather("Seoul")
-        today_todos = [t for t in undone if _is_today(t) and not _is_fixed_daily(t)]
-
-        # 생리주기 한 줄 요약
-        cycle_line = ""
-        if _cycle:
-            try:
-                status = _cycle.get_current_status()
-                if "error" not in status:
-                    phase = status["phase"]
-                    info = status.get("phase_info", {})
-                    emoji = info.get("emoji", "")
-                    day = status["cycle_day"]
-                    pms = " ⚠️ PMS 구간" if status.get("pms_alert") else ""
-                    cycle_line = f"\n{emoji} **생리주기**: {phase} {day}일차{pms}"
-            except Exception:
-                pass
-
-        text = (
-            f"☀️ **굿모닝 브리핑**\n\n"
-            f"🌤 날씨: {weather}"
-            f"{cycle_line}\n\n"
-            f"📋 **오늘 할 일** ({len(today_todos)}개)\n"
-            f"{_fmt_todos(today_todos)}"
-        )
-
-    elif briefing_type == "evening":
-        remaining = [t for t in undone if _is_today(t) and not _is_fixed_daily(t)]
-        text = (
-            f"🌆 **저녁 브리핑**\n\n"
-            f"📋 **오늘 남은 일** ({len(remaining)}개)\n"
-            f"{_fmt_todos(remaining)}"
-        )
-
-    else:  # night
-        remaining_today = [t for t in undone if _is_today(t) and not _is_fixed_daily(t)]
-        tomorrow_todos = [t for t in undone if _is_tomorrow(t) and not _is_fixed_daily(t)]
-        text = (
-            f"🌙 **밤 브리핑**\n\n"
-            f"📋 **오늘 남은 일** ({len(remaining_today)}개)\n"
-            f"{_fmt_todos(remaining_today)}\n\n"
-            f"📋 **내일 할 일** ({len(tomorrow_todos)}개)\n"
-            f"{_fmt_todos(tomorrow_todos)}"
-        )
-
-    await bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
