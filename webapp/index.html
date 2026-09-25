@@ -262,6 +262,9 @@
   .jauto .jcap{font-size:10.5px;color:var(--faint);margin-top:6px}
   /* 월간 회고 — 그 달 하루하루 기록을 한 상자 안에서 훑어봄(길어지면 안에서 스크롤) */
   .jauto.digest{max-height:340px;overflow:auto}
+  .jcatgrp{margin-bottom:6px}
+  .jcathead{font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.03em;margin:6px 0 2px}
+  .jcatgrp:first-child .jcathead{margin-top:0}
   .jdig{padding:7px 0;border-top:1px dotted var(--line-2)}
   .jdig:first-of-type{border-top:0}
   .jdigd{font-size:11.5px;font-weight:700;color:var(--text);cursor:pointer;display:inline-block;margin-bottom:2px}
@@ -319,6 +322,7 @@
   .pjtog .n{font-family:var(--mono);font-size:11px;color:var(--faint);font-weight:400}
   .pjtog .chev{margin-left:auto;color:var(--faint);font-size:11px;transition:transform .15s}
   .pjtog[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+  .pjcat{font:inherit;font-size:11px;color:var(--muted);background:var(--panel);border:1px solid var(--line-2);padding:2px 4px;margin-left:8px;cursor:pointer}
   .pjbody.collapsed{display:none}.pjbody{padding-bottom:6px}
   .arch{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;border:0;background:none;font-family:inherit;padding-left:8px}tr:hover .arch{opacity:1}tr.done .arch{opacity:.75;color:var(--accent)}
   .pjhandle{cursor:grab;color:var(--faint);font-size:12px;margin-right:2px;user-select:none}
@@ -894,7 +898,7 @@
       if(h.history.indexOf(ti)<0)h.history.push(ti);
     }
     if(h.history.length>400)h.history=h.history.slice(-400);
-    putCalRoutine(h);renderCalRoutines();
+    putCalRoutine(h);renderCalRoutines();renderJournal();
   }
   // ===== 캘린더 탭 「투두」(캘린더에 안 뜨는 단순 체크리스트, 초기화 없음) =====
   function putCalTodo(x){if(!hasCalTodos)return;sb.from('cal_todos').upsert({id:x.id,owner:state.uid,title:x.title,done:!!x.done,sort:x.sort||0,created:x.created||todayISO()}).then(function(r){if(r.error)console.warn('cal_todo',r.error.message);});}
@@ -925,6 +929,7 @@
       var fresh=(r&&!r.error&&r.data&&r.data[0]&&r.data[0].data)?r.data[0].data:{};
       var merged=Object.assign({},fresh,state.settings);
       merged.projOrder=Object.assign({},fresh.projOrder||{},state.settings.projOrder||{});
+      merged.projCategory=Object.assign({},fresh.projCategory||{},state.settings.projCategory||{});
       state.settings=merged;
       sb.from('settings').upsert({owner:state.uid,data:merged},{onConflict:'owner'}).then(function(r2){if(r2.error)console.warn('settings',r2.error.message);});
     });
@@ -1155,7 +1160,7 @@
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
         return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.rolled?'<span class="rolled" title="지난달에 안 끝나서 따라온 항목">↩︎이월</span>':'')+(t.routineId?'<span class="rolled" title="상시업무에서 자동으로 올라온 항목">상시</span>':'')+subTogHtml(t)+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+subRowHtml(t,7);}).join('');
       var dn=items.filter(function(t){return t.done;}).length;
-      return '<div class="pjsec" data-proj="'+esc(name)+'"><button class="pjtog" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+dn+'/'+items.length+'</span><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></button><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>진행사항</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" class="empty">'+monthLabel(m)+'엔 아직 없어요</td></tr>')+'</tbody></table><div class="pjadd"><input class="pjaddin" placeholder="이 프로젝트에 할일 추가…"><button class="btn-s" data-act="proj-add">추가</button></div></div></div>';}).join('');}
+      return '<div class="pjsec" data-proj="'+esc(name)+'"><div class="pjtog" role="button" tabindex="0" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span>'+esc(name)+' <span class="n">'+dn+'/'+items.length+'</span><select class="pjcat" data-act="proj-cat" data-proj="'+esc(name)+'" title="일상/업무/개인작업 — 저널에서 이 기준으로 묶여요">'+JOURNAL_CATS.map(function(c){return '<option value="'+c+'"'+(projCategory(name)===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></div><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>진행사항</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" class="empty">'+monthLabel(m)+'엔 아직 없어요</td></tr>')+'</tbody></table><div class="pjadd"><input class="pjaddin" placeholder="이 프로젝트에 할일 추가…"><button class="btn-s" data-act="proj-add">추가</button></div></div></div>';}).join('');}
   // ===== v2: 진행 기록 — 덮어쓰지 않고 날짜별로 쌓임 =====
   function mdOf(iso){var p=(iso||'').split('-');return p.length>=3?(p[1]+'.'+p[2]):(iso||'');}
   function prgOf(id){return state.progress.filter(function(p){return p.todoId===id;}).sort(function(a,b){return a.date<b.date?1:(a.date>b.date?-1:0);});}
@@ -1176,6 +1181,37 @@
   // ===== v2: 저널 =====
   function jTodoDone(d){return state.todos.filter(function(t){return t.ws===state.ws&&t.doneAt&&t.doneAt.slice(0,10)===d;});}
   function jProg(d){return state.progress.filter(function(p){if(p.date!==d)return false;var t=tById(p.todoId);return !t||t.ws===state.ws;});}
+  // 프로젝트 성격(일상/업무/개인작업) — settings.projCategory에 {프로젝트명:성격} 저장, 없으면 미분류(주머니도 여기 포함)
+  var PJ_CATS=['일상','업무','개인작업'];
+  var JOURNAL_CATS=PJ_CATS.concat(['미분류']);
+  function projCategory(name){return (name&&state.settings.projCategory&&state.settings.projCategory[name])||'미분류';}
+  function setProjCategory(name,cat){
+    // 삭제 대신 '미분류'를 명시적으로 저장 — putSettings의 병합(Object.assign)은 키 삭제를
+    // 표현 못 하므로(다른 탭이 먼저 저장한 값이 되살아날 수 있음), 항상 값을 채워서 저장
+    state.settings.projCategory=state.settings.projCategory||{};
+    state.settings.projCategory[name]=cat||'미분류';
+    putSettings();
+  }
+  function groupByCat(list){
+    var g={};JOURNAL_CATS.forEach(function(c){g[c]=[];});
+    list.forEach(function(t){g[projCategory(t.project)].push(t);});
+    return g;
+  }
+  function dayRoutineChecks(d){return state.calRoutines.filter(function(h){return (h.history||[]).indexOf(d)>=0;});}
+  // 그 달 하루하루를 컬럼으로 쓰는 루틴 트래커(저널 월간 회고용) — 서랍의 최근 30일 롤링 트래커와 달리 그 달 1일~말일 고정
+  function monthTrackerHTML(m){
+    if(!hasRoutineHistory||!state.calRoutines.length)return '';
+    var parts=m.split('-'),y=+parts[0],mo=+parts[1];
+    var daysInMonth=new Date(y,mo,0).getDate();
+    var days=[];for(var i=1;i<=daysInMonth;i++)days.push(m+'-'+String(i).padStart(2,'0'));
+    var list=state.calRoutines.slice().sort(function(a,b){return (a.sort||0)-(b.sort||0);});
+    return '<div class="jcap">이 달 루틴 트래커</div><div class="trkwrap">'+list.map(function(h){
+      var hist=h.history||[];
+      return '<div class="trkrow"><span class="trktitle">'+esc(h.title)+'</span><span class="trkgrid">'
+        +days.map(function(d){return '<span class="trkcell'+(hist.indexOf(d)>=0?' on':'')+'" title="'+d+'"></span>';}).join('')
+        +'</span></div>';
+    }).join('')+'</div>';
+  }
   function jEntry(d){var j=state.journal.filter(function(x){return x.date===d;})[0];
     if(!j){j={id:uid(),date:d,body:'',images:[],updated:'',goal:'',musts:[]};state.journal.push(j);}return j;}
   function jAllDates(){
@@ -1222,17 +1258,32 @@
           +dn2.map(function(t){return '<div class="jrow"><span class="jmark">✓</span><span>'+(t.project?'<b>'+esc(t.project)+'</b> · ':'')+esc(t.title)+'</span></div>';}).join('')
           +pg2.map(function(p){var tt=tById(p.todoId);return '<div class="jrow"><span class="jmark">✎</span><span>'+(tt?'<b>'+esc(tt.title)+'</b> · ':'')+esc(p.text)+'</span></div>';}).join('')
           +'</div>';}).join('');
-      auto.innerHTML='<div class="jrow"><span class="jmark">✓</span><span>완료한 할일 <b>'+doneM.length+'</b>개</span></div>'
+      var catCountsM=groupByCat(doneM);
+      var catSummary=JOURNAL_CATS.filter(function(c){return catCountsM[c].length;}).map(function(c){return c+' '+catCountsM[c].length;}).join(' · ');
+      auto.innerHTML='<div class="jrow"><span class="jmark">✓</span><span>완료한 할일 <b>'+doneM.length+'</b>개'+(catSummary?' ('+esc(catSummary)+')':'')+'</span></div>'
         +'<div class="jrow"><span class="jmark">✎</span><span>진행 기록 <b>'+prgM.length+'</b>건</span></div>'
         +(digest?('<div class="jcap">그 달 하루하루 — 날짜를 누르면 그날로 갑니다</div>'+digest)
-                :'<div class="jcap">이 달엔 아직 쌓인 기록이 없어요</div>');
+                :'<div class="jcap">이 달엔 아직 쌓인 기록이 없어요</div>')
+        +monthTrackerHTML(d);
     }else{
       auto.className='jauto';
-      var dn=jTodoDone(d),pg=jProg(d);
-      sub.textContent=(dn.length+pg.length)?'':'조용한 날';
-      var rows=dn.map(function(t){return '<div class="jrow"><span class="jmark">✓</span><span>'+(t.project?'<b>'+esc(t.project)+'</b> · ':'')+esc(t.title)+'</span></div>';})
-        .concat(pg.map(function(p){var t=tById(p.todoId);return '<div class="jrow"><span class="jmark">✎</span><span>'+(t?'<b>'+esc(t.title)+'</b> · ':'')+esc(p.text)+'</span></div>';}));
-      auto.innerHTML=rows.length?(rows.join('')+'<div class="jcap">✓ 체크한 할일 · ✎ 그날 쓴 진행 기록 — 자동으로 깔려요</div>')
+      var dn=jTodoDone(d),pg=jProg(d),rc=dayRoutineChecks(d);
+      sub.textContent=(dn.length+pg.length+rc.length)?'':'조용한 날';
+      var catGroups=groupByCat(dn),catHtml='';
+      JOURNAL_CATS.forEach(function(c){
+        var items=catGroups[c];if(!items.length)return;
+        catHtml+='<div class="jcatgrp"><div class="jcathead">'+esc(c)+'</div>'
+          +items.map(function(t){return '<div class="jrow"><span class="jmark">✓</span><span>'+(t.project?'<b>'+esc(t.project)+'</b> · ':'')+esc(t.title)+'</span></div>';}).join('')
+          +'</div>';
+      });
+      if(rc.length){
+        catHtml+='<div class="jcatgrp"><div class="jcathead">🔁 루틴</div>'
+          +rc.map(function(h){return '<div class="jrow"><span class="jmark">✓</span><span>'+esc(h.title)+'</span></div>';}).join('')
+          +'</div>';
+      }
+      var pgHtml=pg.map(function(p){var t=tById(p.todoId);return '<div class="jrow"><span class="jmark">✎</span><span>'+(t?'<b>'+esc(t.title)+'</b> · ':'')+esc(p.text)+'</span></div>';}).join('');
+      var rows=catHtml+pgHtml;
+      auto.innerHTML=rows?(rows+'<div class="jcap">✓ 체크한 할일(일상·업무·개인작업·미분류로 구분) · 🔁 그날 체크한 루틴 · ✎ 그날 쓴 진행 기록 — 자동으로 깔려요</div>')
         :'<div class="jempty">'+(hasJournal?'이날 체크한 할일이나 진행 기록이 아직 없어요':'저널 표가 아직 없어요')+'</div>';
     }
     var body=document.getElementById('jBody');
@@ -2124,6 +2175,12 @@
     box.querySelector('.ceInterval').classList.toggle('hidden',k!=='interval');
     box.querySelector('.ceWeekday').classList.toggle('hidden',k!=='weekday');
     box.querySelector('.ceMonthday').classList.toggle('hidden',k!=='monthday');
+  });
+  // 프로젝트 성격(일상/업무/개인작업) 지정 — 저널에서 이 기준으로 완료 할일을 묶어서 보여줌
+  document.addEventListener('change',function(e){
+    var pc=e.target.closest('.pjcat');if(!pc)return;
+    setProjCategory(pc.dataset.proj,pc.value);
+    renderJournal();
   });
   function addCalRoutine(){
     var ti=document.getElementById('crTitle'),title=ti.value.trim();
