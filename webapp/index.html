@@ -128,6 +128,11 @@
     .rowdel,.pjdel,.pjren,.subadd0,.subitem .sdel,.rowbtn,.nest,.lkrow .lkdel,.crEditTog{opacity:.5!important}
     .sdue2,.stoday{opacity:.5!important}
     .sdue2.has,.stoday.has{opacity:.9!important}
+    /* ✎(주기 수정)와 ✕(삭제)가 나란히 붙어있어서 모바일에서 손가락으로 정확히 못 누르고
+       엉뚱한 걸 누르거나 헛짚던 문제 — 실제 탭 가능 영역을 키우고(패딩+음수 마진으로
+       시각적 크기는 유지) 둘 사이 간격도 벌림 */
+    .lkrow{gap:6px}
+    .lkrow .lkdel,.lkrow .crEditTog{padding:9px 7px;margin:-9px -3px;font-size:13px}
     /* 제목 칸: 배지·아이콘들이 제목과 한 줄로 엉겨붙어 글자 단위로 쪼개지던 것을
        제목은 항상 자기 줄, 나머지(이월·상시 배지, 하위/반복/메모/삭제 등)는 그 아래
        줄로 깔끔하게 줄바꿈되게 함 */
