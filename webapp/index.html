@@ -125,7 +125,7 @@
     /* 호버해야만 보이던 버튼들 — 삭제·이름변경·반복설정·하위로 옮기기·링크삭제·
        하위항목의 날짜/오늘 지정까지. 터치엔 호버 자체가 없어서 지금까진 존재하는지도
        몰랐거나 알아도 못 눌렀던 것들 — 항상 옅게라도 보이게(회의안건·링크 보드와 같은 처리) */
-    .rowdel,.pjdel,.pjren,.subadd0,.subitem .sdel,.rowbtn,.nest,.lkrow .lkdel{opacity:.5!important}
+    .rowdel,.pjdel,.pjren,.subadd0,.subitem .sdel,.rowbtn,.nest,.lkrow .lkdel,.crEditTog{opacity:.5!important}
     .sdue2,.stoday{opacity:.5!important}
     .sdue2.has,.stoday.has{opacity:.9!important}
     /* 제목 칸: 배지·아이콘들이 제목과 한 줄로 엉겨붙어 글자 단위로 쪼개지던 것을
@@ -186,6 +186,17 @@
   .crfield{display:flex;align-items:center;font-size:12.5px;color:var(--muted)}
   .crweekdays label{display:inline-flex;align-items:center;gap:2px;margin-right:8px;font-size:12px;color:var(--muted);cursor:pointer}
   .crdate{font-size:11px;color:var(--faint);flex:none;width:52px}
+  .crEditTog{flex:none;color:var(--faint);cursor:pointer;font-size:12px;opacity:0}
+  .lkrow:hover .crEditTog{opacity:1}
+  .crEditTog:hover{color:var(--accent)}
+  .crEditBox{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0 8px 22px;font-size:12.5px}
+  .crEditBox select,.crEditBox input{font:inherit;font-size:12.5px;color:var(--text);background:transparent;border:0;border-bottom:1px solid var(--line-2);padding:3px 2px}
+  .crEditBox select:focus,.crEditBox input:focus{outline:none;border-bottom-color:var(--accent)}
+  .crEditBox input[type="number"]{width:44px}
+  .crSlotHead{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin:10px 0 2px}
+  .crSlotHead:first-child{margin-top:0}
+  .lkrow .mktxt[contenteditable]{cursor:text;outline:none}
+  .lkrow .mktxt[contenteditable]:focus{color:var(--text)}
   .monthnav{display:flex;align-items:center;gap:8px;margin:26px 0 12px;flex-wrap:wrap}
   .monthnav h2{margin:0;font-family:var(--display);font-size:21px;font-weight:400;letter-spacing:-.01em;color:var(--accent)}
   .monthnav button{font:inherit;font-size:13px;line-height:1;padding:5px 10px;border:1px solid var(--line-2);background:var(--panel);color:var(--muted);cursor:pointer}
@@ -654,7 +665,9 @@
       <div class="cgrid" id="cgrid"></div>
     </div>
     <div id="calRoutinePanel" class="hidden">
-      <div class="bhead"><h2>오늘 체크할 루틴</h2></div>
+      <div class="bhead"><h2>매일 루틴</h2></div>
+      <div id="calRoutineDaily"></div>
+      <div class="bhead" style="margin-top:22px"><h2>그 외 정기 루틴</h2><div class="r">오늘 체크할 것</div></div>
       <div id="calRoutineList"></div>
       <div class="bhead" style="margin-top:22px"><h2>예정된 루틴</h2><div class="r">체크하면 다음 주기 때까지 여기로 내려가요</div></div>
       <div id="calRoutineUpcoming"></div>
@@ -666,6 +679,7 @@
           <option value="weekday">특정 요일마다</option>
           <option value="monthday">매달 특정일</option>
         </select>
+        <span class="crfield" id="crSlotField">때: <select id="crSlot"><option value="">시간 무관</option><option value="morning">아침</option><option value="lunch">점심</option><option value="evening">저녁</option></select></span>
         <span class="crfield hidden" id="crIntervalFields"><input id="crN" type="number" min="1" value="1">&nbsp;<select id="crUnit"><option value="day">일</option><option value="week">주</option><option value="month">달</option></select>마다</span>
         <span class="crfield crweekdays hidden" id="crWeekdayFields">
           <label><input type="checkbox" value="0">일</label><label><input type="checkbox" value="1">월</label><label><input type="checkbox" value="2">화</label><label><input type="checkbox" value="3">수</label><label><input type="checkbox" value="4">목</label><label><input type="checkbox" value="5">금</label><label><input type="checkbox" value="6">토</label>
@@ -753,6 +767,7 @@
   var hasPush=false;    // push_subscriptions 테이블이 있으면 true (아이폰 홈화면 설치+웹푸시, SQL 마이그레이션 후)
   var hasCalRoutines=false; // cal_routines 테이블이 있으면 true (캘린더 탭 루틴, SQL 마이그레이션 후)
   var hasCalTodos=false; // cal_todos 테이블이 있으면 true (캘린더 탭 투두, SQL 마이그레이션 후)
+  var hasRoutineSlot=false; // cal_routines.slot 컬럼이 있으면 true (매일 루틴 아침/점심/저녁 구분, SQL 마이그레이션 후)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
@@ -813,8 +828,8 @@
   function putRoutine(r){if(!hasRoutines)return;sb.from('routines').upsert({id:r.id,ws:r.ws,project:r.project,title:r.title,cycle:r.cycle,imp:r.imp||1,sort:r.sort||0,active:!!r.active}).then(function(x){if(x.error)console.warn('routine',x.error.message);});}
   function delRoutineDB(id){if(!hasRoutines)return;sb.from('routines').delete().eq('id',id).then(function(){});}
   // ===== 캘린더 탭 「루틴」(습관 체크리스트, 자유 주기) =====
-  function fromCalRoutine(r){return {id:r.id,title:r.title||'',kind:r.kind||'daily',unit:r.unit||'day',n:r.n||1,weekdays:Array.isArray(r.weekdays)?r.weekdays:[],monthday:r.monthday||1,nextDue:r.next_due||'',doneToday:!!r.done_today,sort:r.sort||0,created:r.created||''};}
-  function putCalRoutine(h){if(!hasCalRoutines)return;sb.from('cal_routines').upsert({id:h.id,owner:state.uid,title:h.title,kind:h.kind,unit:h.unit||null,n:h.n||null,weekdays:h.weekdays||[],monthday:h.monthday||null,next_due:h.nextDue||null,done_today:!!h.doneToday,sort:h.sort||0,created:h.created||todayISO()}).then(function(x){if(x.error)console.warn('cal_routine',x.error.message);});}
+  function fromCalRoutine(r){return {id:r.id,title:r.title||'',kind:r.kind||'daily',unit:r.unit||'day',n:r.n||1,weekdays:Array.isArray(r.weekdays)?r.weekdays:[],monthday:r.monthday||1,nextDue:r.next_due||'',doneToday:!!r.done_today,sort:r.sort||0,created:r.created||'',slot:r.slot||''};}
+  function putCalRoutine(h){if(!hasCalRoutines)return;var row={id:h.id,owner:state.uid,title:h.title,kind:h.kind,unit:h.unit||null,n:h.n||null,weekdays:h.weekdays||[],monthday:h.monthday||null,next_due:h.nextDue||null,done_today:!!h.doneToday,sort:h.sort||0,created:h.created||todayISO()};if(hasRoutineSlot)row.slot=h.slot||'';sb.from('cal_routines').upsert(row).then(function(x){if(x.error)console.warn('cal_routine',x.error.message);});}
   function delCalRoutineDB(id){if(!hasCalRoutines)return;sb.from('cal_routines').delete().eq('id',id).then(function(){});}
   // 체크 후 다음 예정일 계산 — from(오늘) 기준으로 그 주기 뒤 날짜를 돌려줌
   function habitNextDue(h,fromISO){
@@ -993,7 +1008,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*')]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1015,6 +1030,7 @@
       hasPush=!(res[21]&&res[21].error);   // push_subscriptions 테이블 있으면 알림 켜기 켜짐
       hasCalRoutines=!(res[22]&&res[22].error); // cal_routines 테이블 있으면 캘린더 루틴 켜짐
       hasCalTodos=!(res[23]&&res[23].error); // cal_todos 테이블 있으면 캘린더 투두 켜짐
+      hasRoutineSlot=!(res[24]&&res[24].error); // cal_routines.slot 컬럼 있으면 아침/점심/저녁 구분 켜짐
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1276,25 +1292,59 @@
           +'<span class="rtsw" data-act="rt-tog" title="잠시 멈추거나 다시 켜기">'+(r.active?'켜짐':'멈춤')+'</span>'
           +'<span class="rtdel" data-act="rt-del" title="지우기">✕</span></div>';}).join('');}).join('');
   }
+  var crOpen={};              // 루틴 주기 수정 펼침 상태(세션 한정, id→bool)
+  var SLOT_LABEL={morning:'아침',lunch:'점심',evening:'저녁','':'시간 무관'};
+  var SLOT_ORDER=['morning','lunch','evening',''];
+  var WD_LABELS=['일','월','화','수','목','금','토'];
   function calRoutineRow(h,dueToday){
     var checked=h.kind==='daily'&&h.doneToday;
     var chk=dueToday
       ?'<span class="ck'+(checked?' on':'')+'" data-act="cr-check" role="checkbox" tabindex="0">'+(checked?svg():'')+'</span>'
       :'<span class="crdate">'+(h.nextDue?('다음 '+mmdd(h.nextDue)):'')+'</span>';
-    return '<div class="lkrow" data-cr="'+h.id+'">'+chk+'<span class="mktxt" style="cursor:default;flex:1">'+esc(h.title)+'</span><span class="lkdel" data-act="cr-del" title="지우기">✕</span></div>';
+    var open=!!crOpen[h.id];
+    return '<div class="lkrow" data-cr="'+h.id+'">'+chk
+      +'<span class="mktxt" contenteditable="true" spellcheck="false" data-act="cr-rename">'+esc(h.title)+'</span>'
+      +'<span class="crEditTog" data-act="cr-edit" title="주기 수정">'+(open?'▴':'✎')+'</span>'
+      +'<span class="lkdel" data-act="cr-del" title="지우기">✕</span></div>'
+      +(open?crEditRow(h):'');
+  }
+  function crEditRow(h){
+    return '<div class="crEditBox" data-cr="'+h.id+'">'
+      +'<select class="crEKind">'
+        +'<option value="daily"'+(h.kind==='daily'?' selected':'')+'>매일</option>'
+        +'<option value="interval"'+(h.kind==='interval'?' selected':'')+'>며칠/몇 주/몇 달마다</option>'
+        +'<option value="weekday"'+(h.kind==='weekday'?' selected':'')+'>특정 요일마다</option>'
+        +'<option value="monthday"'+(h.kind==='monthday'?' selected':'')+'>매달 특정일</option>'
+      +'</select>'
+      +'<span class="crfield ceSlot'+(h.kind==='daily'?'':' hidden')+'">때: <select class="crESlot"><option value=""'+(h.slot===''?' selected':'')+'>시간 무관</option><option value="morning"'+(h.slot==='morning'?' selected':'')+'>아침</option><option value="lunch"'+(h.slot==='lunch'?' selected':'')+'>점심</option><option value="evening"'+(h.slot==='evening'?' selected':'')+'>저녁</option></select></span>'
+      +'<span class="crfield ceInterval'+(h.kind==='interval'?'':' hidden')+'"><input type="number" class="crEN" min="1" value="'+(h.n||1)+'">&nbsp;<select class="crEUnit"><option value="day"'+(h.unit==='day'?' selected':'')+'>일</option><option value="week"'+(h.unit==='week'?' selected':'')+'>주</option><option value="month"'+(h.unit==='month'?' selected':'')+'>달</option></select>마다</span>'
+      +'<span class="crfield crweekdays ceWeekday'+(h.kind==='weekday'?'':' hidden')+'">'+WD_LABELS.map(function(d,i){return '<label><input type="checkbox" class="crEWd" value="'+i+'"'+((h.weekdays||[]).indexOf(i)>=0?' checked':'')+'>'+d+'</label>';}).join('')+'</span>'
+      +'<span class="crfield ceMonthday'+(h.kind==='monthday'?'':' hidden')+'">매달&nbsp;<input type="number" class="crEDay" min="1" max="31" value="'+(h.monthday||1)+'">&nbsp;일</span>'
+      +'<button class="btn-s" data-act="cr-save">저장</button>'
+    +'</div>';
   }
   function renderCalRoutines(){
-    var listEl=document.getElementById('calRoutineList'),upEl=document.getElementById('calRoutineUpcoming');
+    var dailyEl=document.getElementById('calRoutineDaily'),listEl=document.getElementById('calRoutineList'),upEl=document.getElementById('calRoutineUpcoming');
     if(!listEl)return;
-    if(!hasCalRoutines){listEl.innerHTML='<p class="boardempty">루틴 표가 아직 없어요</p>';if(upEl)upEl.innerHTML='';return;}
-    var due=state.calRoutines.filter(habitDueToday);
-    var later=state.calRoutines.filter(function(h){return !habitDueToday(h);}).sort(function(a,b){return (a.nextDue||'').localeCompare(b.nextDue||'');});
-    listEl.innerHTML=due.length?due.map(function(h){return calRoutineRow(h,true);}).join(''):'<p class="boardempty">오늘 체크할 루틴이 없어요 — 아래에서 추가해보세요</p>';
+    if(!hasCalRoutines){if(dailyEl)dailyEl.innerHTML='<p class="boardempty">루틴 표가 아직 없어요</p>';listEl.innerHTML='';if(upEl)upEl.innerHTML='';return;}
+    var dailyItems=state.calRoutines.filter(function(h){return h.kind==='daily';});
+    var otherDue=state.calRoutines.filter(function(h){return h.kind!=='daily'&&habitDueToday(h);});
+    var later=state.calRoutines.filter(function(h){return h.kind!=='daily'&&!habitDueToday(h);}).sort(function(a,b){return (a.nextDue||'').localeCompare(b.nextDue||'');});
+    if(dailyEl){
+      if(!dailyItems.length)dailyEl.innerHTML='<p class="boardempty">매일 하는 루틴을 아래에서 추가해보세요</p>';
+      else{
+        var groups={};dailyItems.forEach(function(h){(groups[h.slot||'']=groups[h.slot||'']||[]).push(h);});
+        dailyEl.innerHTML=SLOT_ORDER.filter(function(s){return groups[s]&&groups[s].length;}).map(function(s){
+          return '<div class="crSlotHead">'+SLOT_LABEL[s]+'</div>'+groups[s].map(function(h){return calRoutineRow(h,true);}).join('');
+        }).join('');
+      }
+    }
+    listEl.innerHTML=otherDue.length?otherDue.map(function(h){return calRoutineRow(h,true);}).join(''):'<p class="boardempty">오늘 체크할 정기 루틴이 없어요</p>';
     if(upEl)upEl.innerHTML=later.length?later.map(function(h){return calRoutineRow(h,false);}).join(''):'<p class="boardempty">예정된 루틴 없음</p>';
   }
   function ctRow(x){
     return '<div class="lkrow" data-ct="'+x.id+'"><span class="ck'+(x.done?' on':'')+'" data-act="ct-check" role="checkbox" tabindex="0">'+(x.done?svg():'')+'</span>'
-      +'<span class="mktxt"'+(x.done?' style="color:var(--faint);text-decoration:line-through;cursor:default"':' style="cursor:default"')+'>'+esc(x.title)+'</span>'
+      +'<span class="mktxt" contenteditable="true" spellcheck="false" data-act="ct-rename"'+(x.done?' style="color:var(--faint);text-decoration:line-through"':'')+'>'+esc(x.title)+'</span>'
       +'<span class="lkdel" data-act="ct-del" title="지우기">✕</span></div>';
   }
   function renderCalTodos(){
@@ -1976,17 +2026,29 @@
   // 캘린더 탭 「루틴」 등록
   document.getElementById('crKind').addEventListener('change',function(){
     var k=this.value;
+    document.getElementById('crSlotField').classList.toggle('hidden',k!=='daily');
     document.getElementById('crIntervalFields').classList.toggle('hidden',k!=='interval');
     document.getElementById('crWeekdayFields').classList.toggle('hidden',k!=='weekday');
     document.getElementById('crMonthdayFields').classList.toggle('hidden',k!=='monthday');
+  });
+  // 루틴 개별 수정 박스 안의 주기 종류를 바꾸면(아직 저장 전) 그 박스 안 필드만 즉시 갈아끼움
+  document.addEventListener('change',function(e){
+    var sel=e.target.closest('.crEKind');if(!sel)return;
+    var box=sel.closest('.crEditBox');if(!box)return;
+    var k=sel.value;
+    box.querySelector('.ceSlot').classList.toggle('hidden',k!=='daily');
+    box.querySelector('.ceInterval').classList.toggle('hidden',k!=='interval');
+    box.querySelector('.ceWeekday').classList.toggle('hidden',k!=='weekday');
+    box.querySelector('.ceMonthday').classList.toggle('hidden',k!=='monthday');
   });
   function addCalRoutine(){
     var ti=document.getElementById('crTitle'),title=ti.value.trim();
     if(!title){ti.focus();return;}
     if(!hasCalRoutines){showToast('루틴 표가 아직 없어요');return;}
     var kind=document.getElementById('crKind').value;
-    var h={id:uid(),title:title,kind:kind,unit:'day',n:1,weekdays:[],monthday:1,nextDue:'',doneToday:false,sort:Date.now(),created:todayISO()};
-    if(kind==='interval'){h.unit=document.getElementById('crUnit').value;h.n=Math.max(1,+document.getElementById('crN').value||1);}
+    var h={id:uid(),title:title,kind:kind,unit:'day',n:1,weekdays:[],monthday:1,nextDue:'',doneToday:false,sort:Date.now(),created:todayISO(),slot:''};
+    if(kind==='daily'){h.slot=document.getElementById('crSlot').value;}
+    else if(kind==='interval'){h.unit=document.getElementById('crUnit').value;h.n=Math.max(1,+document.getElementById('crN').value||1);}
     else if(kind==='weekday'){
       h.weekdays=[].map.call(document.querySelectorAll('#crWeekdayFields input:checked'),function(c){return +c.value;});
       if(!h.weekdays.length){showToast('요일을 하나 이상 선택해주세요');return;}
@@ -2026,6 +2088,21 @@
     var t=tById(rowId(el));if(!t)return;
     var v=el.textContent.trim();if(v===(t.review||''))return;
     t.review=v;putTodo(t);},true);
+  // 루틴/투두 제목 — 같은 방식으로 포커스 빠질 때 저장(빈 제목으로는 못 바꾸게 방어)
+  document.addEventListener('blur',function(e){
+    var el=e.target&&e.target.closest?e.target.closest('[data-act="cr-rename"]'):null;if(!el)return;
+    var crEl=el.closest('[data-cr]'),h=crEl&&state.calRoutines.filter(function(x){return x.id===crEl.dataset.cr;})[0];if(!h)return;
+    var v=el.textContent.trim();
+    if(!v){el.textContent=h.title;return;}
+    if(v===h.title)return;
+    h.title=v;putCalRoutine(h);},true);
+  document.addEventListener('blur',function(e){
+    var el=e.target&&e.target.closest?e.target.closest('[data-act="ct-rename"]'):null;if(!el)return;
+    var ctEl=el.closest('[data-ct]'),x=ctEl&&state.calTodos.filter(function(y){return y.id===ctEl.dataset.ct;})[0];if(!x)return;
+    var v=el.textContent.trim();
+    if(!v){el.textContent=x.title;return;}
+    if(v===x.title)return;
+    x.title=v;putCalTodo(x);},true);
 
   function rowId(el){var tr=el.closest('tr[data-id]');return tr?tr.dataset.id:null;}
   function startNest(id){var t=tById(id);if(!t)return;nestSource=id;document.body.classList.add('nesting');var bar=document.getElementById('nestBar');bar.innerHTML='<span><b>「'+esc(t.title)+'」</b> 을(를) 하위로 넣을 <b>대상 할일</b>을 탭하세요</span><button id="nestCancel">취소</button>';bar.classList.remove('hidden');}
@@ -2095,6 +2172,24 @@
       if(act==='cr-check'){checkCalRoutine(h);}
       else{var hi=state.calRoutines.indexOf(h);state.calRoutines.splice(hi,1);delCalRoutineDB(h.id);renderCalRoutines();
         showToast('루틴을 지웠어요',function(){state.calRoutines.splice(hi,0,h);putCalRoutine(h);renderCalRoutines();});}}
+    else if(act==='cr-edit'){
+      var crEditEl=el.closest('[data-cr]');if(!crEditEl)return;
+      crOpen[crEditEl.dataset.cr]=!crOpen[crEditEl.dataset.cr];renderCalRoutines();}
+    else if(act==='cr-save'){
+      var boxEl=el.closest('.crEditBox');if(!boxEl)return;
+      var h2=state.calRoutines.filter(function(x){return x.id===boxEl.dataset.cr;})[0];if(!h2)return;
+      var newKind=boxEl.querySelector('.crEKind').value;
+      h2.kind=newKind;h2.slot='';h2.unit='day';h2.n=1;h2.weekdays=[];h2.monthday=1;
+      if(newKind==='daily'){h2.slot=boxEl.querySelector('.crESlot').value;}
+      else if(newKind==='interval'){h2.unit=boxEl.querySelector('.crEUnit').value;h2.n=Math.max(1,+boxEl.querySelector('.crEN').value||1);}
+      else if(newKind==='weekday'){
+        h2.weekdays=[].map.call(boxEl.querySelectorAll('.crEWd:checked'),function(c){return +c.value;});
+        if(!h2.weekdays.length){showToast('요일을 하나 이상 선택해주세요');return;}
+      }
+      else if(newKind==='monthday'){h2.monthday=Math.min(31,Math.max(1,+boxEl.querySelector('.crEDay').value||1));}
+      h2.nextDue='';  // 주기 설정이 바뀌었으니 지금 바로 다시 체크 대상이 되게 리셋
+      putCalRoutine(h2);crOpen[h2.id]=false;renderCalRoutines();
+      showToast('루틴 주기를 수정했어요');}
     else if(act==='ct-check'||act==='ct-del'){
       var ctEl=el.closest('[data-ct]'),x=ctEl&&state.calTodos.filter(function(y){return y.id===ctEl.dataset.ct;})[0];
       if(!x)return;
