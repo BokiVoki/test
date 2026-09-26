@@ -1395,6 +1395,7 @@
         +(digest?('<div class="jcap">그 달 하루하루 — 날짜를 누르면 그날로 갑니다</div>'+digest)
                 :'<div class="jcap">이 달엔 아직 쌓인 기록이 없어요</div>')
         +monthTrackerHTML(d);
+      scrollTrackersToToday(auto);
     }else{
       auto.className='jauto';
       var dn=jTodoDone(d),pg=jProg(d),rc=dayRoutineChecks(d);
@@ -1587,6 +1588,17 @@
   // 루틴 트래커 — 깃허브 잔디st, 체크한 날짜(h.history)를 최근 30일 가로줄로 보여줌.
   // 과거 기록은 이 기능을 켠 시점부터 쌓이므로(그 전엔 오늘 상태만 저장했음) 처음엔 비어있는 게 정상.
   function trackerDays(){var days=[];for(var i=29;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days.push(todayISO(d));}return days;}
+  // 트래커 줄이 화면보다 길면 scrollLeft로 오늘 칸 쪽을 보이게 하는데, 그 탭이 아직 display:none인
+  // 상태에서 스크롤 위치를 잡으면 브라우저가 그 값을 버려서(레이아웃이 없으니) 다시 0으로 리셋됨 —
+  // 그래서 렌더 시점뿐 아니라 그 탭이 실제로 화면에 보이게 되는 시점(switchTab)에도 다시 불러줘야 함.
+  function scrollTrackersToToday(root){
+    var ti=todayISO();
+    (root||document).querySelectorAll('.trkgrid').forEach(function(g){
+      var c=g.querySelector('.trkcell[title="'+ti+'"]');
+      if(c)c.scrollIntoView({inline:'end',block:'nearest'});
+      else g.scrollLeft=g.scrollWidth;
+    });
+  }
   function renderRoutineTracker(){
     var el=document.getElementById('calRoutineTracker');if(!el)return;
     if(!hasRoutineHistory||!state.calRoutines.length){el.innerHTML='';return;}
@@ -1599,6 +1611,7 @@
           +days.map(function(d){return '<span class="trkcell'+(hist.indexOf(d)>=0?' on':'')+'" title="'+d+'"></span>';}).join('')
           +'</span></div>';
       }).join('')+'</div>';
+    scrollTrackersToToday(el);
   }
   function ctRow(x){
     return '<div class="lkrow" data-ct="'+x.id+'"><span class="ck'+(x.done?' on':'')+'" data-act="ct-check" role="checkbox" tabindex="0">'+(x.done?svg():'')+'</span>'
@@ -2136,6 +2149,8 @@
     // 내용이 있어도 높이 0으로 보이지 않는 문제(다른 메모 들어갔다 오면 그때는 보이는 상태에서 다시 그려져 정상) →
     // 메모 탭으로 들어올 때마다 이미 그려진 세그먼트 높이를 다시 계산해줌
     if(name==='memo')document.querySelectorAll('#mbodyTree textarea.mseg').forEach(autoGrow);
+    // 같은 이유(숨겨진 상태에서 스크롤 위치를 잡으면 버려짐)로 루틴 트래커도 그 탭이 보이게 될 때 다시 스크롤
+    if(name==='daily'||name==='journal')scrollTrackersToToday(panels[name]);
     try{history.replaceState(null,'','#'+name);}catch(e){}}
   document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){switchTab(b.dataset.tab);});});
   // URL 해시로 탭 딥링크(즐겨찾기용) — 예: haru.lolcv1294.workers.dev/#art 는 그림공부 탭으로 바로 열림.
@@ -2625,6 +2640,7 @@
     document.querySelectorAll('#dailySubtabs button').forEach(function(x){x.setAttribute('aria-selected',x===b);});
     document.getElementById('calRoutinePanel').classList.toggle('hidden',name!=='routine');
     document.getElementById('calTodoPanel').classList.toggle('hidden',name!=='todo');
+    if(name==='routine')scrollTrackersToToday(document.getElementById('calRoutinePanel'));
   });
   // calendar drag
   document.getElementById('calPrev').addEventListener('click',function(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}savePrefs();renderCal();});
