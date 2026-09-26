@@ -6,8 +6,16 @@ import WidgetKit
 struct HaruRoutineWidgetView: View {
     var entry: HaruEntry
 
+    // 홈 화면 위젯(HaruWidgetView)과 같은 순서 — 아침→점심→저녁→시간무관.
+    // 서버(widget-data)가 어떤 순서로 내려주든 여기서 다시 한 번 정렬해서 섞이지 않게 함.
+    private let slotOrder = ["morning", "lunch", "evening", ""]
+    private func slotIndex(_ slot: String?) -> Int {
+        slotOrder.firstIndex(of: slot ?? "") ?? slotOrder.count
+    }
+
     var body: some View {
-        let rows = entry.routines.prefix(4)
+        let sorted = entry.routines.sorted { slotIndex($0.slot) < slotIndex($1.slot) }
+        let rows = sorted.prefix(4)
         VStack(alignment: .leading, spacing: 3) {
             if rows.isEmpty {
                 Text("오늘 루틴 없음")
