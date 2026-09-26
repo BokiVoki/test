@@ -137,13 +137,14 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• 링크 → 요약 + '왜 저장했나' 한 줄\n"
         "• 생각/아이디어 → 노트로\n"
         "• 사진 → 저장 + 정리\n"
-        "• 사고싶은 거 ('살까'/'얼마' 등) → 🛒 위시리스트로\n"
-        "• 읽고싶은 책 ('읽어볼까'/'책추천' 등) → 📚 독서 목록으로\n\n"
+        "• 사진 캡션이 '글'/'글인식' → 📝 사진 속 글을 바로 읽어서 텍스트로\n"
+        "• 사고싶은 거 ('살까'/'얼마'/'찜'/'장바구니' 등) → 🛒 위시리스트로\n"
+        "• 콘텐츠 추천 ('읽어볼까'/'책추천'/'영화'/'드라마'/'애니'/'웹툰' 등) → 📚 읽고·보고 싶은 콘텐츠로\n\n"
         "**명령어**\n"
         "• `/today` — 오늘 모은 것 보기\n"
         "• `/find 키워드` — 인박스에서 찾기\n"
         "• `/shopping` — 사고 싶은 것 목록\n"
-        "• `/books` — 읽고 싶은 책 목록",
+        "• `/content` (= `/books`) — 읽고·보고 싶은 콘텐츠 목록",
         parse_mode="Markdown",
     )
 
@@ -566,18 +567,20 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     url = capture.find_url(text)
     try:
-        # 읽고싶은 책 → 독서 목록으로 (책 의도를 쇼핑보다 먼저 판정)
-        if capture.is_book(text):
+        # 읽고·보고싶은 콘텐츠(책/영화/드라마/애니/웹툰 등) → 콘텐츠 목록으로 (쇼핑보다 먼저 판정)
+        if capture.is_content(text):
             raw = capture.fetch_link(url) if url else {}
             if url:
                 raw["url"] = url
-            bk = capture.parse_book(text, raw)
-            path, content = capture.build_book_note(bk, url=url or "", user_text=text)
-            title = bk.get("title", "읽고 싶은 책")
-            _save_note(path, content, commit_msg=f"book: {title}")
+            cn = capture.parse_content(text, raw)
+            path, content = capture.build_content_note(cn, url=url or "", user_text=text)
+            title = cn.get("title", "읽고 싶은 콘텐츠")
+            ctype = cn.get("type", "기타")
+            emoji = capture.CONTENT_EMOJI.get(ctype, "🗂")
+            _save_note(path, content, commit_msg=f"content: {title}")
             _last_note[chat_id] = {"path": path, "content": content, "title": title}
-            author = bk.get("author", "")
-            reply = f"📚 **{title}** 읽고싶은 책에 넣었어요"
+            author = cn.get("author", "")
+            reply = f"{emoji} **{title}** 읽고·보고 싶은 콘텐츠에 넣었어요 ({ctype})"
             if author:
                 reply += f"\n✍️ {author}"
             await update.message.reply_text(reply, parse_mode="Markdown")
@@ -650,13 +653,15 @@ async def shopping_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def books_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """'/books' (= '/content'): 읽고·보고 싶은 콘텐츠(책/영화/드라마/애니/웹툰 등) 목록.
+    폴더 이름은 예전 그대로 Books지만, 이제 책 외 다른 콘텐츠도 여기 같이 쌓임."""
     if not _authorized(update):
         return
     names = vault.list_folder("Books")
     if not names:
-        await update.message.reply_text("아직 읽고싶은 책 목록이 비어있어요 📚")
+        await update.message.reply_text("아직 읽고·보고 싶은 콘텐츠 목록이 비어있어요 📚")
         return
-    lines = [f"📚 **읽고 싶은 책** ({len(names)}개)\n"]
+    lines = [f"📚 **읽고·보고 싶은 콘텐츠** ({len(names)}개)\n"]
     for n in names[:25]:
         title = n.replace(".md", "")
         parts = title.split("_", 2)
@@ -778,21 +783,59 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.warning(f"사진 볼트 업로드 실패(계속 진행): {e}")
 
-    # 캡션에 책 의도가 있으면 → 바로 읽고싶은 책으로 (표지/제목/저자 읽음)
-    if caption and capture.is_book(caption):
+    # 캡션이 '글'/'글인식'이면 → 버튼 누를 것 없이 바로 사진 속 글을 읽어서 텍스트 노트로
+    if caption and capture.is_text_capture_trigger(caption):
+        if not buf:
+            await update.message.reply_text("❌ 이미지를 못 읽어서 글 인식을 할 수 없어요.")
+            return
+        await context.bot.send_chat_action(chat_id=chat_id, action="typing")
         try:
-            bk = capture.parse_book(caption, {}, image_bytes=buf or None)
-            path, content = capture.build_book_note(bk, user_text=caption, image_embed=image_embed)
-            title = bk.get("title", "읽고 싶은 책")
-            _save_note(path, content, commit_msg=f"book: {title}")
+            ocr = capture.read_photo_text(buf, "")
+            text = (ocr.get("text") or "").strip()
+            if not text:
+                await update.message.reply_text("글을 못 읽었어요 (글이 적거나 흐릿할 수 있어요).")
+                return
+            parsed = {"title": ocr.get("title") or "글 캡처", "text": text,
+                      "tags": ocr.get("tags") or [], "hub": ocr.get("hub") or ""}
+            path, content = capture.build_text_note(parsed, image_embed=image_embed)
+            _save_note(path, content, commit_msg=f"text: {parsed['title']}")
+            _last_note[chat_id] = {"path": path, "content": content, "title": parsed["title"]}
+            preview = text if len(text) <= 3500 else text[:3500] + "\n…(너무 길어 여기선 잘림 — 노트엔 전체 저장됨)"
+            extra = ""
+            if parsed["tags"]:
+                extra = "\n🏷 " + " ".join("#" + t for t in parsed["tags"])
+            if parsed["hub"]:
+                extra += f"\n🗂 {parsed['hub']}"
+            markup = InlineKeyboardMarkup([
+                [InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
+                [_del_button(path)],
+            ])
+            await update.message.reply_text(
+                "📝 글 읽어서 노트로 저장했어요:" + extra + "\n\n" + preview,
+                reply_markup=markup,
+            )
+        except Exception as e:
+            logger.exception("글 인식 저장 실패")
+            await update.message.reply_text(f"❌ 저장 실패: {e}")
+        return
+
+    # 캡션에 콘텐츠(책/영화/드라마/애니/웹툰 등) 의도가 있으면 → 바로 콘텐츠 목록으로 (표지/포스터 읽음)
+    if caption and capture.is_content(caption):
+        try:
+            cn = capture.parse_content(caption, {}, image_bytes=buf or None)
+            path, content = capture.build_content_note(cn, user_text=caption, image_embed=image_embed)
+            title = cn.get("title", "읽고 싶은 콘텐츠")
+            ctype = cn.get("type", "기타")
+            emoji = capture.CONTENT_EMOJI.get(ctype, "🗂")
+            _save_note(path, content, commit_msg=f"content: {title}")
             _last_note[chat_id] = {"path": path, "content": content, "title": title}
-            author = bk.get("author", "")
-            reply = f"📚 **{title}** 읽고싶은 책에 넣었어요"
+            author = cn.get("author", "")
+            reply = f"{emoji} **{title}** 읽고·보고 싶은 콘텐츠에 넣었어요 ({ctype})"
             if author:
                 reply += f"\n✍️ {author}"
             await update.message.reply_text(reply, parse_mode="Markdown")
         except Exception as e:
-            logger.exception("책 사진 저장 실패")
+            logger.exception("콘텐츠 사진 저장 실패")
             await update.message.reply_text(f"❌ 저장 실패: {e}")
         return
 
@@ -845,12 +888,12 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not image_embed:
         reply += "\n(⚠️ 이미지 업로드는 실패 — 메모만 저장됨)"
     reply += "\n\n_한 줄 남기거나, 종류에 맞는 버튼을 눌러요._"
-    reply += "\n\n_글(스크린샷)이면 📝 글 인식을 눌러요._"
+    reply += "\n\n_글(스크린샷)이면 📝 글 인식을 누르거나, 다음부턴 사진 보낼 때 캡션에 '글'이라고만 써도 바로 읽어요._"
     markup = InlineKeyboardMarkup([
         [InlineKeyboardButton("📝 글 인식", callback_data=_stampcb("o", path)),
          InlineKeyboardButton("✍️ 내 생각", callback_data="annotate")],
         [InlineKeyboardButton("🛒 사고싶은 거", callback_data="toshop"),
-         InlineKeyboardButton("📚 읽고싶은 책", callback_data="toread")],
+         InlineKeyboardButton("📚 콘텐츠(책/영화 등)", callback_data="toread")],
         [_del_button(path)],
     ])
     await update.message.reply_text(reply, parse_mode="Markdown", reply_markup=markup)
@@ -896,7 +939,7 @@ async def toshop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def toread_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """일반 사진 노트를 읽고싶은 책으로 전환 (표지/제목/저자를 비전으로 읽음)."""
+    """일반 사진 노트를 읽고·보고 싶은 콘텐츠로 전환 (표지/포스터를 비전으로 읽음)."""
     if not _authorized(update):
         return
     query = update.callback_query
@@ -910,23 +953,25 @@ async def toread_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_reply_markup(reply_markup=None)
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     try:
-        bk = capture.parse_book(photo.get("caption", ""), {}, image_bytes=photo.get("bytes") or None)
-        path, content = capture.build_book_note(
-            bk, user_text=photo.get("caption", ""), image_embed=photo.get("embed", ""),
+        cn = capture.parse_content(photo.get("caption", ""), {}, image_bytes=photo.get("bytes") or None)
+        path, content = capture.build_content_note(
+            cn, user_text=photo.get("caption", ""), image_embed=photo.get("embed", ""),
         )
-        title = bk.get("title", "읽고 싶은 책")
-        _save_note(path, content, commit_msg=f"book: {title}")
+        title = cn.get("title", "읽고 싶은 콘텐츠")
+        ctype = cn.get("type", "기타")
+        emoji = capture.CONTENT_EMOJI.get(ctype, "🗂")
+        _save_note(path, content, commit_msg=f"content: {title}")
         if photo.get("inbox_path"):
-            vault.delete_note(photo["inbox_path"], commit_msg=f"move to books: {title}")
+            vault.delete_note(photo["inbox_path"], commit_msg=f"move to content: {title}")
         _last_note[chat_id] = {"path": path, "content": content, "title": title}
         _last_photo.pop(chat_id, None)
-        author = bk.get("author", "")
-        reply = f"📚 **{title}** 읽고싶은 책으로 옮겼어요"
+        author = cn.get("author", "")
+        reply = f"{emoji} **{title}** 읽고·보고 싶은 콘텐츠로 옮겼어요 ({ctype})"
         if author:
             reply += f"\n✍️ {author}"
         await query.message.reply_text(reply, parse_mode="Markdown")
     except Exception as e:
-        logger.exception("책 전환 실패")
+        logger.exception("콘텐츠 전환 실패")
         await query.message.reply_text(f"❌ 전환 실패: {e}")
 
 
@@ -943,6 +988,7 @@ def main():
     app.add_handler(CommandHandler("find", find_handler))
     app.add_handler(CommandHandler("shopping", shopping_handler))
     app.add_handler(CommandHandler("books", books_handler))
+    app.add_handler(CommandHandler("content", books_handler))  # /books 와 동일 — 콘텐츠 전반으로 넓어져서 별칭 추가
 
     app.add_handler(CallbackQueryHandler(delete_callback, pattern=r"^d:"))
     app.add_handler(CallbackQueryHandler(ocr_callback, pattern=r"^o:"))

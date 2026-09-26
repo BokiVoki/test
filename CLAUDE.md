@@ -46,16 +46,20 @@
   - 링크 → 본문 fetch + Claude(Sonnet) 요약 + "왜 저장" 한 줄. 인스타 등 못 읽는 사이트는 안내 문구
   - 생각/텍스트 → 아이디어 노트
   - 사진 → 볼트 `Inbox/attachments/`에 직접 커밋 + `![[...]]` 임베드. 저장 메시지에 **📝 글 인식** 버튼(`ocr_callback`, callback `o:{폴더}:{stamp}`) → 눌러야 실행(자동 아님): 노트 이미지를 볼트에서 `read_binary`로 다시 읽어 `capture.read_photo_text`(비전)로 글 추출 → 노트에 `## 📄 인식한 글` 추가 + **읽은 글에서 뽑은 태그/허브를 frontmatter에 합치고 그래프 링크(`관련: [[허브]]`)까지 옵시디언용 자동 정리**(`merge_tags_into_note`, 답장에 🏷/🗂 표시) + **읽은 글을 사용자에게 확인용으로 전송**(4096자 제한, 3500 넘으면 잘림). `_stampcb`/`_find_note` 공통.
-  - 쇼핑("살까/얼마") → `Shopping/` 위시리스트 (비전으로 상품/가격 읽음)
-  - 책("읽어볼까/책추천") → `Books/` 읽고싶은 책 (표지 제목/저자 읽음, 여러 권이면 목록)
+  - 쇼핑("살까/얼마/찜/장바구니/사고싶음" 등) → `Shopping/` 위시리스트 (비전으로 상품/가격 읽음)
+  - 콘텐츠("읽어볼까/책추천/영화/드라마/애니/웹툰/다큐/콘텐츠" 등) → `Books/` 읽고·보고 싶은 콘텐츠 (표지·포스터 읽음, 여러 개면 목록) — 아래 "캡션 트리거 확장" 참고
   - `✍️ 내 생각` 버튼 → 사용자 말에서 태그 재추출, 캡션 우선
   - **삭제**: 각 저장 메시지에 `🗑 삭제` 버튼 — **재시작에도 안전하게** callback_data에 `d:{폴더코드}:{타임스탬프}`를 담음(`_del_button`/`delete_callback`, `list_folder`로 stamp 매칭 → 노트+`![[img]]` 첨부 삭제). 일괄: `삭제`/`삭제 N`/`최근삭제 N` 텍스트 → 인박스 최근 N개 삭제(`_delete_recent`). `vault.read_note`/`list_folder`/`delete_note`.
   - **사진 여러 장(앨범)**: `media_group_id`로 **file_id만 즉시 버퍼**(`_album_buf`, 핸들러는 업로드 안 함=빠름) → 4초 debounce 후 `_flush_album`이 다운로드+업로드하고 **한 노트에 전부 임베드**(`![[img]]` 여러 줄, 첫 캡션 사용). job_queue 없으면 개별 저장로 폴백. (예전에 핸들러에서 바로 업로드하다 느려서 앨범이 쪼개지던 것 → file_id 버퍼링으로 해결)
-  - 명령어: `/today` `/find` `/shopping` `/books`
+  - **캡션 트리거 확장 + 콘텐츠 일반화(2026-09-27)**: "사진 보낼 때 텍스트로 뭘 할지 지정하고 싶다"는 요청.
+    - **캡션 '글'/'글인식'/'글 인식' → 버튼 없이 바로 글 인식**: 사진 캡션이 정확히 이 형태(`capture.is_text_capture_trigger`, 정규식 `^글\s*(인식)?$`라 "글쓰기"·"오늘 글 썼다"처럼 문장 속 '글'까지는 안 걸림)일 때, `photo_handler`가 **버튼을 기다리지 않고** 그 자리에서 `capture.read_photo_text`+`build_text_note`로 텍스트 캡처 노트를 바로 만듦(기존 `ocr_callback`용 버튼은 그대로 남아있음 — 캡션을 깜빡했을 때의 대안). `build_text_note`는 원래 있었지만 실제로는 아무 데서도 안 부르던 죽은 코드였는데, 이 기능으로 처음 실사용됨.
+    - **쇼핑 키워드에 '찜' 추가**(`SHOPPING_KEYWORDS`) — '장바구니'·'사고싶음'은 기존 키워드(`장바구니`, `사고싶`)의 부분 문자열이라 이미 걸렸음.
+    - **"읽고 싶은 책" → "읽고·보고 싶은 콘텐츠"로 일반화**: 책만 받던 걸 영화·드라마·애니·웹툰·다큐까지 넓힘. `is_book`→`is_content`, `BOOK_KEYWORDS`→`CONTENT_KEYWORDS`(영화/드라마/애니/웹툰/다큐/콘텐츠/보고싶/볼까/정주행 등 추가), `parse_book`→`parse_content`(반환값에 `type` 필드 추가 — 책/영화/드라마/애니/웹툰/다큐/기타 중 하나, 모델이 못 정하면 "기타"), `build_book_note`→`build_content_note`(종류별 이모지 `CONTENT_EMOJI`로 제목 앞에 붙임: 📚책·🎬영화·📺드라마·🎨애니·📖웹툰·🎞다큐, frontmatter `type: to-consume`+`content_type: {종류}`). **폴더는 일부러 `Books/` 그대로 유지**(마이그레이션·기존 옵시디언 링크 안 건드리는 쪽을 선택받음) — 폴더 이름과 실제 내용(책 외 콘텐츠도 섞임)이 안 맞아 보일 수 있지만, 폴더 리네임은 하드 리버서블이 아니라 사용자 확인 후 "그대로 유지"로 결정. `/books` 명령은 그대로 두고 `/content` 별칭 추가(`books_handler` 재사용). 버튼 라벨 `📚 읽고싶은 책`→`📚 콘텐츠(책/영화 등)`, `toread_callback`도 같은 방식으로 일반화.
+  - 명령어: `/today` `/find` `/shopping` `/books`(=`/content`)
   - 비전 모델: `INBOX_VISION_MODEL` (기본 sonnet, opus로 올릴 수 있음)
   - **파일명 형식**: `제목 YYMMDD-HHMM.md` (제목 앞으로, 밑줄 X=띄어쓰기, 날짜는 뒤에 짧게) — 옵시디언 그래프에서 노드가 날짜 대신 **제목으로 읽히게** (`capture._slugify`는 공백 유지+금지문자만 제거, `capture._note_path`). 삭제/글인식 콜백은 파일명 뒤 `YYMMDD-HHMM` 스탬프로 노트 매칭(`_stampcb`/`_find_note`, `stamp in name`), 옛 형식(`YYYY-MM-DD_HHMM` 앞)도 호환. 최신순 정렬은 `vault._recency_key`가 파일명에서 날짜 뽑아 유지.
   - **허브를 실제 파일로**: `관련: [[허브]]`는 원래 유령 노드(파일 없음)라 옵시디언 그래프에서 색칠이 안 됨 → 노트 저장 시 `_save_note`(모든 write_note 래퍼)가 `_ensure_hub_notes`로 `Hubs/{허브}.md`(frontmatter `tags:[허브]`)를 자동 생성(`_hub_seen` 캐시). **`이름정리` 명령**이 기존 노트도 리네임 + 허브 백필(`_backfill_hubs`). **그래프 색칠은 옵시디언 앱에서 Groups `path:Hubs` → 초록**(코드 아님).
-  - **태그 vs 허브 기준**: 태그(2~4개)=이 노트 하나의 짧은 속성/종류 라벨(예: 감상·인터뷰·유튜브·창의력), 허브(1개)=여러 노트가 재사용하는 넓은 카테고리(예: 글쓰기·브랜딩·자기계발) — 노트 요약이면 안 됨. **옵시디언 태그는 공백이 있으면 무효**라 프롬프트에 "공백 없는 한 단어"를 명시(모든 tags 프롬프트: `summarize`/`derive_tags`/`read_photo_text`/`parse_book`/`parse_shopping`) + 코드 안전장치 `capture._clean_tags`(공백 제거·중복 제거)를 모든 tags_yaml 생성 지점과 `merge_tags_into_note`에 적용(기존에 이미 오염된 태그도 다음 저장 때 자동 정리됨). **`태그정리` 명령**이 기존 노트 전체를 한 번에 정리(`_clean_note_tags`, 바뀔 것만 저장해서 빠름).
+  - **태그 vs 허브 기준**: 태그(2~4개)=이 노트 하나의 짧은 속성/종류 라벨(예: 감상·인터뷰·유튜브·창의력), 허브(1개)=여러 노트가 재사용하는 넓은 카테고리(예: 글쓰기·브랜딩·자기계발) — 노트 요약이면 안 됨. **옵시디언 태그는 공백이 있으면 무효**라 프롬프트에 "공백 없는 한 단어"를 명시(모든 tags 프롬프트: `summarize`/`derive_tags`/`read_photo_text`/`parse_content`/`parse_shopping`) + 코드 안전장치 `capture._clean_tags`(공백 제거·중복 제거)를 모든 tags_yaml 생성 지점과 `merge_tags_into_note`에 적용(기존에 이미 오염된 태그도 다음 저장 때 자동 정리됨). **`태그정리` 명령**이 기존 노트 전체를 한 번에 정리(`_clean_note_tags`, 바뀔 것만 저장해서 빠름).
 - **연결 상태**: ✅ 이미 연결됨. 볼트 = `BokiVoki/obsidian-vault`(Private), Railway 두 번째 서비스(`BOT_ROLE=inbox`)에서 커밋 중. env: `INBOX_BOT_TOKEN`, `VAULT_REPO`, `GITHUB_TOKEN`, `BOT_ROLE=inbox`, (공유: `ANTHROPIC_API_KEY`, `TELEGRAM_USER_ID`)
   - **남은 것**: 옵시디언 앱에서 그 볼트를 열어 보기 (GitHub Desktop으로 clone → 폴더를 볼트로 열기 → 자동 업데이트는 **Obsidian Git** 플러그인)
 

@@ -21,7 +21,7 @@ _client = None
 # 쇼핑/구매 의도 키워드 → 위시리스트로 분류
 SHOPPING_KEYWORDS = (
     "사고싶", "사고 싶", "살까", "사야", "구매", "지름", "지를", "질러",
-    "갖고싶", "갖고 싶", "가지고싶", "위시", "장바구니", "얼마", "할인", "세일",
+    "갖고싶", "갖고 싶", "가지고싶", "위시", "장바구니", "찜", "얼마", "할인", "세일",
     "쿠폰", "최저가", "가격", "직구", "주문", "품절",
 )
 
@@ -31,21 +31,35 @@ def is_shopping(text: str) -> bool:
     return any(k in t for k in SHOPPING_KEYWORDS)
 
 
-# 책/독서 의도 키워드 → 읽고싶은 책 목록으로 분류
-BOOK_KEYWORDS = (
+# 글(스크린샷 속 텍스트) 그대로 읽어달라는 명시적 트리거 — "글"/"글인식"/"글 인식"만(단어 중간에
+# '글'이 들어간 다른 캡션까지 걸리지 않게 정확히 이 형태일 때만 매칭)
+_TEXT_CAPTURE_RE = re.compile(r"^글\s*(인식)?$")
+
+
+def is_text_capture_trigger(text: str) -> bool:
+    return bool(_TEXT_CAPTURE_RE.match((text or "").strip()))
+
+
+# 콘텐츠(책/영화/드라마/애니/웹툰/다큐 등) 의도 키워드 → "읽고·보고 싶은 콘텐츠" 목록으로 분류
+CONTENT_KEYWORDS = (
     "읽고싶", "읽고 싶", "읽어보", "읽어볼", "읽을", "독서", "완독",
-    "책추천", "책 추천", "도서", "베스트셀러", "저자", "소설", "에세이", "북토크",
+    "책추천", "책 추천", "도서", "베스트셀러", "저자", "소설", "에세이", "북토크", "책",
+    "보고싶", "보고 싶", "볼까", "관람", "시청", "정주행",
+    "영화", "드라마", "애니", "웹툰", "다큐", "콘텐츠",
 )
 
+CONTENT_TYPES = ("책", "영화", "드라마", "애니", "웹툰", "다큐", "기타")
+CONTENT_EMOJI = {"책": "📚", "영화": "🎬", "드라마": "📺", "애니": "🎨", "웹툰": "📖", "다큐": "🎞", "기타": "🗂"}
 
-def is_book(text: str) -> bool:
+
+def is_content(text: str) -> bool:
     t = (text or "").lower()
-    return any(k in t for k in BOOK_KEYWORDS)
+    return any(k in t for k in CONTENT_KEYWORDS)
 
 
-def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
-    """책 정보 추출. 사진이 있으면 표지/제목/저자를 비전으로 읽는다.
-    반환: {"title","author","why","tags"}"""
+def parse_content(text: str, raw: dict, image_bytes: bytes = None) -> dict:
+    """책/영화/드라마/애니/웹툰 등 콘텐츠 정보 추출. 사진이 있으면 표지/포스터를 비전으로 읽는다.
+    반환: {"title","type","author","why","items","tags"}"""
     import base64 as _b64
 
     material = (
@@ -55,15 +69,17 @@ def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
         f"페이지 설명: {raw.get('description','') if raw else ''}"
     )
     ask = (
-        "이건 사용자가 저장한 책/만화 추천이야. **사용자 캡션이 이 저장의 의도**니 그걸 최우선으로 반영해. JSON만 반환:\n"
+        "이건 사용자가 저장한 콘텐츠(책/만화/영화/드라마/애니/웹툰/다큐 등) 추천이야. "
+        "**사용자 캡션이 이 저장의 의도**니 그걸 최우선으로 반영해. JSON만 반환:\n"
         "{\n"
         '  "title": "노트 제목 — 사용자 캡션을 핵심으로. 사진 속 프로그램명/시리즈명/코너명(예: 9コマ)은 제목으로 쓰지 마.",\n'
-        '  "author": "저자 또는 추천인 (예: 이해인 편집장). 모르면 빈 문자열",\n'
-        '  "items": ["사진/내용에 여러 책·만화가 있으면 각 제목을 배열로. 한 권이면 그 하나. 없으면 빈 배열 []"],\n'
-        '  "why": "어떤 추천인지/왜 읽고 싶은지 한 줄 (한국어)",\n'
+        f'  "type": "다음 중 하나만: {", ".join(CONTENT_TYPES)}",\n'
+        '  "author": "저자·감독·출연진 등 (예: 이해인 편집장). 모르면 빈 문자열",\n'
+        '  "items": ["사진/내용에 여러 개가 있으면 각 제목을 배열로. 하나면 그 하나. 없으면 빈 배열 []"],\n'
+        '  "why": "왜 보고/읽고 싶은지 한 줄 (한국어)",\n'
         '  "tags": ["짧은 개념어 태그 2~3개. 공백 없이 한 단어씩(예: 순정만화, 에세이, 자기계발). 문장·구는 금지"]\n'
         "}\n"
-        "사진에 여러 만화·책 표지가 격자(grid)로 있으면, 표지 하나하나를 순서대로 훑으며 "
+        "사진에 여러 표지·포스터가 격자(grid)로 있으면, 하나하나를 순서대로 훑으며 "
         "각 제목을 최대한 읽어 items에 담아. 일본어 제목이면 원제 그대로 또는 한국어 번역으로. "
         "작거나 흐릿해도 읽히는 만큼 적고, 정말 못 읽는 것만 건너뛰어.\n\n"
         f"{material}"
@@ -88,27 +104,31 @@ def parse_book(text: str, raw: dict, image_bytes: bytes = None) -> dict:
                 data = json.loads(mm.group())
                 data.setdefault("tags", [])
                 data.setdefault("items", [])
+                if data.get("type") not in CONTENT_TYPES:
+                    data["type"] = "기타"
                 # 캡션이 있으면 제목이 화면 시리즈명으로 새지 않게 보정
                 if text and text.strip() and not (data.get("title") or "").strip():
                     data["title"] = text.strip()
                 return data
         except Exception as e:
-            logger.warning(f"parse_book 실패 (model={m_name}): {e}")
-    return {"title": (text or "읽고 싶은 책")[:40], "author": "", "why": "", "items": [], "tags": ["독서"]}
+            logger.warning(f"parse_content 실패 (model={m_name}): {e}")
+    return {"title": (text or "읽고 싶은 콘텐츠")[:40], "type": "기타", "author": "", "why": "", "items": [], "tags": ["콘텐츠"]}
 
 
-def build_book_note(parsed: dict, url: str = "", user_text: str = "",
-                    image_embed: str = "") -> tuple[str, str]:
-    """읽고싶은 책 노트 생성 → Books/ 폴더에 저장."""
+def build_content_note(parsed: dict, url: str = "", user_text: str = "",
+                       image_embed: str = "") -> tuple[str, str]:
+    """읽고·보고 싶은 콘텐츠(책/영화/드라마/애니/웹툰/다큐 등) 노트 생성 → Books/ 폴더에 저장
+    (폴더 이름은 그대로 유지 — 기존 옵시디언 링크·마이그레이션 없이 안에서 종류만 넓힘)."""
     now = _now_kst()
-    stamp_file = now.strftime("%Y-%m-%d_%H%M")
     stamp_human = now.strftime("%Y-%m-%d %H:%M")
-    title = (parsed.get("title") or "읽고 싶은 책").strip()
+    title = (parsed.get("title") or "읽고 싶은 콘텐츠").strip()
+    ctype = parsed.get("type") if parsed.get("type") in CONTENT_TYPES else "기타"
+    emoji = CONTENT_EMOJI.get(ctype, "🗂")
     path = _note_path("Books", title, now)
 
     tags = _clean_tags(parsed.get("tags"))
-    if "독서" not in tags:
-        tags = ["독서"] + tags
+    if ctype not in tags:
+        tags = [ctype] + tags
     tags_yaml = "[" + ", ".join(tags) + "]"
     author = (parsed.get("author") or "").strip()
     why = (parsed.get("why") or "").strip()
@@ -116,21 +136,22 @@ def build_book_note(parsed: dict, url: str = "", user_text: str = "",
 
     lines = [
         "---",
-        "type: to-read",
+        "type: to-consume",
+        f"content_type: {ctype}",
         f"created: {stamp_human}",
         "status: 읽고싶음",
         f'author: "{author}"',
         f"tags: {tags_yaml}",
         "---",
         "",
-        f"# 📚 {title}",
+        f"# {emoji} {title}",
         "",
     ]
     if author:
         lines.append(f"✍️ {author}")
         lines.append("")
 
-    # 여러 권 추천이면 각각 체크박스, 한 권이면 단일 체크
+    # 여러 개 추천이면 각각 체크박스, 하나면 단일 체크
     if len(items) > 1:
         lines.append("## 추천 목록")
         for it in items:
@@ -144,7 +165,7 @@ def build_book_note(parsed: dict, url: str = "", user_text: str = "",
     if image_embed:
         lines.append(f"![[{image_embed}]]")
         lines.append("")
-    lines.append("## 왜 읽고 싶어?")
+    lines.append("## 왜 보고/읽고 싶어?")
     if user_text and user_text.strip():
         lines.append(user_text.strip())
     elif why:
