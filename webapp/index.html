@@ -216,6 +216,22 @@
   .arcResRow:hover{color:var(--accent)}
   .arcResRow img{width:20px;height:28px;object-fit:cover;flex:none}
   .archnote{width:100%;font:inherit;font-size:12.5px;color:var(--text);background:transparent;border:0;border-bottom:1px solid var(--line-2);padding:4px 2px;resize:vertical;min-height:40px}
+  .lgsummary{display:flex;gap:20px;flex-wrap:wrap;margin:14px 0}
+  .lgsum-item{font-size:12.5px;color:var(--muted)}
+  .lgsum-item b{display:block;font-family:var(--mono);font-size:17px;color:var(--text);margin-top:2px}
+  .lgsum-income b{color:var(--accent)}
+  .lgsum-expense b{color:var(--accent-2)}
+  .lgsum-item b.neg{color:var(--accent-2)}
+  .lgcatbrk{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .lgcathead{width:100%;font-size:11px;color:var(--faint)}
+  .lgcatchip{font-size:11px;color:var(--muted);border:1px solid var(--line-2);padding:2px 6px;font-family:var(--mono)}
+  .lgform#ledgerAddForm input[type="date"]{flex:0 0 130px}
+  .lgform#ledgerAddForm input[type="number"]{flex:0 0 90px}
+  .lgrow .lgdate{flex:none;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .lgrow .lgamt{flex:none;font-family:var(--mono);font-weight:700}
+  .lgrow .lgamt.income{color:var(--accent)}
+  .lgrow .lgamt.expense{color:var(--accent-2)}
+  .lgrow .lgmemo{flex:none;font-size:11px;color:var(--faint);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .trkwrap{display:flex;flex-direction:column;gap:5px}
   .trkrow{display:flex;align-items:center;gap:8px}
   .trktitle{flex:0 0 140px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)}
@@ -584,6 +600,7 @@
       <button role="tab" aria-selected="false" data-tab="drawer">서랍</button>
       <button role="tab" aria-selected="false" data-tab="art">그림공부</button>
       <button role="tab" aria-selected="false" data-tab="archive">아카이브</button>
+      <button role="tab" aria-selected="false" data-tab="ledger">가계부</button>
     </nav>
     <div class="right">
       <button class="theme" id="theme" title="테마 전환" aria-label="테마 전환">◐</button>
@@ -792,6 +809,30 @@
       </div>
     </div>
   </div>
+  <div id="ledger" class="hidden">
+    <div id="ledgerNoTable" class="hidden"><p class="caphint">⚠️ 가계부 표가 아직 없어요 — Supabase에 SQL 마이그레이션을 먼저 실행해주세요.</p></div>
+    <div id="ledgerBody">
+      <div class="bhead"><h2>가계부</h2><div class="r">수입·지출 기록</div></div>
+      <div class="monthnav">
+        <button id="lgPrev" title="지난 달">‹</button>
+        <h2 id="lgTitle"></h2>
+        <button id="lgNext" title="다음 달">›</button>
+        <button class="btn-s hidden" id="lgThis">이번 달로</button>
+      </div>
+      <div class="lgsummary" id="lgSummary"></div>
+      <div class="lgcatbrk" id="lgCatBrk"></div>
+      <div id="lgList"></div>
+      <div class="archform lgform" id="ledgerAddForm">
+        <input type="date" id="lgDate" aria-label="날짜">
+        <select id="lgType" aria-label="종류"><option value="expense">지출</option><option value="income">수입</option></select>
+        <input id="lgCat" list="lgCatList" placeholder="카테고리" aria-label="카테고리">
+        <datalist id="lgCatList"></datalist>
+        <input type="number" id="lgAmount" placeholder="금액" min="0" aria-label="금액">
+        <input id="lgMemo" placeholder="메모(선택)" aria-label="메모">
+        <button class="btn-s" id="lgAdd">추가</button>
+      </div>
+    </div>
+  </div>
   <p class="foot">Supabase에 저장돼요 · 로그인한 기기 어디서든 동기화</p>
 </div>
 
@@ -848,6 +889,7 @@
   var hasRoutineToggle=false; // routines.unit 컬럼이 있으면 true (상시업무 매일/주기/요일 체크리스트, SQL 마이그레이션 후, 2026-09-25)
   var hasRoutineHistory=false; // cal_routines.history 컬럼이 있으면 true (루틴 트래커용 체크 기록, SQL 마이그레이션 후, 2026-09-25)
   var hasContentArchive=false; // archive 테이블이 있으면 true (콘텐츠 아카이브 탭 — 일정봇 아카이브와 이름 겹쳐서 hasArchive 대신 이 이름 씀, 2026-09-26)
+  var hasLedger=false; // ledger 테이블이 있으면 true (가계부 탭, 2026-09-27)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
@@ -974,6 +1016,13 @@
       source:x.source||'',raw_log:x.rawLog||'',author:x.author||'',year_watched:x.yearWatched||'',publisher:x.publisher||'',
       cover_url:x.coverUrl||'',sort:x.sort||0}).then(function(r){if(r.error)console.warn('archive',r.error.message);});}
   function delArchiveDB(id){if(!hasContentArchive)return;sb.from('archive').delete().eq('id',id).then(function(){});}
+  // ===== 가계부(2026-09-27, 기본 기능) — 수입/지출 기록, 월별 집계·카테고리별 합계 =====
+  var LEDGER_EXPENSE_CATS=['식비','카페/간식','교통','생활용품','쇼핑','의료','문화/여가','주거/공과금','경조사','기타'];
+  var LEDGER_INCOME_CATS=['급여','부수입','용돈','환급','기타'];
+  function fromLedger(r){return {id:r.id,date:r.date||todayISO(),type:r.type==='income'?'income':'expense',category:r.category||'',amount:+r.amount||0,memo:r.memo||'',sort:+r.sort||0};}
+  function putLedger(x){if(!hasLedger)return;sb.from('ledger').upsert({id:x.id,owner:state.uid,date:x.date||todayISO(),type:x.type==='income'?'income':'expense',category:x.category||'기타',amount:x.amount||0,memo:x.memo||'',sort:x.sort||0}).then(function(r){if(r.error)console.warn('ledger',r.error.message);});}
+  function delLedgerDB(id){if(!hasLedger)return;sb.from('ledger').delete().eq('id',id).then(function(){});}
+  function fmtWon(n){return (n||0).toLocaleString('ko-KR')+'원';}
   function putJournal(j){if(!hasJournal)return;j.updated=new Date().toISOString();var row={id:j.id,date:j.date,body:j.body,images:j.images||[],updated:j.updated};if(hasMonthGoal){row.goal=j.goal||'';row.musts=j.musts||[];}sb.from('journal').upsert(row).then(function(r){if(r.error)console.warn('journal',r.error.message);});}
   function putMemo(m){m.updated=new Date().toISOString();sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
   function delMemoDB(id){sb.from('memos').delete().eq('id',id).then(function(){});}
@@ -1080,6 +1129,81 @@
     state.archive.unshift(a);putArchiveEntry(a);ti.value='';arcOpen[a.id]=true;renderArchiveTab();
   }
 
+  // ── 가계부 화면 ──
+  var lgOpen={}; // 항목 수정 펼침 상태(세션 한정, id→bool)
+  function ledgerById(id){return state.ledger.filter(function(x){return x.id===id;})[0];}
+  function ledgerCats(type){
+    var base=type==='income'?LEDGER_INCOME_CATS:LEDGER_EXPENSE_CATS,out=base.slice(),seen={};
+    out.forEach(function(c){seen[c]=1;});
+    state.ledger.forEach(function(x){if(x.type===type&&x.category&&!seen[x.category]){seen[x.category]=1;out.push(x.category);}});
+    return out;
+  }
+  function ledgerMonthItems(m){return state.ledger.filter(function(x){return (x.date||'').slice(0,7)===m;}).sort(function(a,b){if(a.date!==b.date)return a.date<b.date?1:-1;return (b.sort||0)-(a.sort||0);});}
+  function ledgerSummary(m){
+    var items=ledgerMonthItems(m),income=0,expense=0;
+    items.forEach(function(x){if(x.type==='income')income+=x.amount;else expense+=x.amount;});
+    return {income:income,expense:expense,net:income-expense,items:items};
+  }
+  function ledgerCatBreakdown(items,type){
+    var map={};
+    items.forEach(function(x){if(x.type===type){var c=x.category||'기타';map[c]=(map[c]||0)+x.amount;}});
+    return Object.keys(map).map(function(c){return {cat:c,amount:map[c]};}).sort(function(a,b){return b.amount-a.amount;});
+  }
+  function lgRow(x){
+    var open=!!lgOpen[x.id];
+    return '<div class="lkrow lgrow" data-lg="'+x.id+'">'
+      +'<span class="lgdate">'+mmdd(x.date)+'</span>'
+      +'<span class="rtcyc">'+(x.type==='income'?'수입':'지출')+'</span>'
+      +'<span class="mktxt">'+esc(x.category||'미분류')+'</span>'
+      +(x.memo?'<span class="lgmemo" title="'+esc(x.memo)+'">'+esc(x.memo)+'</span>':'')
+      +'<span class="lgamt '+x.type+'">'+(x.type==='income'?'+':'-')+fmtWon(x.amount)+'</span>'
+      +'<span class="crEditTog" data-act="lg-edit" title="수정">'+(open?'▴':'✎')+'</span>'
+      +'<span class="lkdel" data-act="lg-del" title="지우기">✕</span></div>'
+      +(open?lgEditRow(x):'');
+  }
+  function lgEditRow(x){
+    return '<div class="crEditBox" data-lg="'+x.id+'">'
+      +'<input type="date" class="lgEDate" value="'+esc(x.date)+'">'
+      +'<select class="lgEType"><option value="expense"'+(x.type==='expense'?' selected':'')+'>지출</option><option value="income"'+(x.type==='income'?' selected':'')+'>수입</option></select>'
+      +'<input class="lgECat" list="lgCatList" value="'+esc(x.category)+'" placeholder="카테고리">'
+      +'<input type="number" class="lgEAmount" min="0" value="'+x.amount+'" placeholder="금액" style="width:90px">'
+      +'<input class="lgEMemo" value="'+esc(x.memo)+'" placeholder="메모" style="flex:1 1 120px">'
+      +'<button class="btn-s" type="button" data-act="lg-save">저장</button>'
+      +'</div>';
+  }
+  function renderLedger(){
+    var noTbl=document.getElementById('ledgerNoTable'),body=document.getElementById('ledgerBody');
+    if(!noTbl)return;
+    noTbl.classList.toggle('hidden',hasLedger);
+    body.classList.toggle('hidden',!hasLedger);
+    if(!hasLedger)return;
+    var m=state.ledgerMonth||thisMonth();
+    document.getElementById('lgTitle').textContent=monthLabel(m);
+    document.getElementById('lgThis').classList.toggle('hidden',m===thisMonth());
+    var sum=ledgerSummary(m);
+    document.getElementById('lgSummary').innerHTML=
+      '<div class="lgsum-item lgsum-income">수입<b>'+fmtWon(sum.income)+'</b></div>'
+      +'<div class="lgsum-item lgsum-expense">지출<b>'+fmtWon(sum.expense)+'</b></div>'
+      +'<div class="lgsum-item">잔액<b class="'+(sum.net<0?'neg':'')+'">'+fmtWon(sum.net)+'</b></div>';
+    var brk=ledgerCatBreakdown(sum.items,'expense');
+    document.getElementById('lgCatBrk').innerHTML=brk.length?('<div class="lgcathead">지출 카테고리별</div>'+brk.map(function(b){return '<span class="lgcatchip">'+esc(b.cat)+' '+fmtWon(b.amount)+'</span>';}).join('')):'';
+    document.getElementById('lgList').innerHTML=sum.items.length?sum.items.map(lgRow).join(''):'<p class="boardempty">'+monthLabel(m)+'엔 아직 기록이 없어요</p>';
+    var catList=document.getElementById('lgCatList'),tySel=document.getElementById('lgType');
+    if(catList)catList.innerHTML=ledgerCats((tySel&&tySel.value)||'expense').map(function(c){return '<option value="'+esc(c)+'">';}).join('');
+  }
+  function goLedgerMonth(m){state.ledgerMonth=m;renderLedger();}
+  function addLedger(){
+    if(!hasLedger){showToast('가계부 표가 아직 없어요');return;}
+    var d=document.getElementById('lgDate'),ty=document.getElementById('lgType'),c=document.getElementById('lgCat'),am=document.getElementById('lgAmount'),me=document.getElementById('lgMemo');
+    var amount=+am.value;
+    if(!amount){am.focus();return;}
+    var x={id:uid(),date:d.value||todayISO(),type:ty.value||'expense',category:c.value.trim()||'기타',amount:amount,memo:me.value.trim(),sort:Date.now()};
+    state.ledger.unshift(x);putLedger(x);
+    am.value='';me.value='';c.value='';
+    if((x.date||'').slice(0,7)!==(state.ledgerMonth||thisMonth()))goLedgerMonth(x.date.slice(0,7));
+    else renderLedger();
+  }
+
   // toast
   var toast=document.getElementById('toast'),toastMsg=document.getElementById('toastMsg'),toastUndo=document.getElementById('toastUndo'),tHide;
   function showToast(msg,undo){toastMsg.textContent=msg;if(undo)undoHist.push(undo);toastUndo.classList.toggle('hidden',!undo);toast.classList.add('show');clearTimeout(tHide);tHide=setTimeout(function(){toast.classList.remove('show');},undo?4000:1500);}
@@ -1174,7 +1298,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*')]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*'),sb.from('ledger').select('*')]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1200,6 +1324,7 @@
       hasRoutineToggle=!(res[25]&&res[25].error); // routines.unit 컬럼 있으면 상시업무 매일/주기/요일 체크리스트 켜짐(2026-09-25)
       hasRoutineHistory=!(res[26]&&res[26].error); // cal_routines.history 컬럼 있으면 루틴 트래커 켜짐(2026-09-25)
       hasContentArchive=!(res[27]&&res[27].error); // archive 테이블 있으면 콘텐츠 아카이브 탭 켜짐(2026-09-26)
+      hasLedger=!(res[28]&&res[28].error); // ledger 테이블 있으면 가계부 탭 켜짐(2026-09-27)
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1214,7 +1339,9 @@
       state.calRoutines=(hasCalRoutines&&res[22].data)?res[22].data.map(fromCalRoutine):[];
       state.calTodos=(hasCalTodos&&res[23].data)?res[23].data.map(function(r){return {id:r.id,title:r.title||'',done:!!r.done,sort:r.sort||0,created:r.created||''};}):[];
       state.archive=(hasContentArchive&&res[27].data)?res[27].data.map(fromArchive):[];
+      state.ledger=(hasLedger&&res[28].data)?res[28].data.map(fromLedger):[];
       state.month=thisMonth();            // 항상 이번 달로 열림 (◀ ▶ 로 지난 달을 넘겨볼 수 있음)
+      state.ledgerMonth=thisMonth();      // 가계부도 항상 이번 달로 열림(독립된 달 상태 — 홈의 월 이동과 안 섞임)
       state.jDate=todayISO();             // 저널은 오늘 칸부터
       dailyResetToday();
       monthlyRollIfNeeded();              // 달이 바뀌었으면 상시업무 복제 + 지난달 미완료 이월
@@ -2114,7 +2241,7 @@
     });
   })();
 
-  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCalTodos();renderCal();renderMemos();renderJournal();renderDone();renderArt();renderArchiveTab();updateHomeSegCount();if(state.q)runSearch();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCalTodos();renderCal();renderMemos();renderJournal();renderDone();renderArt();renderArchiveTab();renderLedger();updateHomeSegCount();if(state.q)runSearch();}
   // 모바일 "보드" 탭에 살짝 붙는 숫자 — 주머니 + 체크 안 한 회의 안건 합
   function updateHomeSegCount(){
     var el=document.getElementById('hsnCount');if(!el)return;
@@ -2144,7 +2271,7 @@
 
   // ===== events =====
   document.getElementById('theme').addEventListener('click',function(){var c=document.documentElement.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';c=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',c);state.theme=c;savePrefs();});
-  var panels={home:document.getElementById('home'),journal:document.getElementById('journal'),memo:document.getElementById('memo'),cal:document.getElementById('cal'),daily:document.getElementById('daily'),drawer:document.getElementById('drawer'),art:document.getElementById('art'),archive:document.getElementById('archive')};
+  var panels={home:document.getElementById('home'),journal:document.getElementById('journal'),memo:document.getElementById('memo'),cal:document.getElementById('cal'),daily:document.getElementById('daily'),drawer:document.getElementById('drawer'),art:document.getElementById('art'),archive:document.getElementById('archive'),ledger:document.getElementById('ledger')};
   function switchTab(name){state.tab=name;state.q='';var qi=document.getElementById('q');if(qi)qi.value='';document.getElementById('qClear').classList.add('hidden');document.getElementById('searchView').classList.add('hidden');document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab===name);});for(var k in panels)panels[k].classList.toggle('hidden',k!==name);
     // 메모 트리가 탭이 숨겨진(display:none) 상태에서 처음 그려지면 textarea.mseg의 scrollHeight가 0으로 잡혀
     // 내용이 있어도 높이 0으로 보이지 않는 문제(다른 메모 들어갔다 오면 그때는 보이는 상태에서 다시 그려져 정상) →
@@ -2412,6 +2539,14 @@
     a.title=v;putArchiveEntry(a);},true);
   document.getElementById('arcAdd').addEventListener('click',addArchive);
   document.getElementById('arcTitle').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addArchive();});
+  document.getElementById('lgPrev').addEventListener('click',function(){goLedgerMonth(shiftMonth(state.ledgerMonth,-1));});
+  document.getElementById('lgNext').addEventListener('click',function(){goLedgerMonth(shiftMonth(state.ledgerMonth,1));});
+  document.getElementById('lgThis').addEventListener('click',function(){goLedgerMonth(thisMonth());});
+  document.getElementById('lgType').addEventListener('change',renderLedger);
+  document.getElementById('lgAdd').addEventListener('click',addLedger);
+  document.getElementById('lgAmount').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedger();});
+  document.getElementById('lgMemo').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedger();});
+  (function(){var dEl=document.getElementById('lgDate');if(dEl)dEl.value=todayISO();})();
 
   function rowId(el){var tr=el.closest('tr[data-id]');return tr?tr.dataset.id:null;}
   function startNest(id){var t=tById(id);if(!t)return;nestSource=id;document.body.classList.add('nesting');var bar=document.getElementById('nestBar');bar.innerHTML='<span><b>「'+esc(t.title)+'」</b> 을(를) 하위로 넣을 <b>대상 할일</b>을 탭하세요</span><button id="nestCancel">취소</button>';bar.classList.remove('hidden');}
@@ -2483,6 +2618,21 @@
       aP.author=r.author||aP.author;aP.publisher=r.publisher||aP.publisher;
       aP.yearWatched=r.year||aP.yearWatched;aP.coverUrl=r.cover_url||aP.coverUrl;
       arcSearchRes[aP.id]=null;putArchiveEntry(aP);renderArchiveTab();}
+    else if(act==='lg-edit'){
+      var lgEl=el.closest('[data-lg]');if(!lgEl)return;
+      lgOpen[lgEl.dataset.lg]=!lgOpen[lgEl.dataset.lg];renderLedger();}
+    else if(act==='lg-del'){
+      var ldEl=el.closest('[data-lg]'),xd=ldEl&&ledgerById(ldEl.dataset.lg);if(!xd)return;
+      var li=state.ledger.indexOf(xd);state.ledger.splice(li,1);delLedgerDB(xd.id);renderLedger();
+      showToast('가계부 기록을 지웠어요',function(){state.ledger.splice(li,0,xd);putLedger(xd);renderLedger();});}
+    else if(act==='lg-save'){
+      var boxL=el.closest('.crEditBox'),xS=boxL&&ledgerById(boxL.dataset.lg);if(!xS)return;
+      xS.date=boxL.querySelector('.lgEDate').value||xS.date;
+      xS.type=boxL.querySelector('.lgEType').value==='income'?'income':'expense';
+      xS.category=boxL.querySelector('.lgECat').value.trim()||'기타';
+      xS.amount=+boxL.querySelector('.lgEAmount').value||0;
+      xS.memo=boxL.querySelector('.lgEMemo').value.trim();
+      putLedger(xS);showToast('저장했어요');renderLedger();}
     else if(act==='tl-del'){
       var lr=el.closest('[data-li]');if(!lr||!hasJournal)return;
       var jt=jEntry(todayISO()),before=jt.body||'',raw=before.split('\n');
