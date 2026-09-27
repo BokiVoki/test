@@ -11,13 +11,13 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
-                Text("이 앱은 하루 위젯 전용이에요.\n할일·루틴 관리는 하루 웹앱에서 하고,\n여기선 투두만 빠르게 추가할 수 있어요.")
+                Text("이 앱은 하루 위젯 전용이에요.\n할일·루틴 관리는 하루 웹앱에서 하고,\n여기선 주머니(인박스)에 빠르게 담을 수 있어요.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
 
-                TextField("할일 추가", text: $title)
+                TextField("주머니에 추가", text: $title)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { addTodo() }
 
