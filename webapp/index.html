@@ -151,7 +151,6 @@
        (부가 정보라 다른 모바일 처리와 같은 원칙), 다 안 들어가면 그 아래 줄로 */
     .lgrow{flex-wrap:wrap;row-gap:2px}
     .lgrow .lgmemo{display:none}
-    .lgrow .lgamt{margin-left:auto}
     /* 가계부 추가 폼(6칸)·반복 추가 폼(5칸)도 한 줄에 다 안 들어가서 뒤쪽 칸이
        화면 밖으로 밀려나 있었음 — select 같은 건 %기준 flex-shrink가 기대만큼
        안 줄어들어서(브라우저 자체 최소폭) 2칸씩 접는 대신 칸마다 한 줄씩 세움 */
@@ -237,8 +236,9 @@
   .lgsum-income b{color:var(--accent)}
   .lgsum-expense b{color:var(--accent-2)}
   .lgsum-item b.neg{color:var(--accent-2)}
-  .lgform#ledgerAddForm input[type="date"]{flex:0 0 130px}
   .lgform#ledgerAddForm input[type="number"],.lgform#ledgerRecurAddForm input[type="number"]{flex:0 0 90px}
+  #lgDate,.lgEDate{flex:0 0 84px}
+  #lgCatCustom,#lgrCatCustom,.lgECatCustom{flex:1 1 120px}
   .lgrow .lgdate{flex:none;font-family:var(--mono);font-size:11px;color:var(--faint)}
   .lgamt{flex:none;font-family:var(--mono);font-weight:700}
   .lgamt.income{color:var(--accent)}
@@ -865,11 +865,11 @@
       <div id="lgStats"></div>
       <div id="lgList"></div>
       <div class="archform lgform" id="ledgerAddForm">
-        <input type="date" id="lgDate" aria-label="날짜">
         <select id="lgType" aria-label="종류"><option value="expense">지출</option><option value="income">수입</option></select>
-        <input id="lgCat" list="lgCatList" placeholder="카테고리" aria-label="카테고리">
-        <datalist id="lgCatList"></datalist>
         <input type="number" id="lgAmount" placeholder="금액" min="0" aria-label="금액">
+        <select id="lgCat" aria-label="카테고리"></select>
+        <input id="lgCatCustom" class="hidden" placeholder="카테고리 직접 입력" aria-label="카테고리 직접 입력">
+        <input id="lgDate" placeholder="YY/MM/DD" aria-label="날짜">
         <input id="lgMemo" placeholder="메모(선택)" aria-label="메모">
         <button class="btn-s" id="lgAdd">추가</button>
       </div>
@@ -878,8 +878,9 @@
         <div id="lgRecurList"></div>
         <div class="archform lgform" id="ledgerRecurAddForm">
           <select id="lgrType" aria-label="종류"><option value="expense">지출</option><option value="income">수입</option></select>
-          <input id="lgrCat" list="lgCatList" placeholder="카테고리" aria-label="카테고리">
           <input type="number" id="lgrAmount" placeholder="금액" min="0" aria-label="금액">
+          <select id="lgrCat" aria-label="카테고리"></select>
+          <input id="lgrCatCustom" class="hidden" placeholder="카테고리 직접 입력" aria-label="카테고리 직접 입력">
           <input type="number" id="lgrDay" placeholder="매월 며칠(1~31)" min="1" max="31" aria-label="날짜">
           <input id="lgrMemo" placeholder="메모(선택)" aria-label="메모">
           <button class="btn-s" id="lgrAdd">반복 추가</button>
@@ -1218,6 +1219,26 @@
     state.ledger.forEach(function(x){if(x.type===type&&x.category&&!seen[x.category]){seen[x.category]=1;out.push(x.category);}});
     return out;
   }
+  // 카테고리 드롭다운 옵션(2026-09-28) — 맨 끝에 "직접 입력" 항목을 더해서, 목록에 없는
+  // 새 카테고리도 여전히 쓸 수 있게(드롭다운으로 바뀌었다고 자유 입력 자체가 막히면 안 됨)
+  function ledgerCatOptions(type,sel){
+    return ledgerCats(type).map(function(c){return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>';}).join('')
+      +'<option value="__custom__"'+(sel==='__custom__'?' selected':'')+'>✎ 직접 입력…</option>';
+  }
+  function lgCatCustomToggle(sel,customInput){
+    if(!sel||!customInput)return;
+    customInput.classList.toggle('hidden',sel.value!=='__custom__');
+    if(sel.value==='__custom__')customInput.focus();
+  }
+  // 날짜 표시·입력을 yy/mm/dd로 간략화(2026-09-28) — 네이티브 date input은 브라우저마다
+  // 표시 형식을 못 바꿔서(로케일에 따라 mm/dd/yyyy 등 제각각, 너무 넓게 보임) 순수 텍스트로 바꿈
+  function toYmd(iso){if(!iso)return '';var p=iso.split('-');return p[0].slice(2)+'/'+p[1]+'/'+p[2];}
+  function fromYmd(s){
+    var m=(s||'').trim().match(/^(\d{2,4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+    if(!m)return '';
+    var y=m[1].length===2?('20'+m[1]):m[1];
+    return y+'-'+pad(+m[2])+'-'+pad(+m[3]);
+  }
   function ledgerMonthItems(m){return state.ledger.filter(function(x){return (x.date||'').slice(0,7)===m;}).sort(function(a,b){if(a.date!==b.date)return a.date<b.date?1:-1;return (b.sort||0)-(a.sort||0);});}
   function ledgerSummary(m){
     var items=ledgerMonthItems(m),income=0,expense=0;
@@ -1232,21 +1253,23 @@
   function lgRow(x){
     var open=!!lgOpen[x.id];
     return '<div class="lkrow lgrow" data-lg="'+x.id+'">'
-      +'<span class="lgdate">'+mmdd(x.date)+'</span>'
       +'<span class="rtcyc">'+(x.type==='income'?'수입':'지출')+'</span>'
-      +'<span class="mktxt">'+esc(x.category||'미분류')+'</span>'
-      +(x.memo?'<span class="lgmemo" title="'+esc(x.memo)+'">'+esc(x.memo)+'</span>':'')
       +'<span class="lgamt '+x.type+'">'+(x.type==='income'?'+':'-')+fmtWon(x.amount)+'</span>'
+      +'<span class="mktxt">'+esc(x.category||'미분류')+'</span>'
+      +'<span class="lgdate">'+toYmd(x.date)+'</span>'
+      +(x.memo?'<span class="lgmemo" title="'+esc(x.memo)+'">'+esc(x.memo)+'</span>':'')
       +'<span class="crEditTog" data-act="lg-edit" title="수정">'+(open?'▴':'✎')+'</span>'
       +'<span class="lkdel" data-act="lg-del" title="지우기">✕</span></div>'
       +(open?lgEditRow(x):'');
   }
   function lgEditRow(x){
+    var isCustom=ledgerCats(x.type).indexOf(x.category)<0;
     return '<div class="crEditBox" data-lg="'+x.id+'">'
-      +'<input type="date" class="lgEDate" value="'+esc(x.date)+'">'
       +'<select class="lgEType"><option value="expense"'+(x.type==='expense'?' selected':'')+'>지출</option><option value="income"'+(x.type==='income'?' selected':'')+'>수입</option></select>'
-      +'<input class="lgECat" list="lgCatList" value="'+esc(x.category)+'" placeholder="카테고리">'
       +'<input type="number" class="lgEAmount" min="0" value="'+x.amount+'" placeholder="금액" style="width:90px">'
+      +'<select class="lgECat">'+ledgerCatOptions(x.type,isCustom?'__custom__':x.category)+'</select>'
+      +'<input class="lgECatCustom'+(isCustom?'':' hidden')+'" value="'+(isCustom?esc(x.category):'')+'" placeholder="카테고리 직접 입력">'
+      +'<input class="lgEDate" value="'+esc(toYmd(x.date))+'" placeholder="YY/MM/DD" style="width:80px">'
       +'<input class="lgEMemo" value="'+esc(x.memo)+'" placeholder="메모" style="flex:1 1 120px">'
       +'<button class="btn-s" type="button" data-act="lg-save">저장</button>'
       +'</div>';
@@ -1331,12 +1354,13 @@
   }
   function addLedgerRecurring(){
     if(!hasLedgerRecurring){showToast('반복 지출 표가 아직 없어요');return;}
-    var ty=document.getElementById('lgrType'),c=document.getElementById('lgrCat'),am=document.getElementById('lgrAmount'),d=document.getElementById('lgrDay'),me=document.getElementById('lgrMemo');
+    var ty=document.getElementById('lgrType'),c=document.getElementById('lgrCat'),cc=document.getElementById('lgrCatCustom'),am=document.getElementById('lgrAmount'),d=document.getElementById('lgrDay'),me=document.getElementById('lgrMemo');
     var amount=+am.value;
     if(!amount){am.focus();return;}
-    var r={id:uid(),type:ty.value||'expense',category:c.value.trim()||'기타',amount:amount,memo:me.value.trim(),day:Math.min(31,Math.max(1,+d.value||1)),active:true,sort:Date.now()};
+    var cat=(c.value==='__custom__'?cc.value:c.value).trim()||'기타';
+    var r={id:uid(),type:ty.value||'expense',category:cat,amount:amount,memo:me.value.trim(),day:Math.min(31,Math.max(1,+d.value||1)),active:true,sort:Date.now()};
     state.ledgerRecurring.push(r);putLedgerRecurring(r);
-    c.value='';am.value='';d.value='';me.value='';
+    am.value='';d.value='';me.value='';cc.value='';cc.classList.add('hidden');
     renderLedgerRecurring();seedLedgerRecurring();renderLedger();
   }
   function renderLedger(){
@@ -1353,23 +1377,27 @@
       '<div class="lgsum-item lgsum-income">수입<b>'+fmtWon(sum.income)+'</b></div>'
       +'<div class="lgsum-item lgsum-expense">지출<b>'+fmtWon(sum.expense)+'</b></div>'
       +'<div class="lgsum-item">잔액<b class="'+(sum.net<0?'neg':'')+'">'+fmtWon(sum.net)+'</b></div>';
-    document.getElementById('lgBudgetDisplay').innerHTML=lgGoalBarHtml(sum)+lgBudgetListHtml(sum);
+    var budgetHtml=lgGoalBarHtml(sum)+lgBudgetListHtml(sum);
+    document.getElementById('lgBudgetDisplay').innerHTML=budgetHtml||'<p class="boardempty">아직 설정한 목표·예산이 없어요 — 오른쪽 ✎를 눌러 이번 달 저축 목표나 카테고리별 예산을 정해보세요</p>';
     renderLedgerBudgetEdit();
     document.getElementById('lgStats').innerHTML=lgStatsHtml(sum);
     document.getElementById('lgList').innerHTML=sum.items.length?sum.items.map(lgRow).join(''):'<p class="boardempty">'+monthLabel(m)+'엔 아직 기록이 없어요</p>';
-    var catList=document.getElementById('lgCatList'),tySel=document.getElementById('lgType');
-    if(catList)catList.innerHTML=ledgerCats((tySel&&tySel.value)||'expense').map(function(c){return '<option value="'+esc(c)+'">';}).join('');
+    var catSel=document.getElementById('lgCat'),tySel=document.getElementById('lgType');
+    if(catSel){catSel.innerHTML=ledgerCatOptions((tySel&&tySel.value)||'expense');document.getElementById('lgCatCustom').classList.add('hidden');}
+    var rCatSel=document.getElementById('lgrCat'),rTySel=document.getElementById('lgrType');
+    if(rCatSel){rCatSel.innerHTML=ledgerCatOptions((rTySel&&rTySel.value)||'expense');document.getElementById('lgrCatCustom').classList.add('hidden');}
     renderLedgerRecurring();
   }
   function goLedgerMonth(m){state.ledgerMonth=m;renderLedger();}
   function addLedger(){
     if(!hasLedger){showToast('가계부 표가 아직 없어요');return;}
-    var d=document.getElementById('lgDate'),ty=document.getElementById('lgType'),c=document.getElementById('lgCat'),am=document.getElementById('lgAmount'),me=document.getElementById('lgMemo');
+    var d=document.getElementById('lgDate'),ty=document.getElementById('lgType'),c=document.getElementById('lgCat'),cc=document.getElementById('lgCatCustom'),am=document.getElementById('lgAmount'),me=document.getElementById('lgMemo');
     var amount=+am.value;
     if(!amount){am.focus();return;}
-    var x={id:uid(),date:d.value||todayISO(),type:ty.value||'expense',category:c.value.trim()||'기타',amount:amount,memo:me.value.trim(),sort:Date.now()};
+    var cat=(c.value==='__custom__'?cc.value:c.value).trim()||'기타';
+    var x={id:uid(),date:fromYmd(d.value)||todayISO(),type:ty.value||'expense',category:cat,amount:amount,memo:me.value.trim(),sort:Date.now()};
     state.ledger.unshift(x);putLedger(x);
-    am.value='';me.value='';c.value='';
+    am.value='';me.value='';cc.value='';cc.classList.add('hidden');
     if((x.date||'').slice(0,7)!==(state.ledgerMonth||thisMonth()))goLedgerMonth(x.date.slice(0,7));
     else renderLedger();
   }
@@ -2717,14 +2745,21 @@
   document.getElementById('lgNext').addEventListener('click',function(){goLedgerMonth(shiftMonth(state.ledgerMonth,1));});
   document.getElementById('lgThis').addEventListener('click',function(){goLedgerMonth(thisMonth());});
   document.getElementById('lgType').addEventListener('change',renderLedger);
+  document.getElementById('lgCat').addEventListener('change',function(){lgCatCustomToggle(this,document.getElementById('lgCatCustom'));});
   document.getElementById('lgAdd').addEventListener('click',addLedger);
   document.getElementById('lgAmount').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedger();});
+  document.getElementById('lgCatCustom').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedger();});
   document.getElementById('lgMemo').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedger();});
-  (function(){var dEl=document.getElementById('lgDate');if(dEl)dEl.value=todayISO();})();
+  (function(){var dEl=document.getElementById('lgDate');if(dEl)dEl.value=toYmd(todayISO());})();
   document.getElementById('lgRecurTog').addEventListener('click',function(){lgRecurOpen=!lgRecurOpen;renderLedgerRecurring();});
+  document.getElementById('lgrCat').addEventListener('change',function(){lgCatCustomToggle(this,document.getElementById('lgrCatCustom'));});
   document.getElementById('lgrAdd').addEventListener('click',addLedgerRecurring);
   document.getElementById('lgrAmount').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedgerRecurring();});
   document.getElementById('lgrMemo').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedgerRecurring();});
+  document.addEventListener('change',function(e){
+    var el=e.target&&e.target.closest?e.target.closest('.lgECat'):null;if(!el)return;
+    var box=el.closest('.crEditBox');if(!box)return;
+    lgCatCustomToggle(el,box.querySelector('.lgECatCustom'));});
 
   function rowId(el){var tr=el.closest('tr[data-id]');return tr?tr.dataset.id:null;}
   function startNest(id){var t=tById(id);if(!t)return;nestSource=id;document.body.classList.add('nesting');var bar=document.getElementById('nestBar');bar.innerHTML='<span><b>「'+esc(t.title)+'」</b> 을(를) 하위로 넣을 <b>대상 할일</b>을 탭하세요</span><button id="nestCancel">취소</button>';bar.classList.remove('hidden');}
@@ -2805,9 +2840,10 @@
       showToast('가계부 기록을 지웠어요',function(){state.ledger.splice(li,0,xd);putLedger(xd);renderLedger();});}
     else if(act==='lg-save'){
       var boxL=el.closest('.crEditBox'),xS=boxL&&ledgerById(boxL.dataset.lg);if(!xS)return;
-      xS.date=boxL.querySelector('.lgEDate').value||xS.date;
+      xS.date=fromYmd(boxL.querySelector('.lgEDate').value)||xS.date;
       xS.type=boxL.querySelector('.lgEType').value==='income'?'income':'expense';
-      xS.category=boxL.querySelector('.lgECat').value.trim()||'기타';
+      var eCat=boxL.querySelector('.lgECat').value,eCatCustom=boxL.querySelector('.lgECatCustom');
+      xS.category=(eCat==='__custom__'?eCatCustom.value:eCat).trim()||'기타';
       xS.amount=+boxL.querySelector('.lgEAmount').value||0;
       xS.memo=boxL.querySelector('.lgEMemo').value.trim();
       putLedger(xS);showToast('저장했어요');renderLedger();}
