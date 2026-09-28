@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>하루 · 로그</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16">
+<link rel="icon" href="favicon-512.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="하루 로그">
+<meta name="theme-color" content="#0E76AC">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#F1F3F6; --panel:#FFFFFF; --sunk:#F8FAFC; --line:#E2E5E9; --line-2:#CFD2D7;
+    --text:#161719; --muted:#6A6C72; --faint:#A6A8AE; --accent:#0E76AC; --accent-2:#7A2743; --accent-wash:#E3F1F9;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+    --display:'Do Hyeon',var(--sans);
+  }
+  @media (prefers-color-scheme:dark){:root{--bg:#0E1013;--panel:#141619;--sunk:#181B1F;--line:#23262B;--line-2:#31353B;--text:#ECEDEF;--muted:#9598A0;--faint:#5F626A;--accent:#5FB4E6;--accent-2:#E58FA6;--accent-wash:#10202B;}}
+  :root[data-theme="light"]{--bg:#F1F3F6;--panel:#FFFFFF;--sunk:#F8FAFC;--line:#E2E5E9;--line-2:#CFD2D7;--text:#161719;--muted:#6A6C72;--faint:#A6A8AE;--accent:#0E76AC;--accent-2:#7A2743;--accent-wash:#E3F1F9;}
+  :root[data-theme="dark"]{--bg:#0E1013;--panel:#141619;--sunk:#181B1F;--line:#23262B;--line-2:#31353B;--text:#ECEDEF;--muted:#9598A0;--faint:#5F626A;--accent:#5FB4E6;--accent-2:#E58FA6;--accent-wash:#10202B;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+  .hidden{display:none!important}
+  button,input,textarea{font:inherit;color:inherit}
+  /* ── 로그인 (하루앱과 같은 계정 — storageKey가 같아서 이미 로그인돼 있으면 자동으로 통과됨) ── */
+  .authwrap{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:80;padding:20px}
+  .authcard{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px}
+  .authcard form{display:flex;flex-direction:column;gap:10px}
+  .authcard h1{font-family:var(--display);font-size:30px;font-weight:400;margin:0 0 4px;letter-spacing:-.01em;color:var(--accent)}
+  .authcard p.sub{margin:0 0 12px;color:var(--faint);font-size:13px}
+  .authcard input{font:inherit;font-size:15px;padding:11px 2px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text)}
+  .authcard input:focus{outline:none;border-bottom-color:var(--accent)}
+  .authcard .row{display:flex;gap:8px}
+  .authcard .row button{flex:1;font-weight:600;font-size:14px;padding:11px;cursor:pointer;background:var(--accent);color:#fff;border:0}
+  .authcard .row button#logSignupBtn{background:transparent;color:var(--muted);border:1px solid var(--line-2)}
+  #authMsg{font-size:12.5px;color:var(--accent-2);min-height:16px}
+
+  /* ── 공통 ── */
+  .wrap{max-width:640px;margin:0 auto;padding:14px 16px 90px}
+  header.hd{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .brand{font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:-.01em;color:var(--accent)}
+  .backlink{font-size:12.5px;color:var(--faint);text-decoration:none;border-bottom:1px dashed var(--faint)}
+  .backlink:hover{color:var(--accent);border-color:var(--accent)}
+  .btn-s{font:inherit;font-size:12.5px;background:none;border:1px solid var(--line-2);color:var(--muted);cursor:pointer;padding:5px 10px}
+  .btn-s:hover{color:var(--text);border-color:var(--text)}
+  .btn-main{font:inherit;font-size:13.5px;font-weight:600;background:var(--accent);color:#fff;border:0;padding:10px 14px;cursor:pointer}
+  .btn-main:disabled{opacity:.4;cursor:default}
+  .toast{position:fixed;left:50%;bottom:70px;transform:translate(-50%,20px);background:var(--text);color:var(--bg);font-size:13px;padding:9px 15px;opacity:0;pointer-events:none;transition:.18s;z-index:90;display:flex;gap:12px;align-items:center}
+  .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+  .toast button{font:inherit;font-size:12px;color:var(--accent-2);background:none;border:0;cursor:pointer;text-decoration:underline;padding:0}
+
+  /* ── 날짜 이동 + 게시판 ── */
+  .daynav{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+  .daynav button{font:inherit;background:none;border:1px solid var(--line-2);color:var(--muted);cursor:pointer;padding:3px 9px}
+  .daynav h2{margin:0;font-size:16px;flex:1}
+  .daynav .today{font-size:12px;color:var(--faint);border-bottom:1px dashed var(--faint);cursor:pointer}
+  .boardempty{color:var(--faint);font-size:13px;padding:30px 0;text-align:center}
+  .logent{border-top:1px solid var(--line);padding:14px 0;display:flex;flex-direction:column;gap:8px}
+  .logent:first-child{border-top:0}
+  .logenthead{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--faint)}
+  .logenthead .logtime{font-family:var(--mono)}
+  .logenthead .logdel{margin-left:auto;cursor:pointer;color:var(--faint)}
+  .logenthead .logdel:hover{color:var(--accent-2)}
+  .logmedia{width:100%;max-height:520px;object-fit:contain;background:var(--sunk);display:block}
+  img.logmedia{object-fit:cover;max-height:460px}
+  .logvidwrap{position:relative}
+  .logcapover{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.72));color:#fff;font-size:13px;padding:22px 12px 10px;pointer-events:none}
+  .logcap{margin:0;font-size:13.5px;color:var(--text);white-space:pre-wrap}
+
+  /* ── 데스크톱 업로드 패널 ── */
+  #uploadPanel{border:1px solid var(--line);padding:14px;margin-bottom:20px;display:flex;flex-direction:column;gap:10px}
+  #uploadPanel .uphead{font-size:12.5px;color:var(--muted);font-weight:600}
+  #upFile{font-size:13px}
+  #upCaption{border:0;border-bottom:1px solid var(--line-2);background:transparent;padding:8px 2px;resize:vertical;min-height:44px}
+  #upCaption:focus{outline:none;border-bottom-color:var(--accent)}
+  #upPreviewWrap{display:none}
+  #upPreviewWrap.show{display:block}
+  #upPreviewWrap img{max-width:180px;max-height:180px;display:block;margin-bottom:8px;object-fit:cover}
+  .uprow{display:flex;gap:8px;align-items:center}
+
+  /* ── 모바일 하단 탭 ── */
+  /* z-index가 카메라 화면(60)보다 높아야 카메라가 켜져 있을 때도 탭을 눌러 게시판으로 빠져나올 수 있음 */
+  #mobileNav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--panel);border-top:1px solid var(--line);z-index:65}
+  #mobileNav button{flex:1;background:none;border:0;padding:10px 0 8px;font-size:11px;color:var(--faint);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+  #mobileNav button .ic{font-size:19px}
+  #mobileNav button[aria-selected="true"]{color:var(--accent)}
+
+  /* ── 카메라 화면 (모바일 전용, 전체화면 오버레이) ── */
+  #camOverlay{position:fixed;inset:0;background:#000;z-index:60;display:flex;flex-direction:column}
+  #camVideo{flex:1;width:100%;height:100%;object-fit:cover;background:#000}
+  .camTop{position:absolute;top:0;left:0;right:0;display:flex;justify-content:center;padding:16px 12px;padding-top:max(16px,env(safe-area-inset-top))}
+  .camToggle{display:flex;background:rgba(0,0,0,.45);border-radius:999px;padding:3px}
+  .camToggle button{background:none;border:0;color:#fff;opacity:.65;font-size:13px;padding:7px 16px;border-radius:999px;cursor:pointer}
+  .camToggle button[aria-selected="true"]{opacity:1;background:rgba(255,255,255,.22);font-weight:600}
+  /* 아래 하단 탭(#mobileNav, 약 60px)에 안 가리게 그 위로 여백을 둠 */
+  .camBottom{position:absolute;left:0;right:0;bottom:60px;display:flex;align-items:center;padding:18px 26px;padding-bottom:max(18px,env(safe-area-inset-bottom))}
+  #camGalleryBtn{background:rgba(255,255,255,.18);border:0;color:#fff;width:46px;height:46px;border-radius:50%;font-size:18px;cursor:pointer}
+  #camShutter{width:72px;height:72px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.5);margin:0 auto;cursor:pointer;position:relative}
+  #camShutter.recording{background:var(--accent-2);border-color:rgba(255,255,255,.5)}
+  #camShutter.recording::after{content:'';position:absolute;inset:22px;background:#fff;border-radius:4px}
+  .camSpacer{width:46px}
+  #camTimer{position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.5);font-family:var(--mono);font-size:12px;padding:3px 9px;border-radius:999px}
+  #camErr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;text-align:center;padding:0 30px}
+
+  /* ── 캡션 미리보기 화면 (촬영/갤러리 공통, 전체화면 오버레이) ── */
+  #previewOverlay{position:fixed;inset:0;background:var(--bg);z-index:70;display:flex;flex-direction:column}
+  #previewMediaWrap{flex:1;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
+  #previewMediaWrap img,#previewMediaWrap video{max-width:100%;max-height:100%;object-fit:contain}
+  #previewForm{padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;background:var(--panel)}
+  #previewCaption{border:0;border-bottom:1px solid var(--line-2);background:transparent;padding:9px 2px;resize:none;min-height:20px}
+  #previewCaption:focus{outline:none;border-bottom-color:var(--accent)}
+  #previewBtns{display:flex;gap:10px}
+  #previewBtns button{flex:1;padding:11px;cursor:pointer}
+  #retakeBtn{background:none;border:1px solid var(--line-2);color:var(--muted)}
+  #saveBtn{background:var(--accent);color:#fff;border:0;font-weight:600}
+
+  @media(max-width:520px){.logmedia,img.logmedia{max-height:70vh}}
+</style>
+</head>
+<body>
+
+<div id="auth" class="authwrap">
+  <div class="authcard">
+    <h1>하루 로그</h1>
+    <p class="sub">하루앱과 같은 계정으로 로그인해요.</p>
+    <form id="authForm" method="post" action="#">
+      <input id="logEmail" name="username" type="email" placeholder="이메일" autocomplete="username">
+      <input id="logPw" name="password" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
+      <div class="row"><button id="logLoginBtn" type="submit">로그인</button><button id="logSignupBtn" type="button">회원가입</button></div>
+    </form>
+    <p id="authMsg"></p>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="wrap">
+    <header class="hd">
+      <div class="brand">하루 · 로그</div>
+      <a class="backlink" href="index.html">‹ 하루</a>
+    </header>
+
+    <div id="uploadPanel">
+      <div class="uphead">📷 사진 + 글 올리기</div>
+      <input id="upFile" type="file" accept="image/*">
+      <div id="upPreviewWrap"><img id="upPreviewImg"></div>
+      <textarea id="upCaption" placeholder="캡션을 적어보세요"></textarea>
+      <div class="uprow"><button class="btn-main" id="upSaveBtn" disabled>오늘 로그에 저장</button></div>
+    </div>
+
+    <div class="daynav">
+      <button id="dayPrev">‹</button>
+      <h2 id="dayTitle"></h2>
+      <button id="dayNext">›</button>
+      <span class="today hidden" id="dayToday">오늘로</span>
+    </div>
+    <div id="boardList"></div>
+  </div>
+</div>
+
+<nav id="mobileNav" class="hidden">
+  <button id="navCam" data-mode="camera" aria-selected="true"><span class="ic">📷</span>카메라</button>
+  <button id="navBoard" data-mode="board" aria-selected="false"><span class="ic">📅</span>게시판</button>
+</nav>
+
+<div id="camOverlay" class="hidden">
+  <div id="camErr" class="hidden"></div>
+  <video id="camVideo" autoplay muted playsinline></video>
+  <div class="camTop">
+    <div class="camToggle" role="tablist">
+      <button data-captype="video" aria-selected="false">브이로그</button>
+      <button data-captype="photo" aria-selected="true">블로그</button>
+    </div>
+  </div>
+  <div id="camTimer" class="hidden">0:00</div>
+  <div class="camBottom">
+    <button id="camGalleryBtn" title="갤러리에서 올리기">🖼</button>
+    <div style="flex:1;display:flex;justify-content:center"><button id="camShutter" aria-label="촬영"></button></div>
+    <div class="camSpacer"></div>
+  </div>
+</div>
+<input id="galleryInput" type="file" accept="image/*,video/*" class="hidden">
+
+<div id="previewOverlay" class="hidden">
+  <div id="previewMediaWrap"></div>
+  <div id="previewForm">
+    <textarea id="previewCaption" placeholder="캡션을 적어보세요" rows="2"></textarea>
+    <div id="previewBtns">
+      <button id="retakeBtn" type="button">다시</button>
+      <button id="saveBtn" type="button">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo" class="hidden">되돌리기</button></div>
+
+<script>
+(function(){
+  var SUPA_URL='https://mfgiesampazjzgfliuje.supabase.co';
+  var SUPA_KEY='sb_publishable_QBlLIrJ8coqH3I-Ij-Q7SA_OUB7KVwV';
+  var sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'haru_session'}});
+
+  var authEl=document.getElementById('auth'),appEl=document.getElementById('app');
+  var state={uid:null,mode:'camera',capType:'photo',day:todayISO(),entries:[],
+    stream:null,recorder:null,chunks:[],recTimer:null,recStart:0,
+    pending:null // {blob,type,fromGallery}
+  };
+  var undoHist=[];
+
+  function pad(n){return (n<10?'0':'')+n;}
+  function todayISO(d){d=d||new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function uid(){return 'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+  function shiftDay(d,n){var dt=new Date(d+'T00:00:00');dt.setDate(dt.getDate()+n);return todayISO(dt);}
+  var DAY=['일','월','화','수','목','금','토'];
+  function dayLabel(d){var dt=new Date(d+'T00:00:00');return (dt.getMonth()+1)+'월 '+dt.getDate()+'일 '+DAY[dt.getDay()]+(d===todayISO()?' · 오늘':'');}
+
+  var toast=document.getElementById('toast'),toastMsg=document.getElementById('toastMsg'),toastUndo=document.getElementById('toastUndo'),tHide;
+  function showToast(msg,undo){toastMsg.textContent=msg;if(undo)undoHist.push(undo);toastUndo.classList.toggle('hidden',!undo);toast.classList.add('show');clearTimeout(tHide);tHide=setTimeout(function(){toast.classList.remove('show');},undo?4000:1500);}
+  toastUndo.addEventListener('click',function(){var f=undoHist.pop();if(f)f();toast.classList.remove('show');});
+
+  // ===== 로그인 (하루앱과 storageKey가 같아서, 이미 하루앱에 로그인돼 있으면 세션을 그대로 물려받음) =====
+  function creds(){return {email:document.getElementById('logEmail').value.trim(),password:document.getElementById('logPw').value};}
+  function doLogin(){var c=creds(),m=document.getElementById('authMsg');if(!c.email||!c.password){m.textContent='이메일과 비밀번호를 입력하세요';return;}m.textContent='로그인 중…';
+    sb.auth.signInWithPassword(c).then(function(r){if(r.error){m.textContent='로그인 실패: '+r.error.message;}else{showApp();}});}
+  function doSignup(){var c=creds(),m=document.getElementById('authMsg');if(!c.email||c.password.length<6){m.textContent='이메일 + 6자 이상 비밀번호';return;}m.textContent='가입 중…';
+    sb.auth.signUp(c).then(function(r){if(r.error){m.textContent='가입 실패: '+r.error.message;}else if(r.data.session){showApp();}else{m.textContent='가입됨! 로그인을 눌러주세요.';}});}
+  document.getElementById('authForm').addEventListener('submit',function(e){e.preventDefault();doLogin();});
+  document.getElementById('logSignupBtn').addEventListener('click',doSignup);
+  sb.auth.getSession().then(function(r){if(r.data.session)showApp();else showAuth();});
+  function showAuth(){appEl.classList.add('hidden');authEl.classList.remove('hidden');}
+  function showApp(){authEl.classList.add('hidden');appEl.classList.remove('hidden');
+    sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;renderDay();});
+    applyMode();}
+
+  // ===== 모바일/데스크톱 판별 (터치가 주 입력 + 화면이 충분히 좁을 때만 카메라 촬영 플로우를 씀) =====
+  function isMobileView(){
+    var coarse=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches;
+    return (coarse||('ontouchstart' in window))&&window.innerWidth<=900;
+  }
+  function applyMode(){
+    var mob=isMobileView();
+    document.getElementById('mobileNav').classList.toggle('hidden',!mob);
+    document.getElementById('uploadPanel').classList.toggle('hidden',mob);
+    if(!mob){stopCamera();document.getElementById('camOverlay').classList.add('hidden');}
+    else if(state.mode==='camera'){openCameraScreen();}
+  }
+  var rTO;window.addEventListener('resize',function(){clearTimeout(rTO);rTO=setTimeout(applyMode,200);});
+
+  // ===== 날짜 이동 + 게시판 =====
+  function goDay(n){state.day=shiftDay(state.day,n);renderDay();}
+  document.getElementById('dayPrev').addEventListener('click',function(){goDay(-1);});
+  document.getElementById('dayNext').addEventListener('click',function(){goDay(1);});
+  document.getElementById('dayToday').addEventListener('click',function(){state.day=todayISO();renderDay();});
+
+  function renderDay(){
+    document.getElementById('dayTitle').textContent=dayLabel(state.day);
+    document.getElementById('dayToday').classList.toggle('hidden',state.day===todayISO());
+    if(!state.uid)return;
+    sb.from('log_entries').select('*').eq('date',state.day).order('sort',{ascending:true}).then(function(r){
+      state.entries=(r.data||[]);
+      renderBoard();
+    });
+  }
+  function fmtTime(ts){var d=new Date(ts);return pad(d.getHours())+':'+pad(d.getMinutes());}
+  function renderBoard(){
+    var el=document.getElementById('boardList');
+    if(!state.entries.length){el.innerHTML='<p class="boardempty">이 날은 아직 기록이 없어요</p>';return;}
+    Promise.all(state.entries.map(function(e){
+      return sb.storage.from('log').createSignedUrl(e.media_path,3600).then(function(r){return {e:e,url:(r.data&&r.data.signedUrl)||''};});
+    })).then(function(list){
+      el.innerHTML=list.map(function(x){
+        var e=x.e;
+        var media=e.type==='video'
+          ? '<div class="logvidwrap"><video class="logmedia" src="'+esc(x.url)+'" controls playsinline></video>'+(e.caption?'<div class="logcapover">'+esc(e.caption)+'</div>':'')+'</div>'
+          : '<img class="logmedia" src="'+esc(x.url)+'">'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
+        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(e.sort||Date.parse(e.created_at))+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span><span class="logdel" data-act="logdel">✕ 지우기</span></div>'+media+'</div>';
+      }).join('');
+    });
+  }
+  document.getElementById('boardList').addEventListener('click',function(e){
+    var el=e.target.closest('[data-act="logdel"]');if(!el)return;
+    var row=el.closest('[data-id]'),id=row.dataset.id;
+    var entry=state.entries.filter(function(x){return x.id===id;})[0];if(!entry)return;
+    var idx=state.entries.indexOf(entry);
+    sb.from('log_entries').delete().eq('id',id).then(function(){
+      state.entries.splice(idx,1);renderBoard();
+      showToast('지웠어요',function(){
+        sb.from('log_entries').insert(entry).then(function(){state.entries.splice(idx,0,entry);renderBoard();});
+      });
+    });
+  });
+
+  // ===== 저장 공통 =====
+  function extFor(mime){
+    if(mime.indexOf('png')>=0)return 'png';
+    if(mime.indexOf('jpeg')>=0||mime.indexOf('jpg')>=0)return 'jpg';
+    if(mime.indexOf('webp')>=0)return 'webp';
+    if(mime.indexOf('mp4')>=0)return 'mp4';
+    if(mime.indexOf('webm')>=0)return 'webm';
+    if(mime.indexOf('quicktime')>=0)return 'mov';
+    return 'bin';
+  }
+  function saveEntry(blob,type,caption){
+    if(!state.uid)return Promise.reject(new Error('로그인이 필요해요'));
+    var ext=extFor(blob.type||''),path=state.uid+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.'+ext;
+    return sb.storage.from('log').upload(path,blob,{contentType:blob.type||'application/octet-stream'}).then(function(up){
+      if(up.error)throw up.error;
+      var row={id:uid(),date:todayISO(),type:type,media_path:path,caption:(caption||'').trim(),sort:Date.now()};
+      return sb.from('log_entries').insert(row).then(function(r){if(r.error)throw r.error;return row;});
+    });
+  }
+
+  // ===== 데스크톱 업로드 =====
+  var upFileEl=document.getElementById('upFile'),upPreviewWrap=document.getElementById('upPreviewWrap'),upPreviewImg=document.getElementById('upPreviewImg'),upSaveBtn=document.getElementById('upSaveBtn');
+  var upPendingFile=null;
+  upFileEl.addEventListener('change',function(){
+    upPendingFile=this.files&&this.files[0]?this.files[0]:null;
+    if(upPendingFile){upPreviewImg.src=URL.createObjectURL(upPendingFile);upPreviewWrap.classList.add('show');upSaveBtn.disabled=false;}
+    else{upPreviewWrap.classList.remove('show');upSaveBtn.disabled=true;}
+  });
+  upSaveBtn.addEventListener('click',function(){
+    if(!upPendingFile)return;
+    upSaveBtn.disabled=true;upSaveBtn.textContent='저장 중…';
+    saveEntry(upPendingFile,'photo',document.getElementById('upCaption').value).then(function(){
+      upPendingFile=null;upFileEl.value='';upPreviewWrap.classList.remove('show');document.getElementById('upCaption').value='';
+      upSaveBtn.textContent='오늘 로그에 저장';upSaveBtn.disabled=true;
+      if(state.day===todayISO())renderDay();
+      showToast('오늘 로그에 저장했어요');
+    }).catch(function(err){upSaveBtn.disabled=false;upSaveBtn.textContent='오늘 로그에 저장';showToast('저장 실패: '+(err&&err.message||err));});
+  });
+
+  // ===== 모바일 하단 탭 =====
+  document.getElementById('mobileNav').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-mode]');if(!b)return;
+    state.mode=b.dataset.mode;
+    document.querySelectorAll('#mobileNav button').forEach(function(x){x.setAttribute('aria-selected',x===b);});
+    if(state.mode==='camera'){openCameraScreen();}
+    else{stopCamera();document.getElementById('camOverlay').classList.add('hidden');}
+  });
+
+  // ===== 카메라 =====
+  var camVideo=document.getElementById('camVideo'),camOverlay=document.getElementById('camOverlay'),camErr=document.getElementById('camErr'),camShutter=document.getElementById('camShutter'),camTimer=document.getElementById('camTimer');
+  function openCameraScreen(){
+    camOverlay.classList.remove('hidden');
+    if(state.stream)return; // 이미 켜져있으면 재요청 안 함
+    camErr.classList.add('hidden');
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+      camErr.textContent='이 브라우저는 카메라를 지원하지 않아요 — 아래 🖼 갤러리로 올려주세요.';camErr.classList.remove('hidden');return;
+    }
+    navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:true}).then(function(s){
+      state.stream=s;camVideo.srcObject=s;
+    }).catch(function(){
+      camErr.textContent='카메라 권한이 없어요 — 아래 🖼 갤러리로 올려주세요.';camErr.classList.remove('hidden');
+    });
+  }
+  function stopCamera(){
+    if(state.stream){state.stream.getTracks().forEach(function(t){t.stop();});state.stream=null;}
+    if(state.recorder&&state.recorder.state==='recording')state.recorder.stop();
+  }
+  document.querySelector('.camToggle').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-captype]');if(!b)return;
+    state.capType=b.dataset.captype;
+    document.querySelectorAll('.camToggle button').forEach(function(x){x.setAttribute('aria-selected',x===b);});
+  });
+
+  function pickVideoMime(){
+    if(!window.MediaRecorder)return '';
+    var cands=['video/mp4;codecs=h264,aac','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+    for(var i=0;i<cands.length;i++){try{if(MediaRecorder.isTypeSupported(cands[i]))return cands[i];}catch(e){}}
+    return '';
+  }
+  var RECORD_MAX_MS=60000;
+  function startRecording(){
+    if(!state.stream)return;
+    var mime=pickVideoMime();
+    try{state.recorder=mime?new MediaRecorder(state.stream,{mimeType:mime}):new MediaRecorder(state.stream);}catch(e){showToast('이 기기에서는 영상 녹화가 안 돼요');return;}
+    state.chunks=[];
+    state.recorder.ondataavailable=function(ev){if(ev.data&&ev.data.size)state.chunks.push(ev.data);};
+    state.recorder.onstop=function(){
+      var blob=new Blob(state.chunks,{type:state.recorder.mimeType||mime||'video/webm'});
+      clearInterval(state.recTimer);camTimer.classList.add('hidden');camShutter.classList.remove('recording');
+      openPreview(blob,'video');
+    };
+    state.recorder.start();
+    state.recStart=Date.now();camShutter.classList.add('recording');camTimer.classList.remove('hidden');camTimer.textContent='0:00';
+    state.recTimer=setInterval(function(){
+      var s=Math.floor((Date.now()-state.recStart)/1000);
+      camTimer.textContent=Math.floor(s/60)+':'+pad(s%60);
+      if(s*1000>=RECORD_MAX_MS)stopRecording();
+    },250);
+    setTimeout(function(){if(state.recorder&&state.recorder.state==='recording')stopRecording();},RECORD_MAX_MS+200);
+  }
+  function stopRecording(){if(state.recorder&&state.recorder.state==='recording')state.recorder.stop();}
+  function takePhoto(){
+    var c=document.createElement('canvas');
+    c.width=camVideo.videoWidth||720;c.height=camVideo.videoHeight||1280;
+    c.getContext('2d').drawImage(camVideo,0,0,c.width,c.height);
+    c.toBlob(function(blob){openPreview(blob,'photo');},'image/jpeg',0.9);
+  }
+  camShutter.addEventListener('click',function(){
+    if(!state.stream){showToast('카메라를 쓸 수 없어요 — 갤러리를 이용해주세요');return;}
+    if(state.capType==='video'){
+      if(state.recorder&&state.recorder.state==='recording')stopRecording();else startRecording();
+    }else{takePhoto();}
+  });
+  document.getElementById('camGalleryBtn').addEventListener('click',function(){document.getElementById('galleryInput').click();});
+  document.getElementById('galleryInput').addEventListener('change',function(){
+    var f=this.files&&this.files[0];this.value='';if(!f)return;
+    openPreview(f,f.type.indexOf('video')===0?'video':'photo');
+  });
+
+  // ===== 캡션 미리보기 화면 =====
+  var previewOverlay=document.getElementById('previewOverlay'),previewMediaWrap=document.getElementById('previewMediaWrap'),previewCaption=document.getElementById('previewCaption'),saveBtn=document.getElementById('saveBtn');
+  function openPreview(blob,type){
+    state.pending={blob:blob,type:type};
+    var url=URL.createObjectURL(blob);
+    previewMediaWrap.innerHTML=type==='video'?'<video src="'+url+'" controls autoplay playsinline muted loop></video>':'<img src="'+url+'">';
+    previewCaption.value='';
+    previewOverlay.classList.remove('hidden');
+    saveBtn.disabled=false;saveBtn.textContent='저장';
+  }
+  function closePreview(){previewOverlay.classList.add('hidden');previewMediaWrap.innerHTML='';state.pending=null;}
+  document.getElementById('retakeBtn').addEventListener('click',closePreview);
+  saveBtn.addEventListener('click',function(){
+    if(!state.pending)return;
+    saveBtn.disabled=true;saveBtn.textContent='저장 중…';
+    saveEntry(state.pending.blob,state.pending.type,previewCaption.value).then(function(){
+      closePreview();
+      if(state.day===todayISO())renderDay();
+      showToast('오늘 로그에 저장했어요');
+    }).catch(function(err){saveBtn.disabled=false;saveBtn.textContent='저장';showToast('저장 실패: '+(err&&err.message||err));});
+  });
+
+  document.addEventListener('visibilitychange',function(){if(document.hidden)stopCamera();});
+})();
+</script>
+</body>
+</html>
