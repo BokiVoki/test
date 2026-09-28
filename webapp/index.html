@@ -450,9 +450,6 @@
   .sitem .ssub{font-size:11px;color:var(--faint)}
   .sitem .stag{font-size:11px;color:var(--faint);margin-left:auto;white-space:nowrap}
   .sitem .sdue{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
-  .subtabs{display:flex;gap:16px;margin:0 0 18px;border-bottom:1px solid var(--line)}
-  .subtabs button{font:inherit;font-size:13px;color:var(--faint);background:none;border:0;cursor:pointer;padding:2px 0 8px;border-bottom:2px solid transparent;margin-bottom:-1px}
-  .subtabs button[aria-selected="true"]{color:var(--text);font-weight:600;border-bottom-color:var(--accent)}
   .calnav{display:flex;align-items:center;gap:12px;margin-bottom:12px}
   .calnav h3{margin:0;font-size:16px}.calnav button{font:inherit;background:none;border:1px solid var(--line-2);color:var(--muted);cursor:pointer;padding:3px 9px}
   .calnav span{font-size:12px;color:var(--faint)}
@@ -779,10 +776,6 @@
     <div class="cgrid" id="cgrid"></div>
   </div>
   <div id="daily" class="hidden">
-    <div class="subtabs" id="dailySubtabs" role="tablist" aria-label="일상 보기">
-      <button role="tab" aria-selected="true" data-dailytab="routine">루틴</button>
-      <button role="tab" aria-selected="false" data-dailytab="todo">투두</button>
-    </div>
     <div id="calRoutinePanel">
       <div class="bhead"><h2>매일 루틴</h2></div>
       <div id="calRoutineDaily"></div>
@@ -807,11 +800,6 @@
         <span class="crfield hidden" id="crMonthdayFields">매달&nbsp;<input id="crDay" type="number" min="1" max="31" value="1">&nbsp;일</span>
         <button class="btn-s" id="crAdd">추가</button>
       </div>
-    </div>
-    <div id="calTodoPanel" class="hidden">
-      <p class="caphint">캘린더엔 안 뜨는 단순 체크리스트예요 — 잠금화면 위젯에서도 체크할 수 있게 만들 예정.</p>
-      <div id="calTodoList"></div>
-      <input class="boardin" id="ctIn" placeholder="+ 할일 추가 후 Enter" aria-label="투두 추가">
     </div>
   </div>
   <div id="memo" class="hidden">
@@ -929,6 +917,7 @@
   var hasMemoUpd=false;  // memos에 updated 컬럼이 있으면 true (정렬용)
   var hasMemoImg=false;  // memos.images 컬럼이 있으면 true (사진 첨부, SQL 마이그레이션 후)
   var hasMemoPin=false;  // memos.pinned 컬럼이 있으면 true (홈 보드 고정, SQL 마이그레이션 후)
+  var hasMemoLinkMemo=false; // memos.linkmemo 컬럼이 있으면 true (메모↔메모 연결, 2026-09-28)
   var hasDoneLog=false;  // todos.donelog 컬럼이 있으면 true (고정업무 완료 이력, SQL 마이그레이션 후)
   var hasMonth=false;    // todos.month/review 컬럼이 있으면 true (월별 관리·회고, v2 마이그레이션 후)
   var hasAgenda=false;   // agenda 테이블이 있으면 true (회의 안건, v2)
@@ -939,7 +928,6 @@
   var hasMonthGoal=false;// journal.goal/musts 컬럼이 있으면 true (월 목표·꼭 이뤄야 할 것, SQL 마이그레이션 후)
   var hasPush=false;    // push_subscriptions 테이블이 있으면 true (아이폰 홈화면 설치+웹푸시, SQL 마이그레이션 후)
   var hasCalRoutines=false; // cal_routines 테이블이 있으면 true (캘린더 탭 루틴, SQL 마이그레이션 후)
-  var hasCalTodos=false; // cal_todos 테이블이 있으면 true (캘린더 탭 투두, SQL 마이그레이션 후)
   var hasRoutineSlot=false; // cal_routines.slot 컬럼이 있으면 true (매일 루틴 아침/점심/저녁 구분, SQL 마이그레이션 후)
   var hasRoutineToggle=false; // routines.unit 컬럼이 있으면 true (상시업무 매일/주기/요일 체크리스트, SQL 마이그레이션 후, 2026-09-25)
   var hasRoutineHistory=false; // cal_routines.history 컬럼이 있으면 true (루틴 트래커용 체크 기록, SQL 마이그레이션 후, 2026-09-25)
@@ -951,7 +939,7 @@
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var nestSource=null;   // '하위로 이동' 중인 할일 id
-  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'home',q:'',artists:[],artworks:[],artSel:{type:'none'},month:'',agenda:[],links:[],progress:[],journal:[],jDate:'',routines:[],calRoutines:[],calTodos:[]};
+  var state={ws:'일',hours:4,theme:null,calMonth:new Date().getMonth(),calYear:new Date().getFullYear(),curFolder:'전체',curMemo:null,todos:[],memos:[],settings:{},uid:null,tab:'home',q:'',artists:[],artworks:[],artSel:{type:'none'},month:'',agenda:[],links:[],progress:[],journal:[],jDate:'',routines:[],calRoutines:[]};
 
   // prefs (local only)
   function loadPrefs(){try{var p=JSON.parse(localStorage.getItem('haru_prefs')||'{}');['ws','hours','theme','calMonth','calYear','curFolder','tabOrder'].forEach(function(k){if(p[k]!=null)state[k]=p[k];});}catch(e){}}
@@ -995,8 +983,8 @@
     if(hasMonth){r.month=t.month||(t.month=thisMonth());r.review=t.review||'';r.rolled=!!t.rolled;r.routine_id=t.routineId||null;}
     return r;}
   function fromT(r){return {id:r.id,title:r.title||'',ws:r.ws||'일',project:r.project||'',due:r.due||'',today:!!r.today,done:!!r.done,imp:r.imp||1,est:r.est||0,repeat:r.repeat||'none',repDay:r.repday||'',bucket:r.bucket||'inbox',lastDone:r.lastdone||'',memoId:r.memoid||null,sort:r.sort||0,doneAt:r.doneat||'',archived:!!r.archived,subs:normSubs(r.subs),stage:(typeof r.dep==='number'?r.dep:0),endd:r.endd||'',doneLog:Array.isArray(r.donelog)?r.donelog:[],month:r.month||'',review:r.review||'',rolled:!!r.rolled,routineId:r.routine_id||null};}
-  function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;if(hasMemoImg)r.images=m.images||[];if(hasMemoPin)r.pinned=!!m.pinned;return r;}
-  function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',images:r.images||[],updated:r.updated||'',pinned:!!r.pinned};}
+  function rowM(m){var r={id:m.id,folder:m.folder,title:m.title,body:m.body,link:m.link||''};if(hasMemoUpd)r.updated=m.updated||null;if(hasMemoImg)r.images=m.images||[];if(hasMemoPin)r.pinned=!!m.pinned;if(hasMemoLinkMemo)r.linkmemo=m.linkmemo||null;return r;}
+  function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',images:r.images||[],updated:r.updated||'',pinned:!!r.pinned,linkmemo:r.linkmemo||''};}
   function putTodo(t){sb.from('todos').upsert(rowT(t)).then(function(r){if(r.error)console.warn('todo',r.error.message);});}
   function delTodoDB(id){sb.from('todos').delete().eq('id',id).then(function(){});}
   function putAgenda(a){if(!hasAgenda)return;sb.from('agenda').upsert({id:a.id,ws:a.ws,text:a.text,done:!!a.done,sort:a.sort||0}).then(function(r){if(r.error)console.warn('agenda',r.error.message);});}
@@ -1053,9 +1041,6 @@
     if(h.history.length>400)h.history=h.history.slice(-400);
     putCalRoutine(h);renderCalRoutines();renderJournal();
   }
-  // ===== 캘린더 탭 「투두」(캘린더에 안 뜨는 단순 체크리스트, 초기화 없음) =====
-  function putCalTodo(x){if(!hasCalTodos)return;sb.from('cal_todos').upsert({id:x.id,owner:state.uid,title:x.title,done:!!x.done,sort:x.sort||0,created:x.created||todayISO()}).then(function(r){if(r.error)console.warn('cal_todo',r.error.message);});}
-  function delCalTodoDB(id){if(!hasCalTodos)return;sb.from('cal_todos').delete().eq('id',id).then(function(){});}
   // ===== 콘텐츠 아카이브(책/웹툰/영화…) — 일정봇 아카이브와 같은 데이터를 하루앱에서도 보고 고침 =====
   var ARCHIVE_TYPES=[['book','책'],['webtoon','웹툰'],['drama','드라마'],['movie','영화'],['anime','애니'],['manga','만화'],['article','아티클'],['podcast','팟캐스트'],['game','게임'],['graphic_book','그래픽북'],['documentary','다큐'],['exhibition','전시'],['other','기타']];
   var ARCHIVE_TYPE_KR={};ARCHIVE_TYPES.forEach(function(p){ARCHIVE_TYPE_KR[p[0]]=p[1];});
@@ -1496,7 +1481,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*'),sb.from('ledger').select('*'),sb.from('ledger_recurring').select('*'),sb.from('ledger').select('recurring_id').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*'),sb.from('ledger').select('*'),sb.from('ledger_recurring').select('*'),sb.from('ledger').select('recurring_id').limit(1),sb.from('memos').select('linkmemo').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1517,14 +1502,14 @@
       hasMonthGoal=!(res[20]&&res[20].error);// journal.goal/musts 컬럼 있으면 월 목표·꼭 이뤄야 할 것 켜짐
       hasPush=!(res[21]&&res[21].error);   // push_subscriptions 테이블 있으면 알림 켜기 켜짐
       hasCalRoutines=!(res[22]&&res[22].error); // cal_routines 테이블 있으면 캘린더 루틴 켜짐
-      hasCalTodos=!(res[23]&&res[23].error); // cal_todos 테이블 있으면 캘린더 투두 켜짐
-      hasRoutineSlot=!(res[24]&&res[24].error); // cal_routines.slot 컬럼 있으면 아침/점심/저녁 구분 켜짐
-      hasRoutineToggle=!(res[25]&&res[25].error); // routines.unit 컬럼 있으면 상시업무 매일/주기/요일 체크리스트 켜짐(2026-09-25)
-      hasRoutineHistory=!(res[26]&&res[26].error); // cal_routines.history 컬럼 있으면 루틴 트래커 켜짐(2026-09-25)
-      hasContentArchive=!(res[27]&&res[27].error); // archive 테이블 있으면 콘텐츠 아카이브 탭 켜짐(2026-09-26)
-      hasLedger=!(res[28]&&res[28].error); // ledger 테이블 있으면 가계부 탭 켜짐(2026-09-27)
-      hasLedgerRecurring=!(res[29]&&res[29].error); // ledger_recurring 테이블 있으면 반복 지출/수입 켜짐(2026-09-28)
-      hasLedgerRecurringId=!(res[30]&&res[30].error); // ledger.recurring_id 컬럼 있으면 반복 항목 추적 켜짐(2026-09-28)
+      hasRoutineSlot=!(res[23]&&res[23].error); // cal_routines.slot 컬럼 있으면 아침/점심/저녁 구분 켜짐
+      hasRoutineToggle=!(res[24]&&res[24].error); // routines.unit 컬럼 있으면 상시업무 매일/주기/요일 체크리스트 켜짐(2026-09-25)
+      hasRoutineHistory=!(res[25]&&res[25].error); // cal_routines.history 컬럼 있으면 루틴 트래커 켜짐(2026-09-25)
+      hasContentArchive=!(res[26]&&res[26].error); // archive 테이블 있으면 콘텐츠 아카이브 탭 켜짐(2026-09-26)
+      hasLedger=!(res[27]&&res[27].error); // ledger 테이블 있으면 가계부 탭 켜짐(2026-09-27)
+      hasLedgerRecurring=!(res[28]&&res[28].error); // ledger_recurring 테이블 있으면 반복 지출/수입 켜짐(2026-09-28)
+      hasLedgerRecurringId=!(res[29]&&res[29].error); // ledger.recurring_id 컬럼 있으면 반복 항목 추적 켜짐(2026-09-28)
+      hasMemoLinkMemo=!(res[30]&&res[30].error); // memos.linkmemo 컬럼 있으면 메모↔메모 연결 켜짐(2026-09-28)
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1537,10 +1522,9 @@
       state.journal=(hasJournal&&res[17].data)?res[17].data.map(function(r){return {id:r.id,date:r.date||'',body:r.body||'',images:Array.isArray(r.images)?r.images:[],updated:r.updated||'',goal:r.goal||'',musts:Array.isArray(r.musts)?r.musts:[]};}):[];
       state.routines=(hasRoutines&&res[18].data)?res[18].data.map(function(r){return {id:r.id,ws:r.ws||'일',project:r.project||'',title:r.title||'',kind:r.cycle||'monthly',unit:r.unit||'day',n:r.n||1,weekdays:Array.isArray(r.weekdays)?r.weekdays:[],nextDue:r.next_due||'',doneToday:!!r.done_today,imp:r.imp||1,sort:r.sort||0,active:r.active!==false,created:r.created||''};}):[];
       state.calRoutines=(hasCalRoutines&&res[22].data)?res[22].data.map(fromCalRoutine):[];
-      state.calTodos=(hasCalTodos&&res[23].data)?res[23].data.map(function(r){return {id:r.id,title:r.title||'',done:!!r.done,sort:r.sort||0,created:r.created||''};}):[];
-      state.archive=(hasContentArchive&&res[27].data)?res[27].data.map(fromArchive):[];
-      state.ledger=(hasLedger&&res[28].data)?res[28].data.map(fromLedger):[];
-      state.ledgerRecurring=(hasLedgerRecurring&&res[29].data)?res[29].data.map(fromLedgerRecurring):[];
+      state.archive=(hasContentArchive&&res[26].data)?res[26].data.map(fromArchive):[];
+      state.ledger=(hasLedger&&res[27].data)?res[27].data.map(fromLedger):[];
+      state.ledgerRecurring=(hasLedgerRecurring&&res[28].data)?res[28].data.map(fromLedgerRecurring):[];
       state.month=thisMonth();            // 항상 이번 달로 열림 (◀ ▶ 로 지난 달을 넘겨볼 수 있음)
       state.ledgerMonth=thisMonth();      // 가계부도 항상 이번 달로 열림(독립된 달 상태 — 홈의 월 이동과 안 섞임)
       state.jDate=todayISO();             // 저널은 오늘 칸부터
@@ -1943,17 +1927,6 @@
       }).join('')+'</div>';
     scrollTrackersToToday(el);
   }
-  function ctRow(x){
-    return '<div class="lkrow" data-ct="'+x.id+'"><span class="ck'+(x.done?' on':'')+'" data-act="ct-check" role="checkbox" tabindex="0">'+(x.done?svg():'')+'</span>'
-      +'<span class="mktxt" contenteditable="true" spellcheck="false" data-act="ct-rename"'+(x.done?' style="color:var(--faint);text-decoration:line-through"':'')+'>'+esc(x.title)+'</span>'
-      +'<span class="lkdel" data-act="ct-del" title="지우기">✕</span></div>';
-  }
-  function renderCalTodos(){
-    var el=document.getElementById('calTodoList');if(!el)return;
-    if(!hasCalTodos){el.innerHTML='<p class="boardempty">투두 표가 아직 없어요</p>';return;}
-    var list=state.calTodos.slice().sort(function(a,b){return (a.done-b.done)||((a.sort||0)-(b.sort||0));});
-    el.innerHTML=list.length?list.map(ctRow).join(''):'<p class="boardempty">아래에서 할일을 추가해보세요</p>';
-  }
   // ===== v2: 월 네비 · 회의 안건 · 링크 보드 =====
   function renderMonthNav(){
     var el=document.getElementById('monthTitle');if(!el)return;
@@ -2030,7 +2003,7 @@
     document.getElementById('mfolsel').innerHTML=FOLDERS.slice(1).map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
     if(cur){state.curMemo=cur.id;document.getElementById('mtitle').value=cur.title;document.getElementById('mfolsel').value=cur.folder;
-      document.getElementById('mlinkbar').innerHTML=cur.link?'🔗 연결된 할일: <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>':'<span style="color:var(--faint);border:0;cursor:default">연결된 할일 없음</span>';
+      document.getElementById('mlinkbar').innerHTML=cur.link?('🔗 연결된 '+(cur.linkmemo?'메모':'할일')+': <span data-back>'+esc(cur.link)+'</span> <span data-unlink style="color:var(--faint);border-bottom-color:var(--faint)">연결 해제</span>'):'<span style="color:var(--faint);border:0;cursor:default">연결된 항목 없음 · 본문에 @를 입력해 할일·메모를 연결해보세요</span>';
       if(curTreeMemoId!==cur.id){resetMemoUndo();renderMemoTree(cur);}}
     else{document.getElementById('mtitle').value='';document.getElementById('mlinkbar').textContent='';document.getElementById('mbodyTree').innerHTML='';curTreeMemoId=null;resetMemoUndo();}
     renderMemoPins();}
@@ -2214,8 +2187,8 @@
     syncBodyFromTree();
     clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);memoUndoBurstOpen=false;},600);
   }
-  function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m)m.link=t.title;}
-    (t.subs||[]).forEach(function(s){if(s.memoId){var m2=mById(s.memoId);if(m2)m2.link=t.title+' ↳ '+s.t;}});});}
+  function syncLinks(){state.todos.forEach(function(t){if(t.memoId){var m=mById(t.memoId);if(m&&!m.linkmemo)m.link=t.title;}
+    (t.subs||[]).forEach(function(s){if(s.memoId){var m2=mById(s.memoId);if(m2&&!m2.linkmemo)m2.link=t.title+' ↳ '+s.t;}});});}
   // ── 그림공부 렌더 ──
   function renderArt(){
     var noTbl=document.getElementById('artNoTable'),body=document.getElementById('artBody');
@@ -2443,7 +2416,7 @@
     });
   })();
 
-  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCalTodos();renderCal();renderMemos();renderJournal();renderDone();renderArt();renderArchiveTab();renderLedger();updateHomeSegCount();if(state.q)runSearch();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCal();renderMemos();renderJournal();renderDone();renderArt();renderArchiveTab();renderLedger();updateHomeSegCount();if(state.q)runSearch();}
   // 모바일 "보드" 탭에 살짝 붙는 숫자 — 주머니 + 체크 안 한 회의 안건 합
   function updateHomeSegCount(){
     var el=document.getElementById('hsnCount');if(!el)return;
@@ -2690,12 +2663,6 @@
   document.getElementById('crAdd').addEventListener('click',addCalRoutine);
   document.getElementById('crTitle').addEventListener('keydown',function(e){
     if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addCalRoutine();});
-  document.getElementById('ctIn').addEventListener('keydown',function(e){
-    if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
-    var v=this.value.trim();if(!v)return;
-    if(!hasCalTodos){showToast('투두 표가 아직 없어요');return;}
-    var x={id:uid(),title:v,done:false,sort:Date.now(),created:todayISO()};
-    state.calTodos.push(x);putCalTodo(x);this.value='';renderCalTodos();});
   document.getElementById('agendaIn').addEventListener('keydown',function(e){
     if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
     var v=this.value.trim();if(!v)return;
@@ -2725,13 +2692,6 @@
     if(!v){el.textContent=h.title;return;}
     if(v===h.title)return;
     h.title=v;putCalRoutine(h);},true);
-  document.addEventListener('blur',function(e){
-    var el=e.target&&e.target.closest?e.target.closest('[data-act="ct-rename"]'):null;if(!el)return;
-    var ctEl=el.closest('[data-ct]'),x=ctEl&&state.calTodos.filter(function(y){return y.id===ctEl.dataset.ct;})[0];if(!x)return;
-    var v=el.textContent.trim();
-    if(!v){el.textContent=x.title;return;}
-    if(v===x.title)return;
-    x.title=v;putCalTodo(x);},true);
   document.addEventListener('blur',function(e){
     var el=e.target&&e.target.closest?e.target.closest('[data-act="arc-rename"]'):null;if(!el)return;
     var arEl=el.closest('[data-arc]'),a=arEl&&archiveById(arEl.dataset.arc);if(!a)return;
@@ -2924,12 +2884,6 @@
       h2.nextDue='';  // 주기 설정이 바뀌었으니 지금 바로 다시 체크 대상이 되게 리셋
       putCalRoutine(h2);crOpen[h2.id]=false;renderCalRoutines();
       showToast('루틴 주기를 수정했어요');}
-    else if(act==='ct-check'||act==='ct-del'){
-      var ctEl=el.closest('[data-ct]'),x=ctEl&&state.calTodos.filter(function(y){return y.id===ctEl.dataset.ct;})[0];
-      if(!x)return;
-      if(act==='ct-check'){x.done=!x.done;putCalTodo(x);renderCalTodos();}
-      else{var xi=state.calTodos.indexOf(x);state.calTodos.splice(xi,1);delCalTodoDB(x.id);renderCalTodos();
-        showToast('투두를 지웠어요',function(){state.calTodos.splice(xi,0,x);putCalTodo(x);renderCalTodos();});}}
     else if(act==='subtog'&&t){expanded[t.id]=!expanded[t.id];renderToday();renderProjects();}
     else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();renderDue();}}
     else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();renderDue();}}
@@ -3015,14 +2969,6 @@
   function parseDue(v){v=(v||'').trim();if(!v)return '';var p=v.split(/[\/\-.]/);if(p.length>=2){var mo=+p[p.length-2],da=+p[p.length-1];if(mo&&da)return state.calYear+'-'+pad(mo)+'-'+pad(da);}return '';}
 
   // 일상 탭(루틴/투두) 서브탭
-  document.getElementById('dailySubtabs').addEventListener('click',function(e){
-    var b=e.target.closest('button[data-dailytab]');if(!b)return;
-    var name=b.dataset.dailytab;
-    document.querySelectorAll('#dailySubtabs button').forEach(function(x){x.setAttribute('aria-selected',x===b);});
-    document.getElementById('calRoutinePanel').classList.toggle('hidden',name!=='routine');
-    document.getElementById('calTodoPanel').classList.toggle('hidden',name!=='todo');
-    if(name==='routine')scrollTrackersToToday(document.getElementById('calRoutinePanel'));
-  });
   // calendar drag
   document.getElementById('calPrev').addEventListener('click',function(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}savePrefs();renderCal();});
   document.getElementById('calNext').addEventListener('click',function(){state.calMonth++;if(state.calMonth>11){state.calMonth=0;state.calYear++;}savePrefs();renderCal();});
@@ -3342,25 +3288,42 @@
     _mentionTa=ta;_mentionStart=pos-mm[0].length;var q=norm(mm[1]);
     var rows=[];
     state.todos.forEach(function(t){if(t.archived)return;
-      if(norm(t.title+' '+(t.project||'')).indexOf(q)>=0)rows.push({id:t.id,sub:'',label:t.title,tag:t.ws+(t.project?' · '+t.project:'')});
-      (t.subs||[]).forEach(function(s){if(norm(s.t).indexOf(q)>=0)rows.push({id:t.id,sub:s.id,label:s.t,parent:t.title,tag:t.ws+(t.project?' · '+t.project:'')});});
+      if(norm(t.title+' '+(t.project||'')).indexOf(q)>=0)rows.push({kind:'todo',id:t.id,sub:'',label:t.title,tag:t.ws+(t.project?' · '+t.project:'')});
+      (t.subs||[]).forEach(function(s){if(norm(s.t).indexOf(q)>=0)rows.push({kind:'todo',id:t.id,sub:s.id,label:s.t,parent:t.title,tag:t.ws+(t.project?' · '+t.project:'')});});
     });
+    if(hasMemoLinkMemo)state.memos.forEach(function(m){if(m.id===state.curMemo)return;
+      if(norm(m.title||'').indexOf(q)>=0)rows.push({kind:'memo',id:m.id,sub:'',label:m.title||'제목 없음',tag:'메모'});});
     rows=rows.slice(0,8);
-    if(!rows.length){pop.innerHTML='<div class="mentionitem empty">일치하는 할일 없음</div>';}
-    else{pop.innerHTML=rows.map(function(r){return '<div class="mentionitem" data-id="'+r.id+'"'+(r.sub?' data-sub="'+r.sub+'"':'')+'>'+
-      (r.sub?'<span class="mtt">↳ '+esc(r.label)+'</span><span class="mhit">'+esc(r.parent)+'</span>':'<span class="mtt">'+esc(r.label)+'</span>')+
+    if(!rows.length){pop.innerHTML='<div class="mentionitem empty">일치하는 항목 없음</div>';}
+    else{pop.innerHTML=rows.map(function(r){return '<div class="mentionitem" data-kind="'+r.kind+'" data-id="'+r.id+'"'+(r.sub?' data-sub="'+r.sub+'"':'')+'>'+
+      (r.sub?'<span class="mtt">↳ '+esc(r.label)+'</span><span class="mhit">'+esc(r.parent)+'</span>':'<span class="mtt">'+(r.kind==='memo'?'📝 ':'')+esc(r.label)+'</span>')+
       '<span class="mtag">'+esc(r.tag)+'</span></div>';}).join('');}
     pop.classList.remove('hidden');positionMention(ta,pop);}
   document.getElementById('mentionPop').addEventListener('mousedown',function(e){e.preventDefault();});
   document.getElementById('mentionPop').addEventListener('click',function(e){var it=e.target.closest('.mentionitem[data-id]');if(!it)return;
-    var t=tById(it.dataset.id),m=mById(state.curMemo),ta=_mentionTa;if(!t||!m||!ta||_mentionStart<0)return;
+    var m=mById(state.curMemo),ta=_mentionTa;if(!m||!ta||_mentionStart<0)return;
+    if(it.dataset.kind==='memo'){
+      var target=mById(it.dataset.id);if(!target)return;
+      var label=target.title||'제목 없음';
+      checkpointMemoUndo(m);memoUndoBurstOpen=false;
+      var pos0=ta.selectionStart,ins0='@'+label+' ',start0=_mentionStart,newVal0=ta.value.slice(0,start0)+ins0+ta.value.slice(pos0);
+      ta.value=newVal0;autoGrow(ta);
+      var caret0=start0+ins0.length;
+      m.link=label;m.linkmemo=target.id;syncBodyFromTree();
+      putMemo(m);
+      this.classList.add('hidden');_mentionStart=-1;renderMemos();
+      ta.focus();ta.setSelectionRange(caret0,caret0);
+      showToast('메모 연결: '+label);
+      return;
+    }
+    var t=tById(it.dataset.id);if(!t)return;
     var subId=it.dataset.sub,label=t.title,sub=null;
     if(subId){sub=(t.subs||[]).filter(function(s){return s.id===subId;})[0];if(sub)label=t.title+' ↳ '+sub.t;}
     checkpointMemoUndo(m);memoUndoBurstOpen=false;
     var pos=ta.selectionStart,ins='@'+label+' ',start=_mentionStart,newVal=ta.value.slice(0,start)+ins+ta.value.slice(pos);
     ta.value=newVal;autoGrow(ta);
     var caret=start+ins.length;
-    m.link=label;syncBodyFromTree();
+    m.link=label;m.linkmemo=null;syncBodyFromTree();
     if(sub)sub.memoId=m.id;else t.memoId=m.id;
     putTodo(t);putMemo(m);
     this.classList.add('hidden');_mentionStart=-1;renderMemos();renderToday();renderProjects();
@@ -3368,8 +3331,10 @@
     showToast('할일 연결: '+label);});
   document.getElementById('mfolsel').addEventListener('change',function(){var m=mById(state.curMemo);if(m){m.folder=this.value;putMemo(m);renderMemos();}});
   document.getElementById('mlinkbar').addEventListener('click',function(e){
-    if(e.target.hasAttribute('data-unlink')){var m=mById(state.curMemo);if(m){state.todos.forEach(function(t){var ch=false;if(t.memoId===m.id){t.memoId=null;ch=true;}(t.subs||[]).forEach(function(s){if(s.memoId===m.id){s.memoId=null;ch=true;}});if(ch)putTodo(t);});m.link='';putMemo(m);renderAll();renderMemos();showToast('연결을 해제했어요');}return;}
-    if(e.target.hasAttribute('data-back')){var mm=mById(state.curMemo);var lt=mm&&state.todos.filter(function(t){return t.memoId===mm.id||(t.subs||[]).some(function(s){return s.memoId===mm.id;});})[0];if(lt&&lt.ws!==state.ws){state.ws=lt.ws;savePrefs();renderAll();}switchTab('home');showToast('연결된 할일로 이동');}});
+    if(e.target.hasAttribute('data-unlink')){var m=mById(state.curMemo);if(m){state.todos.forEach(function(t){var ch=false;if(t.memoId===m.id){t.memoId=null;ch=true;}(t.subs||[]).forEach(function(s){if(s.memoId===m.id){s.memoId=null;ch=true;}});if(ch)putTodo(t);});m.link='';m.linkmemo=null;putMemo(m);renderAll();renderMemos();showToast('연결을 해제했어요');}return;}
+    if(e.target.hasAttribute('data-back')){var mm=mById(state.curMemo);
+      if(mm&&mm.linkmemo){var target=mById(mm.linkmemo);if(target){state.curMemo=target.id;renderMemos();showToast('연결된 메모로 이동');}return;}
+      var lt=mm&&state.todos.filter(function(t){return t.memoId===mm.id||(t.subs||[]).some(function(s){return s.memoId===mm.id;});})[0];if(lt&&lt.ws!==state.ws){state.ws=lt.ws;savePrefs();renderAll();}switchTab('home');showToast('연결된 할일로 이동');}});
   document.getElementById('newMemo').addEventListener('click',function(){var f=state.curFolder==='전체'?'업무':state.curFolder;var m={id:'m'+uid(),folder:f,title:'',body:'',link:''};state.memos.unshift(m);putMemo(m);state.curMemo=m.id;renderMemos();memoEl.classList.add('mob-edit');document.getElementById('mtitle').focus();showToast('새 메모 · '+f);});
   document.getElementById('mDelBtn').addEventListener('click',function(){var m=mById(state.curMemo);if(m)removeMemo(m);});
 })();
