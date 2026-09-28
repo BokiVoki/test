@@ -165,6 +165,8 @@
   .agrow .agadd,.agrow .agdel{flex:none;cursor:pointer;color:var(--faint);opacity:.55;font-size:11px}
   .agrow .agadd{color:var(--accent);border-bottom:1px dashed var(--accent)}
   .agrow:hover .agadd,.agrow:hover .agdel{opacity:1}
+  .agrow .agmemo{flex:none;cursor:pointer;font-size:11px;opacity:.8}
+  .agrow .agmemo:hover{opacity:1}
   /* ===== 상시업무 (서랍) ===== */
   .rtgrp{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin:12px 0 4px}
   .rtgrp:first-child{margin-top:0}
@@ -207,6 +209,8 @@
   .crdate{font-size:11px;color:var(--faint);flex:none;width:52px}
   .crEditTog{flex:none;color:var(--faint);cursor:pointer;font-size:12px;opacity:0}
   .lkrow:hover .crEditTog{opacity:1}
+  .lgbudgethead .crEditTog{opacity:.8} /* .lkrow 안에 있는 게 아니라 위 hover 규칙이 안 먹어서, 여기만 항상 보이게 */
+  .lgbudgethead .crEditTog:hover{opacity:1}
   .crEditTog:hover{color:var(--accent)}
   .crEditBox{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0 8px 22px;font-size:12.5px}
   .crEditBox select,.crEditBox input{font:inherit;font-size:12.5px;color:var(--text);background:transparent;border:0;border-bottom:1px solid var(--line-2);padding:3px 2px}
@@ -275,8 +279,10 @@
   .trkrow{display:flex;align-items:center;gap:8px}
   .trktitle{flex:0 0 140px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)}
   .trkgrid{display:flex;gap:2px;flex:1;flex-wrap:nowrap;overflow-x:auto}
-  .trkcell{flex:none;width:10px;height:10px;background:var(--sunk);border:1px solid var(--line)}
+  .trkcell{flex:none;width:10px;height:10px;background:var(--sunk);border:1px solid var(--line);cursor:pointer}
   .trkcell.on{background:var(--accent);border-color:var(--accent)}
+  .trkcell:hover:not(.future){outline:1px solid var(--accent);outline-offset:1px}
+  .trkcell.future{cursor:default;opacity:.5}
   @media(max-width:680px){.trktitle{flex-basis:88px;font-size:11px}.trkcell{width:8px;height:8px}}
   .crSlotHead:first-child{margin-top:0}
   .lkrow .mktxt[contenteditable]{cursor:text;outline:none}
@@ -707,7 +713,8 @@
         <section class="board">
           <div class="bhead2"><h3>회의 안건</h3><span class="cnt">정해지면 담기</span></div>
           <div id="agendaList"></div>
-          <input class="boardin" id="agendaIn" placeholder="+ 안건 추가 후 Enter" aria-label="회의 안건 추가">
+          <input class="boardin" id="agendaIn" placeholder="+ 안건 추가 후 Enter · @로 메모 연결" aria-label="회의 안건 추가">
+          <div id="agendaMentionPop" class="mentionpop hidden"></div>
         </section>
         <section class="board pinned">
           <div class="bhead2"><h3>🔗 링크</h3><a class="minilink" id="goDrawer">관리</a></div>
@@ -918,6 +925,7 @@
   var hasMemoImg=false;  // memos.images 컬럼이 있으면 true (사진 첨부, SQL 마이그레이션 후)
   var hasMemoPin=false;  // memos.pinned 컬럼이 있으면 true (홈 보드 고정, SQL 마이그레이션 후)
   var hasMemoLinkMemo=false; // memos.linkmemo 컬럼이 있으면 true (메모↔메모 연결, 2026-09-28)
+  var hasAgendaMemoLink=false; // agenda.memoid 컬럼이 있으면 true (회의 안건 ↔ 메모 연결, 2026-09-28)
   var hasDoneLog=false;  // todos.donelog 컬럼이 있으면 true (고정업무 완료 이력, SQL 마이그레이션 후)
   var hasMonth=false;    // todos.month/review 컬럼이 있으면 true (월별 관리·회고, v2 마이그레이션 후)
   var hasAgenda=false;   // agenda 테이블이 있으면 true (회의 안건, v2)
@@ -987,7 +995,7 @@
   function fromM(r){return {id:r.id,folder:r.folder||'업무',title:r.title||'',body:r.body||'',link:r.link||'',images:r.images||[],updated:r.updated||'',pinned:!!r.pinned,linkmemo:r.linkmemo||''};}
   function putTodo(t){sb.from('todos').upsert(rowT(t)).then(function(r){if(r.error)console.warn('todo',r.error.message);});}
   function delTodoDB(id){sb.from('todos').delete().eq('id',id).then(function(){});}
-  function putAgenda(a){if(!hasAgenda)return;sb.from('agenda').upsert({id:a.id,ws:a.ws,text:a.text,done:!!a.done,sort:a.sort||0}).then(function(r){if(r.error)console.warn('agenda',r.error.message);});}
+  function putAgenda(a){if(!hasAgenda)return;var row={id:a.id,ws:a.ws,text:a.text,done:!!a.done,sort:a.sort||0};if(hasAgendaMemoLink)row.memoid=a.memoId||null;sb.from('agenda').upsert(row).then(function(r){if(r.error)console.warn('agenda',r.error.message);});}
   function delAgendaDB(id){if(!hasAgenda)return;sb.from('agenda').delete().eq('id',id).then(function(){});}
   function putLink(l){if(!hasLinks)return;sb.from('links').upsert({id:l.id,title:l.title,url:l.url,grp:l.grp||'',pinned:!!l.pinned,sort:l.sort||0}).then(function(r){if(r.error)console.warn('link',r.error.message);});}
   function delLinkDB(id){if(!hasLinks)return;sb.from('links').delete().eq('id',id).then(function(){});}
@@ -1040,6 +1048,22 @@
     }
     if(h.history.length>400)h.history=h.history.slice(-400);
     putCalRoutine(h);renderCalRoutines();renderJournal();
+  }
+  // 트래커 칸을 직접 눌러서 과거(혹은 오늘) 하루의 체크 여부만 고침 — 전날 실제로는 했는데 체크를
+  // 깜빡한 경우를 위한 뒷북 체크. nextDue(다음 예정일)는 건드리지 않음 — "기록"과 "다음 언제 할지"를
+  // 분리해서, 과거 기록을 고쳐도 앞으로의 스케줄이 엉뚱하게 밀리지 않게 함.
+  function toggleTrackerDay(id,d){
+    if(d>todayISO())return; // 미래 칸은 무시
+    var h=state.calRoutines.filter(function(x){return x.id===id;})[0];if(!h)return;
+    h.history=h.history||[];
+    var i=h.history.indexOf(d);
+    if(i>=0)h.history.splice(i,1);
+    else{h.history.push(d);if(h.history.length>400)h.history=h.history.slice(-400);}
+    if(h.kind==='daily'&&d===todayISO())h.doneToday=(i<0); // 오늘 칸이면 체크박스 상태도 같이 맞춤
+    putCalRoutine(h);renderCalRoutines();renderJournal();
+  }
+  function trkCellHtml(hid,d,on,future){
+    return '<span class="trkcell'+(on?' on':'')+(future?' future':'')+'" data-h="'+hid+'" data-d="'+d+'" title="'+d+(future?'':' · 눌러서 체크/해제')+'"></span>';
   }
   // ===== 콘텐츠 아카이브(책/웹툰/영화…) — 일정봇 아카이브와 같은 데이터를 하루앱에서도 보고 고침 =====
   var ARCHIVE_TYPES=[['book','책'],['webtoon','웹툰'],['drama','드라마'],['movie','영화'],['anime','애니'],['manga','만화'],['article','아티클'],['podcast','팟캐스트'],['game','게임'],['graphic_book','그래픽북'],['documentary','다큐'],['exhibition','전시'],['other','기타']];
@@ -1481,7 +1505,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*'),sb.from('ledger').select('*'),sb.from('ledger_recurring').select('*'),sb.from('ledger').select('recurring_id').limit(1),sb.from('memos').select('linkmemo').limit(1)]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*'),sb.from('ledger').select('*'),sb.from('ledger_recurring').select('*'),sb.from('ledger').select('recurring_id').limit(1),sb.from('memos').select('linkmemo').limit(1),sb.from('agenda').select('memoid').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1510,13 +1534,14 @@
       hasLedgerRecurring=!(res[28]&&res[28].error); // ledger_recurring 테이블 있으면 반복 지출/수입 켜짐(2026-09-28)
       hasLedgerRecurringId=!(res[29]&&res[29].error); // ledger.recurring_id 컬럼 있으면 반복 항목 추적 켜짐(2026-09-28)
       hasMemoLinkMemo=!(res[30]&&res[30].error); // memos.linkmemo 컬럼 있으면 메모↔메모 연결 켜짐(2026-09-28)
+      hasAgendaMemoLink=!(res[31]&&res[31].error); // agenda.memoid 컬럼 있으면 회의 안건↔메모 연결 켜짐(2026-09-28)
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
       state.settings=(s&&!s.error&&s.data&&s.data[0]&&s.data[0].data)?s.data[0].data:{};
       state.artists=(hasArt&&res[8].data)?res[8].data.map(fromArtist):[];
       state.artworks=(hasArt&&res[9]&&!res[9].error&&res[9].data)?res[9].data.map(fromWork):[];
-      state.agenda=(hasAgenda&&res[14].data)?res[14].data.map(function(r){return {id:r.id,ws:r.ws||'일',text:r.text||'',done:!!r.done,sort:r.sort||0};}):[];
+      state.agenda=(hasAgenda&&res[14].data)?res[14].data.map(function(r){return {id:r.id,ws:r.ws||'일',text:r.text||'',done:!!r.done,sort:r.sort||0,memoId:r.memoid||null};}):[];
       state.links=(hasLinks&&res[15].data)?res[15].data.map(function(r){return {id:r.id,title:r.title||'',url:r.url||'',grp:r.grp||'',pinned:!!r.pinned,sort:r.sort||0};}):[];
       state.progress=(hasProgress&&res[16].data)?res[16].data.map(function(r){return {id:r.id,todoId:r.todo_id,date:r.date||'',text:r.text||''};}):[];
       state.journal=(hasJournal&&res[17].data)?res[17].data.map(function(r){return {id:r.id,date:r.date||'',body:r.body||'',images:Array.isArray(r.images)?r.images:[],updated:r.updated||'',goal:r.goal||'',musts:Array.isArray(r.musts)?r.musts:[]};}):[];
@@ -1646,13 +1671,13 @@
   function monthTrackerHTML(m){
     if(!hasRoutineHistory||!state.calRoutines.length)return '';
     var parts=m.split('-'),y=+parts[0],mo=+parts[1];
-    var daysInMonth=new Date(y,mo,0).getDate();
+    var daysInMonth=new Date(y,mo,0).getDate(),ti=todayISO();
     var days=[];for(var i=1;i<=daysInMonth;i++)days.push(m+'-'+String(i).padStart(2,'0'));
     var list=state.calRoutines.slice().sort(function(a,b){return (a.sort||0)-(b.sort||0);});
-    return '<div class="jcap">이 달 루틴 트래커</div><div class="trkwrap">'+list.map(function(h){
+    return '<div class="jcap">이 달 루틴 트래커 · 칸을 눌러 지난 체크를 고칠 수 있어요</div><div class="trkwrap">'+list.map(function(h){
       var hist=h.history||[];
       return '<div class="trkrow"><span class="trktitle">'+esc(h.title)+'</span><span class="trkgrid">'
-        +days.map(function(d){return '<span class="trkcell'+(hist.indexOf(d)>=0?' on':'')+'" title="'+d+'"></span>';}).join('')
+        +days.map(function(d){return trkCellHtml(h.id,d,hist.indexOf(d)>=0,d>ti);}).join('')
         +'</span></div>';
     }).join('')+'</div>';
   }
@@ -1916,13 +1941,13 @@
   function renderRoutineTracker(){
     var el=document.getElementById('calRoutineTracker');if(!el)return;
     if(!hasRoutineHistory||!state.calRoutines.length){el.innerHTML='';return;}
-    var days=trackerDays();
+    var days=trackerDays(),ti=todayISO();
     var list=state.calRoutines.slice().sort(function(a,b){return (a.sort||0)-(b.sort||0);});
-    el.innerHTML='<div class="bhead" style="margin-top:22px"><h2>📊 트래커</h2><div class="r">최근 30일</div></div>'
+    el.innerHTML='<div class="bhead" style="margin-top:22px"><h2>📊 트래커</h2><div class="r">최근 30일 · 칸을 눌러 지난 체크를 고칠 수 있어요</div></div>'
       +'<div class="trkwrap">'+list.map(function(h){
         var hist=h.history||[];
         return '<div class="trkrow"><span class="trktitle">'+esc(h.title)+'</span><span class="trkgrid">'
-          +days.map(function(d){return '<span class="trkcell'+(hist.indexOf(d)>=0?' on':'')+'" title="'+d+'"></span>';}).join('')
+          +days.map(function(d){return trkCellHtml(h.id,d,hist.indexOf(d)>=0,d>ti);}).join('')
           +'</span></div>';
       }).join('')+'</div>';
     scrollTrackersToToday(el);
@@ -1961,7 +1986,9 @@
     if(!hasAgenda){el.innerHTML='<p class="boardempty">회의 안건 표가 아직 없어요</p>';return;}
     var list=state.agenda.filter(function(a){return a.ws===state.ws;}).sort(function(a,b){return (a.done-b.done)||((a.sort||0)-(b.sort||0));});
     el.innerHTML=list.length?list.map(function(a){
-      return '<div class="agrow'+(a.done?' d':'')+'" data-ag="'+a.id+'"><span class="agck" data-act="ag-tog" title="얘기 끝난 것으로 표시">'+(a.done?'☑':'☐')+'</span><span class="agtx">'+esc(a.text)+'</span><span class="agadd" data-act="ag-add" title="「'+esc(AGENDA_PROJECT)+'」 프로젝트에 할일로 담기">담기</span><span class="agdel" data-act="ag-del" title="지우기">✕</span></div>';
+      return '<div class="agrow'+(a.done?' d':'')+'" data-ag="'+a.id+'"><span class="agck" data-act="ag-tog" title="얘기 끝난 것으로 표시">'+(a.done?'☑':'☐')+'</span><span class="agtx">'+esc(a.text)+'</span>'
+        +(a.memoId?'<span class="agmemo" data-act="ag-memo" title="연결된 메모 열기">📝</span>':'')
+        +'<span class="agadd" data-act="ag-add" title="「'+esc(AGENDA_PROJECT)+'」 프로젝트에 할일로 담기">담기</span><span class="agdel" data-act="ag-del" title="지우기">✕</span></div>';
     }).join(''):'<p class="boardempty">회의 때 꺼낼 말을 적어두세요</p>';
   }
   function linkRow(l){
@@ -2663,11 +2690,40 @@
   document.getElementById('crAdd').addEventListener('click',addCalRoutine);
   document.getElementById('crTitle').addEventListener('keydown',function(e){
     if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addCalRoutine();});
+  // 회의 안건 입력 — @로 메모를 검색해 연결(memoId). 팝업이 떠있는 동안 Enter는 후보 클릭에 양보.
+  var _agMentionStart=-1,agendaPendingMemoId=null;
+  function agendaMentionCheck(inp){
+    var pos=inp.selectionStart,before=inp.value.slice(0,pos),mm=before.match(/@([^\s@]{0,30})$/),pop=document.getElementById('agendaMentionPop');
+    if(!mm){_agMentionStart=-1;pop.classList.add('hidden');return;}
+    _agMentionStart=pos-mm[0].length;var q=norm(mm[1]);
+    var rows=state.memos.filter(function(m){return norm(m.title||'').indexOf(q)>=0;}).slice(0,8);
+    pop.innerHTML=rows.length?rows.map(function(m){return '<div class="mentionitem" data-id="'+m.id+'"><span class="mtt">📝 '+esc(m.title||'제목 없음')+'</span></div>';}).join(''):'<div class="mentionitem empty">일치하는 메모 없음</div>';
+    pop.classList.remove('hidden');positionMention(inp,pop);
+  }
+  document.getElementById('agendaIn').addEventListener('input',function(){
+    if(agendaPendingMemoId){var pm=mById(agendaPendingMemoId);if(!pm||this.value.indexOf('@'+(pm.title||'제목 없음'))<0)agendaPendingMemoId=null;}
+    agendaMentionCheck(this);
+  });
+  document.getElementById('agendaMentionPop').addEventListener('mousedown',function(e){e.preventDefault();});
+  document.getElementById('agendaMentionPop').addEventListener('click',function(e){
+    var it=e.target.closest('.mentionitem[data-id]');if(!it)return;
+    var m=mById(it.dataset.id),inp=document.getElementById('agendaIn');if(!m||_agMentionStart<0)return;
+    var label=m.title||'제목 없음';
+    var pos=inp.selectionStart,ins='@'+label+' ',start=_agMentionStart,newVal=inp.value.slice(0,start)+ins+inp.value.slice(pos);
+    inp.value=newVal;var caret=start+ins.length;
+    agendaPendingMemoId=m.id;
+    this.classList.add('hidden');_agMentionStart=-1;
+    inp.focus();inp.setSelectionRange(caret,caret);
+  });
   document.getElementById('agendaIn').addEventListener('keydown',function(e){
+    var pop=document.getElementById('agendaMentionPop');
+    if(e.key==='Escape'&&!pop.classList.contains('hidden')){pop.classList.add('hidden');_agMentionStart=-1;return;}
     if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
+    if(!pop.classList.contains('hidden'))return; // 멘션 후보가 떠있으면 Enter는 후보 선택에 양보
     var v=this.value.trim();if(!v)return;
     if(!hasAgenda){showToast('회의 안건 표가 아직 없어요');return;}
-    var a={id:uid(),ws:state.ws,text:v,done:false,sort:Date.now()};
+    var a={id:uid(),ws:state.ws,text:v,done:false,sort:Date.now(),memoId:agendaPendingMemoId};
+    agendaPendingMemoId=null;
     state.agenda.push(a);putAgenda(a);this.value='';renderAgenda();});
   function addLink(){
     var ti=document.getElementById('linkTitle'),ur=document.getElementById('linkUrl'),gr=document.getElementById('linkGrp');
@@ -2731,6 +2787,9 @@
     var idx=state.todos.indexOf(child);if(idx>=0)state.todos.splice(idx,1);delTodoDB(child.id);
     cancelNest();renderAll();
     showToast('「'+child.title+'」을(를) 「'+parent.title+'」 하위로 넣었어요',function(){parent.subs.length=baseLen;putTodo(parent);state.todos.push(child);putTodo(child);renderAll();});}
+  document.addEventListener('click',function(e){
+    var trk=e.target.closest('.trkcell[data-h]');if(trk&&!trk.classList.contains('future')){toggleTrackerDay(trk.dataset.h,trk.dataset.d);return;}
+  });
   document.addEventListener('click',function(e){
     if(nestSource){var cx=e.target.closest('#nestCancel');if(cx){cancelNest();return;}var tr=e.target.closest('tr[data-id]');if(tr&&!tr.classList.contains('subrow')&&tr.dataset.id!==nestSource){doNest(nestSource,tr.dataset.id);return;}cancelNest();return;}
     var el=e.target.closest('[data-act]');if(!el||!appEl.contains(el))return;var act=el.dataset.act,id=rowId(el),t=id?tById(id):null;
@@ -2836,10 +2895,11 @@
       var phEl=el.closest('[data-prg]'),pr=phEl&&state.progress.filter(function(x){return x.id===phEl.dataset.prg;})[0];
       if(pr){var pri=state.progress.indexOf(pr);state.progress.splice(pri,1);delProgressDB(pr.id);renderProjects();renderJournal();
         showToast('진행 기록을 지웠어요',function(){state.progress.splice(pri,0,pr);putProgress(pr);renderProjects();renderJournal();});}}
-    else if(act==='ag-tog'||act==='ag-del'||act==='ag-add'){
+    else if(act==='ag-tog'||act==='ag-del'||act==='ag-add'||act==='ag-memo'){
       var agEl=el.closest('[data-ag]'),ag=agEl&&state.agenda.filter(function(x){return x.id===agEl.dataset.ag;})[0];
       if(!ag)return;
       var agi=state.agenda.indexOf(ag);
+      if(act==='ag-memo'){var agm=mById(ag.memoId);if(agm){state.curMemo=agm.id;switchTab('memo');}return;}
       if(act==='ag-tog'){ag.done=!ag.done;putAgenda(ag);renderAgenda();}
       else if(act==='ag-del'){state.agenda.splice(agi,1);delAgendaDB(ag.id);renderAgenda();
         showToast('안건을 지웠어요',function(){state.agenda.splice(agi,0,ag);putAgenda(ag);renderAgenda();});}
