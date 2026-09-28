@@ -222,16 +222,40 @@
   .lgsum-income b{color:var(--accent)}
   .lgsum-expense b{color:var(--accent-2)}
   .lgsum-item b.neg{color:var(--accent-2)}
-  .lgcatbrk{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-  .lgcathead{width:100%;font-size:11px;color:var(--faint)}
-  .lgcatchip{font-size:11px;color:var(--muted);border:1px solid var(--line-2);padding:2px 6px;font-family:var(--mono)}
   .lgform#ledgerAddForm input[type="date"]{flex:0 0 130px}
   .lgform#ledgerAddForm input[type="number"]{flex:0 0 90px}
   .lgrow .lgdate{flex:none;font-family:var(--mono);font-size:11px;color:var(--faint)}
-  .lgrow .lgamt{flex:none;font-family:var(--mono);font-weight:700}
-  .lgrow .lgamt.income{color:var(--accent)}
-  .lgrow .lgamt.expense{color:var(--accent-2)}
+  .lgamt{flex:none;font-family:var(--mono);font-weight:700}
+  .lgamt.income{color:var(--accent)}
+  .lgamt.expense{color:var(--accent-2)}
   .lgrow .lgmemo{flex:none;font-size:11px;color:var(--faint);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lgrecurday{flex:none;font-size:11px;color:var(--faint)}
+  .lgrecurtog{width:100%;text-align:left;margin-top:10px}
+  .lgbudgethead{display:flex;align-items:center;gap:8px;margin-top:14px}
+  .lgbudgethead h3{margin:0;font-size:12.5px;color:var(--muted);font-weight:600}
+  .lgbudgetedit{display:flex;align-items:center;gap:8px;width:100%;font-size:12.5px}
+  .lgbudgetedit span{flex:0 0 100px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lgbudgetedit input{flex:1;font:inherit;font-size:12.5px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text);padding:3px 2px}
+  .lgbudgetedit input:focus{outline:none;border-bottom-color:var(--accent)}
+  .lggoal{margin:10px 0}
+  .lggoalhead{font-size:11.5px;color:var(--muted);margin-bottom:4px}
+  .lgchart{margin:14px 0}
+  .lgcharthead{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--faint);margin-bottom:6px}
+  .lglegend{display:flex;gap:10px;margin-left:auto;font-size:10.5px}
+  .lgswatch{display:inline-block;width:8px;height:8px;margin-right:3px;vertical-align:middle}
+  .lgswatch.income{background:var(--accent)}
+  .lgswatch.expense{background:var(--accent-2)}
+  .lgbarrow,.lgtrendrow{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:11.5px}
+  .lgbarlabel{flex:0 0 76px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lgbar{flex:1;height:8px;background:var(--sunk);border:1px solid var(--line);overflow:hidden}
+  .lgbarfill{height:100%;background:var(--accent)}
+  .lgbarfill.over{background:var(--accent-2)}
+  .lgbarfill.on{background:var(--accent)}
+  .lgbarfill.income{background:var(--accent)}
+  .lgbarfill.expense{background:var(--accent-2)}
+  .lgbaramt,.lgtrendamt{flex:0 0 auto;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+  .lgbaramt.over{color:var(--accent-2);font-weight:700}
+  .lgtrendbars{flex:1;display:flex;flex-direction:column;gap:2px}
   .trkwrap{display:flex;flex-direction:column;gap:5px}
   .trkrow{display:flex;align-items:center;gap:8px}
   .trktitle{flex:0 0 140px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)}
@@ -820,7 +844,10 @@
         <button class="btn-s hidden" id="lgThis">이번 달로</button>
       </div>
       <div class="lgsummary" id="lgSummary"></div>
-      <div class="lgcatbrk" id="lgCatBrk"></div>
+      <div class="lgbudgethead"><h3>🎯 목표·예산</h3><span class="crEditTog" data-act="lg-budget-tog" id="lgBudgetTog">✎</span></div>
+      <div id="lgBudgetDisplay"></div>
+      <div class="crEditBox hidden" id="lgBudgetEditBox"></div>
+      <div id="lgStats"></div>
       <div id="lgList"></div>
       <div class="archform lgform" id="ledgerAddForm">
         <input type="date" id="lgDate" aria-label="날짜">
@@ -830,6 +857,18 @@
         <input type="number" id="lgAmount" placeholder="금액" min="0" aria-label="금액">
         <input id="lgMemo" placeholder="메모(선택)" aria-label="메모">
         <button class="btn-s" id="lgAdd">추가</button>
+      </div>
+      <button type="button" class="btn-s lgrecurtog" id="lgRecurTog">▾ 반복 지출/수입 관리</button>
+      <div id="lgRecurBody" class="hidden">
+        <div id="lgRecurList"></div>
+        <div class="archform lgform" id="ledgerRecurAddForm">
+          <select id="lgrType" aria-label="종류"><option value="expense">지출</option><option value="income">수입</option></select>
+          <input id="lgrCat" list="lgCatList" placeholder="카테고리" aria-label="카테고리">
+          <input type="number" id="lgrAmount" placeholder="금액" min="0" aria-label="금액">
+          <input type="number" id="lgrDay" placeholder="매월 며칠(1~31)" min="1" max="31" aria-label="날짜" style="flex:0 0 110px">
+          <input id="lgrMemo" placeholder="메모(선택)" aria-label="메모">
+          <button class="btn-s" id="lgrAdd">반복 추가</button>
+        </div>
       </div>
     </div>
   </div>
@@ -890,6 +929,8 @@
   var hasRoutineHistory=false; // cal_routines.history 컬럼이 있으면 true (루틴 트래커용 체크 기록, SQL 마이그레이션 후, 2026-09-25)
   var hasContentArchive=false; // archive 테이블이 있으면 true (콘텐츠 아카이브 탭 — 일정봇 아카이브와 이름 겹쳐서 hasArchive 대신 이 이름 씀, 2026-09-26)
   var hasLedger=false; // ledger 테이블이 있으면 true (가계부 탭, 2026-09-27)
+  var hasLedgerRecurring=false; // ledger_recurring 테이블이 있으면 true (반복 지출/수입, 2026-09-28)
+  var hasLedgerRecurringId=false; // ledger.recurring_id 컬럼이 있으면 true (반복 항목이 만든 기록 추적용, 2026-09-28)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
@@ -1019,10 +1060,34 @@
   // ===== 가계부(2026-09-27, 기본 기능) — 수입/지출 기록, 월별 집계·카테고리별 합계 =====
   var LEDGER_EXPENSE_CATS=['식비','카페/간식','교통','생활용품','쇼핑','의료','문화/여가','주거/공과금','경조사','기타'];
   var LEDGER_INCOME_CATS=['급여','부수입','용돈','환급','기타'];
-  function fromLedger(r){return {id:r.id,date:r.date||todayISO(),type:r.type==='income'?'income':'expense',category:r.category||'',amount:+r.amount||0,memo:r.memo||'',sort:+r.sort||0};}
-  function putLedger(x){if(!hasLedger)return;sb.from('ledger').upsert({id:x.id,owner:state.uid,date:x.date||todayISO(),type:x.type==='income'?'income':'expense',category:x.category||'기타',amount:x.amount||0,memo:x.memo||'',sort:x.sort||0}).then(function(r){if(r.error)console.warn('ledger',r.error.message);});}
+  function fromLedger(r){return {id:r.id,date:r.date||todayISO(),type:r.type==='income'?'income':'expense',category:r.category||'',amount:+r.amount||0,memo:r.memo||'',sort:+r.sort||0,recurringId:r.recurring_id||null};}
+  function putLedger(x){if(!hasLedger)return;var row={id:x.id,owner:state.uid,date:x.date||todayISO(),type:x.type==='income'?'income':'expense',category:x.category||'기타',amount:x.amount||0,memo:x.memo||'',sort:x.sort||0};if(hasLedgerRecurringId)row.recurring_id=x.recurringId||null;sb.from('ledger').upsert(row).then(function(r){if(r.error)console.warn('ledger',r.error.message);});}
   function delLedgerDB(id){if(!hasLedger)return;sb.from('ledger').delete().eq('id',id).then(function(){});}
   function fmtWon(n){return (n||0).toLocaleString('ko-KR')+'원';}
+  // ── 반복 지출/수입(2026-09-28) — 매달 정해진 날에 자동으로 가계부 기록을 만듦 ──
+  function fromLedgerRecurring(r){return {id:r.id,type:r.type==='income'?'income':'expense',category:r.category||'',amount:+r.amount||0,memo:r.memo||'',day:+r.day||1,active:r.active!==false,sort:+r.sort||0};}
+  function putLedgerRecurring(x){if(!hasLedgerRecurring)return;sb.from('ledger_recurring').upsert({id:x.id,owner:state.uid,type:x.type==='income'?'income':'expense',category:x.category||'기타',amount:x.amount||0,memo:x.memo||'',day:x.day||1,active:x.active!==false,sort:x.sort||0}).then(function(r){if(r.error)console.warn('ledger_recurring',r.error.message);});}
+  function delLedgerRecurringDB(id){if(!hasLedgerRecurring)return;sb.from('ledger_recurring').delete().eq('id',id).then(function(){});}
+  function daysInMonth(m){var p=(m||thisMonth()).split('-');return new Date(+p[0],+p[1],0).getDate();}
+  // 이번 달에 아직 안 만들어진 반복 항목만 채워넣음(recurring_id+그 달로 이미 있으면 건너뜀 → 여러 번 로드해도 안 늘어남)
+  function seedLedgerRecurring(){
+    if(!hasLedgerRecurring||!hasLedgerRecurringId)return;
+    var m=thisMonth();
+    state.ledgerRecurring.filter(function(r){return r.active;}).forEach(function(r){
+      var already=state.ledger.some(function(x){return x.recurringId===r.id&&(x.date||'').slice(0,7)===m;});
+      if(already)return;
+      var day=Math.min(r.day||1,daysInMonth(m));
+      var x={id:uid(),date:m+'-'+pad(day),type:r.type,category:r.category,amount:r.amount,memo:r.memo,sort:Date.now(),recurringId:r.id};
+      state.ledger.push(x);putLedger(x);
+    });
+  }
+  // ── 목표(순잔액)·예산(카테고리별) — settings.data 안에 얹음, 새 컬럼 없음 ──
+  function ledgerGoal(){return +(state.settings.ledgerGoal)||0;}
+  function ledgerLast6Months(){
+    var m=state.ledgerMonth||thisMonth(),months=[];
+    for(var i=5;i>=0;i--)months.push(shiftMonth(m,-i));
+    return months.map(function(mm){var s=ledgerSummary(mm);return {m:mm,income:s.income,expense:s.expense};});
+  }
   function putJournal(j){if(!hasJournal)return;j.updated=new Date().toISOString();var row={id:j.id,date:j.date,body:j.body,images:j.images||[],updated:j.updated};if(hasMonthGoal){row.goal=j.goal||'';row.musts=j.musts||[];}sb.from('journal').upsert(row).then(function(r){if(r.error)console.warn('journal',r.error.message);});}
   function putMemo(m){m.updated=new Date().toISOString();sb.from('memos').upsert(rowM(m)).then(function(r){if(r.error)console.warn('memo',r.error.message);});}
   function delMemoDB(id){sb.from('memos').delete().eq('id',id).then(function(){});}
@@ -1171,6 +1236,94 @@
       +'<button class="btn-s" type="button" data-act="lg-save">저장</button>'
       +'</div>';
   }
+  // ── 목표·예산 표시(항상 보임) + 수정 박스(펼쳤을 때만) ──
+  var lgBudgetOpen=false; // 세션 한정
+  function lgGoalBarHtml(sum){
+    var goal=ledgerGoal();
+    if(!goal)return '';
+    var pct=Math.max(0,Math.min(100,Math.round(sum.net/goal*100)));
+    var reached=sum.net>=goal;
+    return '<div class="lggoal"><div class="lggoalhead">🎯 이번 달 목표(순잔액) '+fmtWon(goal)+' — 현재 '+fmtWon(sum.net)+' ('+pct+'%)'+(reached?' 달성!':'')+'</div>'
+      +'<div class="lgbar"><div class="lgbarfill'+(reached?' on':'')+'" style="width:'+pct+'%"></div></div></div>';
+  }
+  function lgBudgetListHtml(sum){
+    var budgets=state.settings.ledgerBudget||{};
+    var cats=Object.keys(budgets);
+    if(!cats.length)return '';
+    var spentByCat={};ledgerCatBreakdown(sum.items,'expense').forEach(function(b){spentByCat[b.cat]=b.amount;});
+    return '<div class="lgchart"><div class="lgcharthead">💰 예산</div>'+cats.map(function(c){
+      var spent=spentByCat[c]||0,budget=budgets[c],over=spent>budget,pct=Math.min(100,Math.round(spent/budget*100));
+      return '<div class="lgbarrow"><span class="lgbarlabel">'+esc(c)+'</span>'
+        +'<div class="lgbar"><div class="lgbarfill'+(over?' over':'')+'" style="width:'+pct+'%"></div></div>'
+        +'<span class="lgbaramt'+(over?' over':'')+'">'+fmtWon(spent)+' / '+fmtWon(budget)+(over?' ⚠':'')+'</span></div>';
+    }).join('')+'</div>';
+  }
+  function renderLedgerBudgetEdit(){
+    var box=document.getElementById('lgBudgetEditBox');if(!box)return;
+    box.classList.toggle('hidden',!lgBudgetOpen);
+    document.getElementById('lgBudgetTog').textContent=lgBudgetOpen?'▴':'✎';
+    if(!lgBudgetOpen)return;
+    var budgets=state.settings.ledgerBudget||{},cats=ledgerCats('expense');
+    box.innerHTML='<label class="lgbudgetedit"><span>순잔액 목표</span><input type="number" id="lgGoalIn" min="0" value="'+(ledgerGoal()||'')+'" placeholder="이번 달 목표(원)"></label>'
+      +cats.map(function(c){return '<label class="lgbudgetedit"><span>'+esc(c)+'</span><input type="number" class="lgBudgetCatIn" min="0" data-cat="'+esc(c)+'" value="'+(budgets[c]||'')+'" placeholder="예산(원)"></label>';}).join('')
+      +'<button class="btn-s" type="button" data-act="lg-budget-save">저장</button>';
+  }
+  // ── 통계: 지출 카테고리별 막대(금액 기준) + 최근 6개월 수입/지출 추이 ──
+  function lgStatsHtml(sum){
+    var brk=ledgerCatBreakdown(sum.items,'expense');
+    var catHtml='';
+    if(brk.length){
+      var max=Math.max.apply(null,brk.map(function(b){return b.amount;}));
+      catHtml='<div class="lgchart"><div class="lgcharthead">📊 지출 카테고리</div>'+brk.map(function(b){
+        var pct=max?Math.round(b.amount/max*100):0;
+        return '<div class="lgbarrow"><span class="lgbarlabel">'+esc(b.cat)+'</span>'
+          +'<div class="lgbar"><div class="lgbarfill expense" style="width:'+pct+'%"></div></div>'
+          +'<span class="lgbaramt">'+fmtWon(b.amount)+'</span></div>';
+      }).join('')+'</div>';
+    }
+    var trend=ledgerLast6Months();
+    var tmax=Math.max(1,Math.max.apply(null,trend.map(function(d){return Math.max(d.income,d.expense);})));
+    var trendHtml='<div class="lgchart"><div class="lgcharthead">📈 최근 6개월 추이 <span class="lglegend"><span class="lgswatch income"></span>수입<span class="lgswatch expense"></span>지출</span></div>'
+      +trend.map(function(d){
+        var mm=(+d.m.split('-')[1])+'월';
+        return '<div class="lgtrendrow"><span class="lgbarlabel">'+mm+'</span>'
+          +'<div class="lgtrendbars">'
+          +'<div class="lgbar"><div class="lgbarfill income" style="width:'+Math.round(d.income/tmax*100)+'%"></div></div>'
+          +'<div class="lgbar"><div class="lgbarfill expense" style="width:'+Math.round(d.expense/tmax*100)+'%"></div></div>'
+          +'</div><span class="lgtrendamt">'+fmtWon(d.income)+' · '+fmtWon(d.expense)+'</span></div>';
+      }).join('')+'</div>';
+    return catHtml+trendHtml;
+  }
+  // ── 반복 지출/수입 관리(접었다 펼치는 영역) ──
+  var lgRecurOpen=false; // 세션 한정
+  function lgRecurRow(r){
+    return '<div class="lkrow" data-lgr="'+r.id+'">'
+      +'<span class="rtcyc">'+(r.type==='income'?'수입':'지출')+'</span>'
+      +'<span class="mktxt">'+esc(r.category)+(r.memo?' · '+esc(r.memo):'')+'</span>'
+      +'<span class="lgamt '+r.type+'">'+fmtWon(r.amount)+'</span>'
+      +'<span class="lgrecurday">매월 '+r.day+'일</span>'
+      +'<span class="crEditTog" data-act="lgr-toggle" title="'+(r.active?'켜짐 — 눌러서 멈추기':'멈춤 — 눌러서 켜기')+'">'+(r.active?'●':'○')+'</span>'
+      +'<span class="lkdel" data-act="lgr-del" title="지우기">✕</span></div>';
+  }
+  function renderLedgerRecurring(){
+    var togEl=document.getElementById('lgRecurTog'),bodyEl=document.getElementById('lgRecurBody');
+    if(!togEl)return;
+    togEl.textContent=lgRecurOpen?'▴ 반복 지출/수입 관리':'▾ 반복 지출/수입 관리';
+    bodyEl.classList.toggle('hidden',!lgRecurOpen);
+    if(!lgRecurOpen)return;
+    var list=(state.ledgerRecurring||[]).slice().sort(function(a,b){return a.day-b.day;});
+    document.getElementById('lgRecurList').innerHTML=list.length?list.map(lgRecurRow).join(''):'<p class="boardempty">등록된 반복 항목이 없어요</p>';
+  }
+  function addLedgerRecurring(){
+    if(!hasLedgerRecurring){showToast('반복 지출 표가 아직 없어요');return;}
+    var ty=document.getElementById('lgrType'),c=document.getElementById('lgrCat'),am=document.getElementById('lgrAmount'),d=document.getElementById('lgrDay'),me=document.getElementById('lgrMemo');
+    var amount=+am.value;
+    if(!amount){am.focus();return;}
+    var r={id:uid(),type:ty.value||'expense',category:c.value.trim()||'기타',amount:amount,memo:me.value.trim(),day:Math.min(31,Math.max(1,+d.value||1)),active:true,sort:Date.now()};
+    state.ledgerRecurring.push(r);putLedgerRecurring(r);
+    c.value='';am.value='';d.value='';me.value='';
+    renderLedgerRecurring();seedLedgerRecurring();renderLedger();
+  }
   function renderLedger(){
     var noTbl=document.getElementById('ledgerNoTable'),body=document.getElementById('ledgerBody');
     if(!noTbl)return;
@@ -1185,11 +1338,13 @@
       '<div class="lgsum-item lgsum-income">수입<b>'+fmtWon(sum.income)+'</b></div>'
       +'<div class="lgsum-item lgsum-expense">지출<b>'+fmtWon(sum.expense)+'</b></div>'
       +'<div class="lgsum-item">잔액<b class="'+(sum.net<0?'neg':'')+'">'+fmtWon(sum.net)+'</b></div>';
-    var brk=ledgerCatBreakdown(sum.items,'expense');
-    document.getElementById('lgCatBrk').innerHTML=brk.length?('<div class="lgcathead">지출 카테고리별</div>'+brk.map(function(b){return '<span class="lgcatchip">'+esc(b.cat)+' '+fmtWon(b.amount)+'</span>';}).join('')):'';
+    document.getElementById('lgBudgetDisplay').innerHTML=lgGoalBarHtml(sum)+lgBudgetListHtml(sum);
+    renderLedgerBudgetEdit();
+    document.getElementById('lgStats').innerHTML=lgStatsHtml(sum);
     document.getElementById('lgList').innerHTML=sum.items.length?sum.items.map(lgRow).join(''):'<p class="boardempty">'+monthLabel(m)+'엔 아직 기록이 없어요</p>';
     var catList=document.getElementById('lgCatList'),tySel=document.getElementById('lgType');
     if(catList)catList.innerHTML=ledgerCats((tySel&&tySel.value)||'expense').map(function(c){return '<option value="'+esc(c)+'">';}).join('');
+    renderLedgerRecurring();
   }
   function goLedgerMonth(m){state.ledgerMonth=m;renderLedger();}
   function addLedger(){
@@ -1298,7 +1453,7 @@
   // ===== DATA LOAD =====
   function loadData(){
     sb.auth.getUser().then(function(u){state.uid=(u.data&&u.data.user)?u.data.user.id:null;});
-    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*'),sb.from('ledger').select('*')]).then(function(res){
+    Promise.all([sb.from('todos').select('*'),sb.from('memos').select('*'),sb.from('settings').select('data'),sb.from('todos').select('archived').limit(1),sb.from('todos').select('subs').limit(1),sb.from('todos').select('dep').limit(1),sb.from('memos').select('updated').limit(1),sb.from('todos').select('endd').limit(1),sb.from('art_artists').select('*'),sb.from('art_works').select('*'),sb.from('art_works').select('sketch_url').limit(1),sb.from('memos').select('images').limit(1),sb.from('todos').select('donelog').limit(1),sb.from('todos').select('month').limit(1),sb.from('agenda').select('*'),sb.from('links').select('*'),sb.from('progress').select('*'),sb.from('journal').select('*'),sb.from('routines').select('*'),sb.from('memos').select('pinned').limit(1),sb.from('journal').select('goal').limit(1),sb.from('push_subscriptions').select('endpoint').limit(1),sb.from('cal_routines').select('*'),sb.from('cal_todos').select('*'),sb.from('cal_routines').select('slot').limit(1),sb.from('routines').select('unit').limit(1),sb.from('cal_routines').select('history').limit(1),sb.from('archive').select('*'),sb.from('ledger').select('*'),sb.from('ledger_recurring').select('*'),sb.from('ledger').select('recurring_id').limit(1)]).then(function(res){
       var a=res[0],b=res[1],s=res[2];
       hasArchive=!(res[3]&&res[3].error);  // archived 컬럼이 있으면 완료함 기능 저장 켜짐
       hasSubs=!(res[4]&&res[4].error);     // subs 컬럼이 있으면 하위 항목 저장 켜짐
@@ -1325,6 +1480,8 @@
       hasRoutineHistory=!(res[26]&&res[26].error); // cal_routines.history 컬럼 있으면 루틴 트래커 켜짐(2026-09-25)
       hasContentArchive=!(res[27]&&res[27].error); // archive 테이블 있으면 콘텐츠 아카이브 탭 켜짐(2026-09-26)
       hasLedger=!(res[28]&&res[28].error); // ledger 테이블 있으면 가계부 탭 켜짐(2026-09-27)
+      hasLedgerRecurring=!(res[29]&&res[29].error); // ledger_recurring 테이블 있으면 반복 지출/수입 켜짐(2026-09-28)
+      hasLedgerRecurringId=!(res[30]&&res[30].error); // ledger.recurring_id 컬럼 있으면 반복 항목 추적 켜짐(2026-09-28)
       if(a.error){showToast('불러오기 오류: '+a.error.message);return;}
       state.todos=(a.data||[]).map(fromT);
       state.memos=(b.data&&!b.error)?b.data.map(fromM):[];
@@ -1340,11 +1497,13 @@
       state.calTodos=(hasCalTodos&&res[23].data)?res[23].data.map(function(r){return {id:r.id,title:r.title||'',done:!!r.done,sort:r.sort||0,created:r.created||''};}):[];
       state.archive=(hasContentArchive&&res[27].data)?res[27].data.map(fromArchive):[];
       state.ledger=(hasLedger&&res[28].data)?res[28].data.map(fromLedger):[];
+      state.ledgerRecurring=(hasLedgerRecurring&&res[29].data)?res[29].data.map(fromLedgerRecurring):[];
       state.month=thisMonth();            // 항상 이번 달로 열림 (◀ ▶ 로 지난 달을 넘겨볼 수 있음)
       state.ledgerMonth=thisMonth();      // 가계부도 항상 이번 달로 열림(독립된 달 상태 — 홈의 월 이동과 안 섞임)
       state.jDate=todayISO();             // 저널은 오늘 칸부터
       dailyResetToday();
       monthlyRollIfNeeded();              // 달이 바뀌었으면 상시업무 복제 + 지난달 미완료 이월
+      seedLedgerRecurring();              // 이번 달에 아직 없는 반복 지출/수입을 채워넣음(멱등 — 중복 안 생김)
       document.getElementById('hours').value=state.hours;
       renderAll();
       renderPushUI();
@@ -2547,6 +2706,10 @@
   document.getElementById('lgAmount').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedger();});
   document.getElementById('lgMemo').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedger();});
   (function(){var dEl=document.getElementById('lgDate');if(dEl)dEl.value=todayISO();})();
+  document.getElementById('lgRecurTog').addEventListener('click',function(){lgRecurOpen=!lgRecurOpen;renderLedgerRecurring();});
+  document.getElementById('lgrAdd').addEventListener('click',addLedgerRecurring);
+  document.getElementById('lgrAmount').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedgerRecurring();});
+  document.getElementById('lgrMemo').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addLedgerRecurring();});
 
   function rowId(el){var tr=el.closest('tr[data-id]');return tr?tr.dataset.id:null;}
   function startNest(id){var t=tById(id);if(!t)return;nestSource=id;document.body.classList.add('nesting');var bar=document.getElementById('nestBar');bar.innerHTML='<span><b>「'+esc(t.title)+'」</b> 을(를) 하위로 넣을 <b>대상 할일</b>을 탭하세요</span><button id="nestCancel">취소</button>';bar.classList.remove('hidden');}
@@ -2633,6 +2796,22 @@
       xS.amount=+boxL.querySelector('.lgEAmount').value||0;
       xS.memo=boxL.querySelector('.lgEMemo').value.trim();
       putLedger(xS);showToast('저장했어요');renderLedger();}
+    else if(act==='lg-budget-tog'){lgBudgetOpen=!lgBudgetOpen;renderLedgerBudgetEdit();}
+    else if(act==='lg-budget-save'){
+      var bBox=el.closest('#lgBudgetEditBox');if(!bBox)return;
+      var goalIn=bBox.querySelector('#lgGoalIn');
+      state.settings.ledgerGoal=goalIn?(+goalIn.value||0):0;
+      var newB={};bBox.querySelectorAll('.lgBudgetCatIn').forEach(function(inp){var v=+inp.value||0;if(v>0)newB[inp.dataset.cat]=v;});
+      state.settings.ledgerBudget=newB;putSettings();
+      showToast('저장했어요');renderLedger();}
+    else if(act==='lgr-toggle'){
+      var lgrEl=el.closest('[data-lgr]'),r=lgrEl&&state.ledgerRecurring.filter(function(x){return x.id===lgrEl.dataset.lgr;})[0];if(!r)return;
+      r.active=!r.active;putLedgerRecurring(r);renderLedgerRecurring();
+      showToast(r.active?'다시 켰어요 · 다음 달부터 자동 기록돼요':'멈췄어요 · 이미 만들어진 기록은 그대로예요');}
+    else if(act==='lgr-del'){
+      var lgdEl=el.closest('[data-lgr]'),rd=lgdEl&&state.ledgerRecurring.filter(function(x){return x.id===lgdEl.dataset.lgr;})[0];if(!rd)return;
+      var ri=state.ledgerRecurring.indexOf(rd);state.ledgerRecurring.splice(ri,1);delLedgerRecurringDB(rd.id);renderLedgerRecurring();
+      showToast('반복 항목을 지웠어요',function(){state.ledgerRecurring.splice(ri,0,rd);putLedgerRecurring(rd);renderLedgerRecurring();});}
     else if(act==='tl-del'){
       var lr=el.closest('[data-li]');if(!lr||!hasJournal)return;
       var jt=jEntry(todayISO()),before=jt.body||'',raw=before.split('\n');
