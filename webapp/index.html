@@ -142,6 +142,21 @@
        줄바꿈 허용해서 그냥 두 줄로 자연스럽게 내려가게 */
     .bhead{flex-wrap:wrap;row-gap:6px}
     .bhead .r{flex-wrap:wrap;row-gap:4px}
+    /* 탭이 9개로 늘면서(아카이브·가계부 추가) 좁은 화면에서 글자가 한 자씩
+       쪼개져 세로로 쌓여 보이던 문제 — 줄바꿈 대신 가로 스크롤로 */
+    .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .tabs button{white-space:nowrap;flex:none}
+    /* 가계부 한 줄(날짜·종류·카테고리·메모·금액·수정·삭제)이 화면 폭보다 길어져
+       금액·삭제 버튼이 화면 밖으로 밀려나 안 보이던 문제 — 메모는 숨기고
+       (부가 정보라 다른 모바일 처리와 같은 원칙), 다 안 들어가면 그 아래 줄로 */
+    .lgrow{flex-wrap:wrap;row-gap:2px}
+    .lgrow .lgmemo{display:none}
+    .lgrow .lgamt{margin-left:auto}
+    /* 가계부 추가 폼(6칸)·반복 추가 폼(5칸)도 한 줄에 다 안 들어가서 뒤쪽 칸이
+       화면 밖으로 밀려나 있었음 — select 같은 건 %기준 flex-shrink가 기대만큼
+       안 줄어들어서(브라우저 자체 최소폭) 2칸씩 접는 대신 칸마다 한 줄씩 세움 */
+    .lgform{flex-wrap:wrap}
+    .lgform input,.lgform select,.lgform button{flex:1 1 100%}
   }
   .agrow{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;padding:3px 0}
   .agrow .agck{flex:none;cursor:pointer;color:var(--faint);line-height:1.5}
@@ -223,7 +238,7 @@
   .lgsum-expense b{color:var(--accent-2)}
   .lgsum-item b.neg{color:var(--accent-2)}
   .lgform#ledgerAddForm input[type="date"]{flex:0 0 130px}
-  .lgform#ledgerAddForm input[type="number"]{flex:0 0 90px}
+  .lgform#ledgerAddForm input[type="number"],.lgform#ledgerRecurAddForm input[type="number"]{flex:0 0 90px}
   .lgrow .lgdate{flex:none;font-family:var(--mono);font-size:11px;color:var(--faint)}
   .lgamt{flex:none;font-family:var(--mono);font-weight:700}
   .lgamt.income{color:var(--accent)}
@@ -865,7 +880,7 @@
           <select id="lgrType" aria-label="종류"><option value="expense">지출</option><option value="income">수입</option></select>
           <input id="lgrCat" list="lgCatList" placeholder="카테고리" aria-label="카테고리">
           <input type="number" id="lgrAmount" placeholder="금액" min="0" aria-label="금액">
-          <input type="number" id="lgrDay" placeholder="매월 며칠(1~31)" min="1" max="31" aria-label="날짜" style="flex:0 0 110px">
+          <input type="number" id="lgrDay" placeholder="매월 며칠(1~31)" min="1" max="31" aria-label="날짜">
           <input id="lgrMemo" placeholder="메모(선택)" aria-label="메모">
           <button class="btn-s" id="lgrAdd">반복 추가</button>
         </div>

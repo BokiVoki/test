@@ -49,4 +49,23 @@ enum WidgetAPI {
             return false
         }
     }
+
+    /// 가계부 빠른입력 — 금액·카테고리만(2026-09-28). 날짜는 서버에서 항상 오늘로 채움, 메모 없음.
+    /// ledgerType: "expense" | "income"
+    static func addLedger(amount: Int, category: String, ledgerType: String) async -> Bool {
+        guard let url = URL(string: base) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue(token, forHTTPHeaderField: "x-widget-token")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = ["type": "ledger", "action": "add", "amount": amount, "category": category, "ledgerType": ledgerType]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        do {
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            if let http = resp as? HTTPURLResponse { return http.statusCode == 200 }
+            return false
+        } catch {
+            return false
+        }
+    }
 }
