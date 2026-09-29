@@ -2452,7 +2452,7 @@
   }
   // ===== 전체 검색 (띄어쓰기 무시) =====
   function norm(s){return (s||'').replace(/\s+/g,'').toLowerCase();}
-  function locLabel(t){if(t.archived)return '완료함';if(t.bucket==='inbox')return '주머니';if(t.bucket==='later')return '나중';if(t.today||isRepeatDueToday(t))return '오늘';if(t.project)return t.project;return '할일';}
+  function locLabel(t){if(t.archived)return '완료함';if(t.bucket==='inbox')return '주머니';if(t.bucket==='later')return '나중';if(t.today)return '오늘';if(t.project)return t.project;return '할일';}
   function runSearch(){
     var q=norm(state.q),sv=document.getElementById('searchView');
     document.getElementById('qClear').classList.toggle('hidden',!state.q);
