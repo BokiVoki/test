@@ -409,16 +409,54 @@
     for(var i=0;i<cands.length;i++){try{if(MediaRecorder.isTypeSupported(cands[i]))return cands[i];}catch(e){}}
     return '';
   }
+  // 가로로 찍을 때 결과물도 가로로 저장되게 — 일부 기기(특히 안드로이드)는 폰을 옆으로 돌려도
+  // 카메라 스트림 자체(videoWidth/videoHeight)는 세로로 그대로 들어와서, 화면 미리보기는
+  // object-fit:cover로 꽉 차 보여도 캔버스에 그대로 찍으면 세로로 찌그러진 채 저장됨.
+  // 화면 방향과 프레임 방향이 서로 다를 때만 캔버스에 회전해서 그려 보정함.
+  // ⚠️ 실기기 검증 전이라 방향이 거꾸로 나오면 ROTATE_SIGN을 -1로 바꾸면 됨.
+  var ROTATE_SIGN=1;
+  function captureRotationDeg(){
+    var frameLandscape=camVideo.videoWidth>=camVideo.videoHeight;
+    var so=window.screen&&screen.orientation,type=(so&&so.type)||'';
+    var screenLandscape=/landscape/.test(type);
+    if(!so&&typeof window.orientation==='number')screenLandscape=Math.abs(window.orientation)===90;
+    if(screenLandscape===frameLandscape)return 0; // 이미 방향이 맞음(요즘 브라우저 대부분 이럼)
+    return screenLandscape?90*ROTATE_SIGN:0;
+  }
+  function drawRotatedFrame(ctx,deg,sw,sh){
+    var c=ctx.canvas;
+    if(!deg){c.width=sw;c.height=sh;ctx.drawImage(camVideo,0,0,sw,sh);return;}
+    c.width=sh;c.height=sw; // 90도 돌리면 가로세로가 뒤바뀜
+    ctx.save();
+    ctx.translate(c.width/2,c.height/2);
+    ctx.rotate(deg*Math.PI/180);
+    ctx.drawImage(camVideo,-sw/2,-sh/2,sw,sh);
+    ctx.restore();
+  }
   var RECORD_MAX_MS=60000;
+  var relayCanvas=null,relayCtx=null,relayRAF=null;
+  function startRelay(){
+    relayCanvas=document.createElement('canvas');relayCtx=relayCanvas.getContext('2d');
+    function draw(){
+      if(!relayCtx)return;
+      drawRotatedFrame(relayCtx,captureRotationDeg(),camVideo.videoWidth||720,camVideo.videoHeight||1280);
+      relayRAF=requestAnimationFrame(draw);
+    }
+    draw();
+  }
+  function stopRelay(){if(relayRAF)cancelAnimationFrame(relayRAF);relayRAF=null;relayCanvas=null;relayCtx=null;}
   function startRecording(){
     if(!state.stream)return;
+    startRelay(); // 캔버스 중계로 방향 보정된 프레임을 MediaRecorder에 넘김
+    var mixed=new MediaStream(relayCanvas.captureStream(30).getVideoTracks().concat(state.stream.getAudioTracks()));
     var mime=pickVideoMime();
-    try{state.recorder=mime?new MediaRecorder(state.stream,{mimeType:mime}):new MediaRecorder(state.stream);}catch(e){showToast('이 기기에서는 영상 녹화가 안 돼요');return;}
+    try{state.recorder=mime?new MediaRecorder(mixed,{mimeType:mime}):new MediaRecorder(mixed);}catch(e){stopRelay();showToast('이 기기에서는 영상 녹화가 안 돼요');return;}
     state.chunks=[];
     state.recorder.ondataavailable=function(ev){if(ev.data&&ev.data.size)state.chunks.push(ev.data);};
     state.recorder.onstop=function(){
       var blob=new Blob(state.chunks,{type:state.recorder.mimeType||mime||'video/webm'});
       clearInterval(state.recTimer);camTimer.classList.add('hidden');camShutter.classList.remove('recording');
+      stopRelay();
       openPreview(blob,'video');
     };
     state.recorder.start();
@@ -432,9 +470,8 @@
   }
   function stopRecording(){if(state.recorder&&state.recorder.state==='recording')state.recorder.stop();}
   function takePhoto(){
-    var c=document.createElement('canvas');
-    c.width=camVideo.videoWidth||720;c.height=camVideo.videoHeight||1280;
-    c.getContext('2d').drawImage(camVideo,0,0,c.width,c.height);
+    var c=document.createElement('canvas'),ctx=c.getContext('2d');
+    drawRotatedFrame(ctx,captureRotationDeg(),camVideo.videoWidth||720,camVideo.videoHeight||1280);
     c.toBlob(function(blob){openPreview(blob,'photo');},'image/jpeg',0.9);
   }
   camShutter.addEventListener('click',function(){
