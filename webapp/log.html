@@ -71,20 +71,44 @@
   .toast button{font-family:var(--pixel);font-size:11px;color:var(--accent);background:none;border:0;cursor:pointer;text-decoration:underline;padding:0}
 
   /* ── 날짜 이동 + 게시판 ── */
-  .daynav{display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:8px 10px}
+  .daynav{display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:8px 10px;flex-wrap:wrap}
   .daynav button{font-family:var(--pixel);background:var(--panel);border:2px solid var(--line-2);color:var(--text);cursor:pointer;padding:4px 10px;box-shadow:2px 2px 0 var(--shadowc)}
   .daynav h2{margin:0;font-family:var(--pixel);font-size:14px;flex:1;text-align:center;letter-spacing:.03em}
   .daynav .today{font-family:var(--pixel);font-size:10.5px;color:var(--accent);border-bottom:1px dashed var(--accent);cursor:pointer}
+  .daynavicons{display:flex;align-items:center;gap:4px}
+  .iconbtnwrap{position:relative;display:inline-flex}
+  .iconbtnwrap input[type=date]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:0}
+  .iconbtn{font-size:16px;line-height:1;cursor:pointer;padding:4px 6px;color:var(--muted)}
+  .iconbtn:hover{color:var(--accent)}
+  .iconbtn[aria-pressed="true"]{color:var(--accent)}
   .boardempty{color:var(--faint);font-family:var(--pixel);font-size:12px;padding:40px 0;text-align:center}
+  /* ── 캡션 검색 패널 ── */
+  .searchpanel{padding:12px;margin:0 0 16px;display:flex;flex-direction:column;gap:8px}
+  .searchpanel input{border:2px solid var(--line-2);background:var(--sunk);padding:9px;color:var(--text)}
+  .searchpanel input:focus{outline:none;border-color:var(--accent)}
+  .searchresitem{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}
+  .searchresitem:first-child{border-top:0}
+  .searchresitem:hover .srcap{color:var(--accent)}
+  .searchresitem .srdate{font-family:var(--pixel);font-size:10px;color:var(--muted);white-space:nowrap}
+  .searchresitem .srcap{font-size:12.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .searchempty{color:var(--faint);font-size:12.5px;padding:8px 0}
   .logent{margin:0 0 20px;padding:0;display:flex;flex-direction:column}
   .logenthead{display:flex;align-items:center;gap:8px;font-family:var(--pixel);font-size:10.5px;color:var(--muted);padding:6px 10px;border:2px solid var(--line-2);border-bottom:0}
   .logenthead .logtime{color:var(--text)}
-  .logenthead .logdel{margin-left:auto;cursor:pointer;color:var(--faint)}
-  .logenthead .logdel:hover{color:var(--accent)}
+  .logenthead .logactions{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .logenthead .logrot,.logenthead .logdel{cursor:pointer;color:var(--faint)}
+  .logenthead .logrot:hover,.logenthead .logdel:hover{color:var(--accent)}
   .logmedia{width:100%;max-height:520px;object-fit:contain;background:#000;display:block;border:2px solid var(--line-2)}
   img.logmedia{object-fit:cover;max-height:460px}
   .logvidwrap{position:relative;border:2px solid var(--line-2);box-shadow:4px 4px 0 var(--shadowc)}
   .logvidwrap .logmedia{border:0;box-shadow:none}
+  /* 사진 수동 회전(게시판 ↻ 버튼) — 90/270도는 사각형(1:1) 박스로 바꿔서 그 안에서
+     object-fit:contain으로 돌려도 잘리지 않게 함(정사각형은 90도 돌려도 같은 경계). */
+  .logmediawrap.sq{position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;border:2px solid var(--line-2);box-shadow:4px 4px 0 var(--shadowc);background:#000}
+  .logmediawrap.sq>.logmedia{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:contain;border:0;box-shadow:none}
+  .logmedia.rot90{transform:rotate(90deg)}
+  .logmedia.rot180{transform:rotate(180deg)}
+  .logmedia.rot270{transform:rotate(270deg)}
   /* video 태그의 네이티브 컨트롤바(하단)와 안 겹치게 그 위쪽에 여백을 둠 */
   .logcapover{position:absolute;left:0;right:0;bottom:34px;background:linear-gradient(transparent,rgba(0,0,0,.78));color:#fff;font-size:13px;padding:22px 12px 8px;pointer-events:none;white-space:pre-wrap}
   .logcap{margin:8px 2px 0;font-size:13px;color:var(--text);white-space:pre-wrap}
@@ -188,7 +212,18 @@
       <button id="dayPrev">‹</button>
       <h2 id="dayTitle"></h2>
       <button id="dayNext">›</button>
+      <span class="daynavicons">
+        <span class="iconbtnwrap" title="날짜로 이동">
+          <span class="iconbtn">📅</span>
+          <input id="dayPicker" type="date">
+        </span>
+        <span class="iconbtn" id="searchToggleBtn" title="캡션 검색" aria-pressed="false">🔍</span>
+      </span>
       <span class="today hidden" id="dayToday">오늘로</span>
+    </div>
+    <div id="searchPanel" class="searchpanel hardbox hidden">
+      <input id="searchInput" type="text" placeholder="캡션 검색…">
+      <div id="searchResults"></div>
     </div>
     <div id="boardList"></div>
   </div>
@@ -310,14 +345,27 @@
     })).then(function(list){
       el.innerHTML=list.map(function(x){
         var e=x.e,ts=e.sort||Date.parse(e.created_at),stamp='<span class="logstamp">'+esc(fmtStamp(ts))+'</span>';
+        var rot=e.rotate||0,isSq=(rot===90||rot===270);
         var media=e.type==='video'
           ? '<div class="logvidwrap"><video class="logmedia" src="'+esc(x.url)+'" controls playsinline></video>'+stamp+(e.caption?'<div class="logcapover">'+esc(e.caption)+'</div>':'')+'</div>'
-          : '<div class="logmediawrap"><img class="logmedia" src="'+esc(x.url)+'">'+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
-        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span><span class="logdel" data-act="logdel">✕ 지우기</span></div>'+media+'</div>';
+          : '<div class="logmediawrap'+(isSq?' sq':'')+'"><img class="logmedia'+(rot?' rot'+rot:'')+'" src="'+esc(x.url)+'">'+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
+        var rotBtn=e.type==='photo'?'<span class="logrot" data-act="logrot" title="회전">↻</span>':'';
+        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span><span class="logactions">'+rotBtn+'<span class="logdel" data-act="logdel">✕ 지우기</span></span></div>'+media+'</div>';
       }).join('');
     });
   }
   document.getElementById('boardList').addEventListener('click',function(e){
+    var rotEl=e.target.closest('[data-act="logrot"]');
+    if(rotEl){
+      var rrow=rotEl.closest('[data-id]'),rid=rrow.dataset.id;
+      var rentry=state.entries.filter(function(x){return x.id===rid;})[0];if(!rentry)return;
+      var oldRot=rentry.rotate||0,newRot=(oldRot+90)%360;
+      rentry.rotate=newRot;renderBoard();
+      sb.from('log_entries').update({rotate:newRot}).eq('id',rid).then(function(r){
+        if(r.error){rentry.rotate=oldRot;renderBoard();showToast('회전 저장 실패');}
+      });
+      return;
+    }
     var el=e.target.closest('[data-act="logdel"]');if(!el)return;
     var row=el.closest('[data-id]'),id=row.dataset.id;
     var entry=state.entries.filter(function(x){return x.id===id;})[0];if(!entry)return;
@@ -328,6 +376,51 @@
         sb.from('log_entries').insert(entry).then(function(){state.entries.splice(idx,0,entry);renderBoard();});
       });
     });
+  });
+
+  // ===== 날짜로 바로 이동(캘린더) =====
+  document.getElementById('dayPicker').addEventListener('change',function(){
+    if(this.value){state.day=this.value;this.value='';renderDay();}
+  });
+
+  // ===== 캡션 텍스트 검색 =====
+  var searchToggleBtn=document.getElementById('searchToggleBtn'),searchPanel=document.getElementById('searchPanel'),
+      searchInput=document.getElementById('searchInput'),searchResults=document.getElementById('searchResults'),
+      boardListEl=document.getElementById('boardList');
+  var searchOpen=false;
+  function closeSearch(){searchOpen=false;searchPanel.classList.add('hidden');boardListEl.classList.remove('hidden');searchToggleBtn.setAttribute('aria-pressed','false');searchInput.value='';searchResults.innerHTML='';}
+  searchToggleBtn.addEventListener('click',function(){
+    searchOpen=!searchOpen;
+    searchPanel.classList.toggle('hidden',!searchOpen);
+    boardListEl.classList.toggle('hidden',searchOpen);
+    searchToggleBtn.setAttribute('aria-pressed',String(searchOpen));
+    if(searchOpen)searchInput.focus();else{searchInput.value='';searchResults.innerHTML='';}
+  });
+  function dmShort(d){var dt=new Date(d+'T00:00:00');return (dt.getMonth()+1)+'/'+dt.getDate();}
+  var sTO;
+  searchInput.addEventListener('input',function(){
+    clearTimeout(sTO);
+    var q=this.value.trim();
+    if(!q){searchResults.innerHTML='';return;}
+    sTO=setTimeout(function(){runSearch(q);},300);
+  });
+  function runSearch(q){
+    if(!state.uid)return;
+    var esc_q=q.replace(/[%_]/g,'\\$&');
+    sb.from('log_entries').select('*').ilike('caption','%'+esc_q+'%').order('sort',{ascending:false}).limit(60).then(function(r){
+      var rows=r.data||[];
+      if(!rows.length){searchResults.innerHTML='<div class="searchempty">검색 결과가 없어요</div>';return;}
+      searchResults.innerHTML=rows.map(function(e){
+        var ts=e.sort||Date.parse(e.created_at);
+        return '<div class="searchresitem" data-date="'+e.date+'"><span class="srdate">'+esc(dmShort(e.date))+' '+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span><span class="srcap">'+esc(e.caption||'(캡션 없음)')+'</span></div>';
+      }).join('');
+    });
+  }
+  searchResults.addEventListener('click',function(e){
+    var el=e.target.closest('[data-date]');if(!el)return;
+    state.day=el.dataset.date;
+    closeSearch();
+    renderDay();
   });
 
   // ===== 저장 공통 =====
