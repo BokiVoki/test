@@ -81,6 +81,26 @@ async def check_reminders_job(context: CallbackContext):
     except Exception as e:
         logger.error(f"Todo alarm check error: {e}")
 
+    # ── 하루앱 할일별 ⏰ 푸시 알림(웹앱에서 시계 아이콘으로 설정한 시간) ──
+    # 봇 자체 알람(위)과 별개 — 이건 텔레그램이 아니라 아이폰 홈 화면에 설치한
+    # 하루앱으로 웹 푸시가 감(webpush_notify). 설정 안 돼 있으면(VAPID 등) 조용히 건너뜀.
+    try:
+        from . import haru_app, webpush_notify
+        if haru_app.is_configured() and webpush_notify.is_configured():
+            now_iso = datetime.now(timezone.utc).isoformat()
+            for item in haru_app.list_due_reminders(now_iso):
+                try:
+                    webpush_notify.send(
+                        title="⏰ " + (item.get("title") or "할일"),
+                        body="설정한 시간이에요",
+                        url="./",
+                    )
+                    haru_app.mark_reminded(item["id"])
+                except Exception as e:
+                    logger.error(f"Haru todo push reminder send error: {e}")
+    except Exception as e:
+        logger.error(f"Haru todo push reminder check error: {e}")
+
     # ── 생리주기 단계 알림 (단계 진입일에 주기당 1회, 시트에 영구 기록) ──
     try:
         cycle_client = context.bot_data.get("cycle_client")

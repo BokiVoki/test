@@ -122,6 +122,62 @@ def list_due(cutoff_iso: str) -> list[dict]:
         return []
 
 
+def list_due_reminders(now_iso: str) -> list[dict]:
+    """설정한 시간이 지났는데 아직 안 보낸 ⏰ 할일 알림 목록(하루앱 시계 아이콘).
+
+    now_iso: UTC ISO8601 문자열(예: datetime.now(timezone.utc).isoformat()).
+    실패해도 예외 없이 빈 리스트(알림 체크 잡이 죽지 않게).
+    반환: [{'id','title'} ...]
+    """
+    if not is_configured():
+        return []
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/todos",
+            headers={
+                "apikey": SERVICE_KEY,
+                "Authorization": f"Bearer {SERVICE_KEY}",
+            },
+            params=[
+                ("select", "id,title"),
+                ("owner", f"eq.{OWNER_ID}"),
+                ("remind_at", "not.is.null"),
+                ("remind_at", f"lte.{now_iso}"),
+                ("reminded", "eq.false"),
+                ("done", "eq.false"),
+                ("archived", "eq.false"),
+            ],
+            timeout=15,
+        )
+        if resp.status_code >= 300:
+            return []
+        data = resp.json()
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def mark_reminded(todo_id: str) -> None:
+    """⏰ 알림을 보낸 할일을 reminded=true로 표시해 중복 발송을 막는다. 실패해도 조용히 삼킴."""
+    if not is_configured():
+        return
+    try:
+        requests.patch(
+            f"{SUPABASE_URL}/rest/v1/todos",
+            headers={
+                "apikey": SERVICE_KEY,
+                "Authorization": f"Bearer {SERVICE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            params=[("id", f"eq.{todo_id}")],
+            json={"reminded": True},
+            timeout=15,
+        )
+    except Exception:
+        pass
+
+
 def list_open() -> list[dict]:
     """안 끝난·완료함 아닌 할일 전체(추천용). 실패 시 빈 리스트.
 
