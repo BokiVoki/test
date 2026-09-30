@@ -19,24 +19,32 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   /* "구닥(Gudak Cam)" 일회용 필름카메라 앱st(2026-09-30, "구닥앱처럼" 요청으로
-     기존 뉴진스st Y2K 하드섀도 톤에서 교체) — 머스타드 옐로우 포인트 +
+     기존 뉴진스st Y2K 하드섀도 톤에서 교체) —
      둥근 카드/필 모양(각진 하드박스·기울임 스티커 제거) + 미니멀한 뷰파인더
      (모서리 장식 제거) + 사진에 따뜻한 필름톤 필터. 타임스탬프는 예전처럼
      디지털카메라 각인 날짜 느낌 유지(모노스페이스+앰버색). 픽셀폰트(Galmuri)는
      둥글둥글한 한글 폰트 Jua로 교체 — 변수명 --pixel은 "UI 장식용 폰트"라는
      역할이 안 바뀌어서 그대로 씀(캡션 등 실제로 긴 글은 여전히 --sans).
-     인덱스(하루앱)의 차분한 톤과는 독립적으로 이 페이지만 꾸밈. */
+     포인트 컬러는 2026-09-30에 머스타드→하루앱과 같은 호크니풍 스카이블루+
+     버건디로 교체("색감을 버건디와 스카이블루로") — 값도 인덱스(하루앱)와 동일하게
+     맞춰서 두 앱이 같은 브랜드 컬러를 쓰게 함. 스카이블루(--accent)는 하루앱처럼
+     버튼 채움·포커스 테두리 등 "주 포인트"로, 버건디(--accent-2)는 링크·hover
+     텍스트 등 "글자로 읽어야 하는 강조"로 역할을 나눔(하루앱의 실제 사용 패턴을
+     그대로 따름). 스카이블루·버건디 둘 다 채도 있는 중간톤이라(전 버전 머스타드처럼
+     밝지 않음) 그 위에 얹는 글자색은 --on-accent로 테마별로 뒤집어서 대비 확보
+     (라이트: 흰 글자, 다크: 어두운 글자 — accent 자체가 다크 테마에서 밝은 톤으로
+     뒤집히므로). */
   :root{
     --bg:#FBF6E8; --panel:#FFFFFF; --sunk:#F5EFDB; --line:#EAE0BE; --line-2:#4A3B22;
-    --text:#332711; --muted:#8C7F5C; --faint:#C3B78E; --accent:#F6C445; --accent-2:#C97A1B; --accent-wash:#FFF3D0;
+    --text:#332711; --muted:#8C7F5C; --faint:#C3B78E; --accent:#0E76AC; --accent-2:#7A2743; --accent-wash:#E3F1F9; --on-accent:#FFFFFF;
     --amber:#D9720E; --ink:#332711; --shadowc:rgba(51,39,17,.14);
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
     --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
     --pixel:'Jua',var(--sans);
   }
-  @media (prefers-color-scheme:dark){:root{--bg:#20180B;--panel:#2A2011;--sunk:#332813;--line:#4A3D22;--line-2:#F0E6C8;--text:#F5EEDA;--muted:#C4B78E;--faint:#7A6C48;--accent:#FFD35C;--accent-2:#FFB25C;--accent-wash:#3A2C12;--amber:#FFB25C;--ink:#F5EEDA;--shadowc:rgba(0,0,0,.45);}}
-  :root[data-theme="light"]{--bg:#FBF6E8;--panel:#FFFFFF;--sunk:#F5EFDB;--line:#EAE0BE;--line-2:#4A3B22;--text:#332711;--muted:#8C7F5C;--faint:#C3B78E;--accent:#F6C445;--accent-2:#C97A1B;--accent-wash:#FFF3D0;--amber:#D9720E;--ink:#332711;--shadowc:rgba(51,39,17,.14);}
-  :root[data-theme="dark"]{--bg:#20180B;--panel:#2A2011;--sunk:#332813;--line:#4A3D22;--line-2:#F0E6C8;--text:#F5EEDA;--muted:#C4B78E;--faint:#7A6C48;--accent:#FFD35C;--accent-2:#FFB25C;--accent-wash:#3A2C12;--amber:#FFB25C;--ink:#F5EEDA;--shadowc:rgba(0,0,0,.45);}
+  @media (prefers-color-scheme:dark){:root{--bg:#20180B;--panel:#2A2011;--sunk:#332813;--line:#4A3D22;--line-2:#F0E6C8;--text:#F5EEDA;--muted:#C4B78E;--faint:#7A6C48;--accent:#5FB4E6;--accent-2:#E58FA6;--accent-wash:#10202B;--on-accent:#20180B;--amber:#FFB25C;--ink:#F5EEDA;--shadowc:rgba(0,0,0,.45);}}
+  :root[data-theme="light"]{--bg:#FBF6E8;--panel:#FFFFFF;--sunk:#F5EFDB;--line:#EAE0BE;--line-2:#4A3B22;--text:#332711;--muted:#8C7F5C;--faint:#C3B78E;--accent:#0E76AC;--accent-2:#7A2743;--accent-wash:#E3F1F9;--on-accent:#FFFFFF;--amber:#D9720E;--ink:#332711;--shadowc:rgba(51,39,17,.14);}
+  :root[data-theme="dark"]{--bg:#20180B;--panel:#2A2011;--sunk:#332813;--line:#4A3D22;--line-2:#F0E6C8;--text:#F5EEDA;--muted:#C4B78E;--faint:#7A6C48;--accent:#5FB4E6;--accent-2:#E58FA6;--accent-wash:#10202B;--on-accent:#20180B;--amber:#FFB25C;--ink:#F5EEDA;--shadowc:rgba(0,0,0,.45);}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
   .hidden{display:none!important}
@@ -52,7 +60,7 @@
   .authcard input{font:inherit;font-size:15px;padding:11px;border:1.5px solid var(--line);border-radius:12px;background:var(--sunk);color:var(--text)}
   .authcard input:focus{outline:none;border-color:var(--accent-2)}
   .authcard .row{display:flex;gap:8px}
-  .authcard .row button{flex:1;font-family:var(--pixel);font-size:14px;padding:12px;cursor:pointer;background:var(--accent);color:var(--ink);border:0;border-radius:999px;box-shadow:0 3px 10px var(--shadowc)}
+  .authcard .row button{flex:1;font-family:var(--pixel);font-size:14px;padding:12px;cursor:pointer;background:var(--accent);color:var(--on-accent);border:0;border-radius:999px;box-shadow:0 3px 10px var(--shadowc)}
   .authcard .row button:active{transform:scale(.97)}
   .authcard .row button#logSignupBtn{background:var(--sunk);color:var(--text);border:1.5px solid var(--line);box-shadow:none}
   #authMsg{font-size:12.5px;color:var(--accent-2);min-height:16px}
@@ -60,18 +68,18 @@
   /* ── 공통 ── */
   .wrap{max-width:640px;margin:0 auto;padding:14px 16px 90px}
   header.hd{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-  .brand{font-family:var(--pixel);font-size:16px;font-weight:400;color:var(--ink);background:var(--accent);padding:7px 15px;border-radius:999px;display:inline-block}
+  .brand{font-family:var(--pixel);font-size:16px;font-weight:400;color:var(--on-accent);background:var(--accent);padding:7px 15px;border-radius:999px;display:inline-block}
   .backlink{font-family:var(--pixel);font-size:11px;color:var(--muted);text-decoration:none;border-bottom:1px dashed var(--muted)}
   .backlink:hover{color:var(--accent-2);border-color:var(--accent-2)}
   .btn-s{font-family:var(--pixel);font-size:12px;background:var(--panel);border:1.5px solid var(--line);color:var(--text);cursor:pointer;padding:7px 13px;border-radius:999px}
   .btn-s:hover{color:var(--accent-2);border-color:var(--accent-2)}
   .btn-s:active{transform:scale(.96)}
-  .btn-main{font-family:var(--pixel);font-size:14px;background:var(--accent);color:var(--ink);border:0;border-radius:999px;padding:12px 16px;cursor:pointer;box-shadow:0 3px 10px var(--shadowc)}
+  .btn-main{font-family:var(--pixel);font-size:14px;background:var(--accent);color:var(--on-accent);border:0;border-radius:999px;padding:12px 16px;cursor:pointer;box-shadow:0 3px 10px var(--shadowc)}
   .btn-main:active:not(:disabled){transform:scale(.97)}
   .btn-main:disabled{opacity:.4;cursor:default}
   .toast{position:fixed;left:50%;bottom:78px;transform:translate(-50%,20px);background:var(--ink);color:var(--bg);font-family:var(--pixel);font-size:12px;padding:11px 17px;opacity:0;pointer-events:none;transition:.18s;z-index:90;display:flex;gap:12px;align-items:center;border-radius:999px;box-shadow:0 8px 22px rgba(0,0,0,.28)}
   .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
-  .toast button{font-family:var(--pixel);font-size:11px;color:var(--accent);background:none;border:0;cursor:pointer;text-decoration:underline;padding:0}
+  .toast button{font-family:var(--pixel);font-size:11px;color:var(--accent-2);background:none;border:0;cursor:pointer;text-decoration:underline;padding:0}
 
   /* ── 날짜 이동 + 게시판 ── */
   .daynav{display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:8px 10px;flex-wrap:wrap}
@@ -158,7 +166,7 @@
   .camTop{position:absolute;top:0;left:0;right:0;display:flex;justify-content:center;padding:16px 12px;padding-top:max(16px,env(safe-area-inset-top))}
   .camToggle{display:flex;background:rgba(0,0,0,.45);border-radius:999px;padding:3px}
   .camToggle button{font-family:var(--pixel);background:none;border:0;border-radius:999px;color:#fff;opacity:.7;font-size:12px;padding:8px 18px;cursor:pointer}
-  .camToggle button[aria-selected="true"]{opacity:1;background:var(--accent);color:var(--ink)}
+  .camToggle button[aria-selected="true"]{opacity:1;background:var(--accent);color:var(--on-accent)}
   /* 아래 하단 탭(#mobileNav, 약 60px)에 안 가리게 그 위로 여백을 둠 */
   .camBottom{position:absolute;left:0;right:0;bottom:60px;display:flex;align-items:center;padding:18px 26px;padding-bottom:max(18px,env(safe-area-inset-bottom))}
   #camGalleryBtn{background:rgba(0,0,0,.45);border:0;color:#fff;width:46px;height:46px;border-radius:50%;font-size:18px;cursor:pointer}
@@ -181,7 +189,7 @@
   #previewBtns{display:flex;gap:10px}
   #previewBtns button{flex:1;padding:12px;cursor:pointer;font-family:var(--pixel);font-size:13px;border:0;border-radius:999px}
   #retakeBtn{background:var(--sunk);color:var(--text);border:1.5px solid var(--line)}
-  #saveBtn{background:var(--accent);color:var(--ink);box-shadow:0 3px 10px var(--shadowc)}
+  #saveBtn{background:var(--accent);color:var(--on-accent);box-shadow:0 3px 10px var(--shadowc)}
   #saveBtn:active:not(:disabled){transform:scale(.97)}
 
   @media(max-width:520px){.logmedia,img.logmedia{max-height:70vh}}
