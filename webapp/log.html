@@ -116,10 +116,12 @@
   .logvidwrap .logmedia{border:0}
   .logmediawrap{position:relative;border:1.5px solid var(--line);border-top:0;border-radius:0 0 16px 16px;overflow:hidden;background:#171310}
   .logmediawrap>.logmedia{border:0}
-  /* 사진 수동 회전(게시판 ↻ 버튼) — 90/270도는 사각형(1:1) 박스로 바꿔서 그 안에서
-     object-fit:contain으로 돌려도 잘리지 않게 함(정사각형은 90도 돌려도 같은 경계). */
-  .logmediawrap.sq{aspect-ratio:1/1}
-  .logmediawrap.sq>.logmedia{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:contain}
+  /* 사진·영상 수동 회전(게시판 ↺ 버튼) — 90/270도는 사각형(1:1) 박스로 바꿔서 그 안에서
+     object-fit:contain으로 돌려도 잘리지 않게 함(정사각형은 90도 돌려도 같은 경계).
+     영상은 네이티브 컨트롤바까지 같이 돌아가서 좀 비스듬해 보일 수 있지만
+     클릭 히트테스트는 회전된 화면 그대로 맞아서 조작 자체는 됨. */
+  .logmediawrap.sq,.logvidwrap.sq{aspect-ratio:1/1}
+  .logmediawrap.sq>.logmedia,.logvidwrap.sq>.logmedia{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:contain}
   .logmedia.rot90{transform:rotate(90deg)}
   .logmedia.rot180{transform:rotate(180deg)}
   .logmedia.rot270{transform:rotate(270deg)}
@@ -349,11 +351,11 @@
     })).then(function(list){
       el.innerHTML=list.map(function(x){
         var e=x.e,ts=e.sort||Date.parse(e.created_at),stamp='<span class="logstamp">'+esc(fmtStamp(ts))+'</span>';
-        var rot=e.rotate||0,isSq=(rot===90||rot===270);
+        var rot=e.rotate||0,isSq=(rot===90||rot===270),rotCls=rot?' rot'+rot:'';
         var media=e.type==='video'
-          ? '<div class="logvidwrap"><video class="logmedia" src="'+esc(x.url)+'" controls playsinline></video>'+stamp+(e.caption?'<div class="logcapover">'+esc(e.caption)+'</div>':'')+'</div>'
-          : '<div class="logmediawrap'+(isSq?' sq':'')+'"><img class="logmedia'+(rot?' rot'+rot:'')+'" src="'+esc(x.url)+'">'+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
-        var rotBtn=e.type==='photo'?'<span class="logrot" data-act="logrot" title="회전">↻</span>':'';
+          ? '<div class="logvidwrap'+(isSq?' sq':'')+'"><video class="logmedia'+rotCls+'" src="'+esc(x.url)+'" controls playsinline></video>'+stamp+(e.caption?'<div class="logcapover">'+esc(e.caption)+'</div>':'')+'</div>'
+          : '<div class="logmediawrap'+(isSq?' sq':'')+'"><img class="logmedia'+rotCls+'" src="'+esc(x.url)+'">'+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
+        var rotBtn='<span class="logrot" data-act="logrot" title="회전">↺</span>';
         return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span><span class="logactions">'+rotBtn+'<span class="logdel" data-act="logdel">✕ 지우기</span></span></div>'+media+'</div>';
       }).join('');
     });
@@ -363,7 +365,9 @@
     if(rotEl){
       var rrow=rotEl.closest('[data-id]'),rid=rrow.dataset.id;
       var rentry=state.entries.filter(function(x){return x.id===rid;})[0];if(!rentry)return;
-      var oldRot=rentry.rotate||0,newRot=(oldRot+90)%360;
+      // 시계 반대방향으로 회전(2026-09-30) — 저장값은 그대로 "시계방향 각도"라
+      // -90 대신 +270(=mod 360으로 -90과 같음)만큼 더해서 0→270→180→90→0 순으로 돎
+      var oldRot=rentry.rotate||0,newRot=(oldRot+270)%360;
       rentry.rotate=newRot;renderBoard();
       sb.from('log_entries').update({rotate:newRot}).eq('id',rid).then(function(r){
         if(r.error){rentry.rotate=oldRot;renderBoard();showToast('회전 저장 실패');}
