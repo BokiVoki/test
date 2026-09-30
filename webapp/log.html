@@ -98,9 +98,14 @@
   .logent{margin:0 0 20px;padding:0;display:flex;flex-direction:column}
   .logenthead{display:flex;align-items:center;gap:8px;font-family:var(--pixel);font-size:10.5px;color:var(--muted);padding:6px 10px;border:2px solid var(--line-2);border-bottom:0}
   .logenthead .logtime{color:var(--text)}
-  .logenthead .logactions{margin-left:auto;display:flex;gap:10px;align-items:center}
-  .logenthead .logrot,.logenthead .logdel{cursor:pointer;color:var(--faint)}
-  .logenthead .logrot:hover,.logenthead .logdel:hover{color:var(--accent)}
+  .logenthead .logactions{margin-left:auto;display:flex;gap:6px;align-items:center}
+  .logenthead .logdel{cursor:pointer;color:var(--faint)}
+  .logenthead .logdel:hover{color:var(--accent)}
+  /* 회전 버튼은 실제로 눌러야 하는 조작이라 삭제 텍스트보다 훨씬 크게 —
+     탭 영역도 최소 32px는 되게 패딩을 넉넉히 줌(2026-09-30, "회전버튼이 너무 작아") */
+  .logenthead .logrot{cursor:pointer;color:var(--faint);font-size:20px;line-height:1;padding:6px 8px;margin:-6px 0}
+  .logenthead .logrot:hover{color:var(--accent)}
+  .logenthead .logrot:active{color:var(--accent);transform:scale(.9)}
   .logmedia{width:100%;max-height:520px;object-fit:contain;background:#000;display:block;border:2px solid var(--line-2)}
   img.logmedia{object-fit:cover;max-height:460px}
   .logvidwrap{position:relative;border:2px solid var(--line-2);box-shadow:4px 4px 0 var(--shadowc)}
