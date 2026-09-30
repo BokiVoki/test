@@ -178,6 +178,86 @@ def mark_reminded(todo_id: str) -> None:
         pass
 
 
+def list_due_sub_reminders(now_iso: str) -> list[dict]:
+    """하위 항목(subs jsonb 배열 안) ⏰ 알림 목록(2026-09-30, "하위항목도 가능하게").
+
+    remind_at처럼 컬럼으로 안 뽑혀있고 todos.subs jsonb 배열 안에 항목별로 들어있어서
+    PostgREST 필터로 직접 못 거르니, 안 끝난 할일을 통째로 가져와 파이썬에서 훑는다.
+    개인 단일사용자 앱이라 데이터량이 적어 매번 전체를 훑어도 무리 없음.
+    실패해도 예외 없이 빈 리스트(알림 체크 잡이 죽지 않게).
+    반환: [{'todo_id','sub_index','title'} ...]
+    """
+    if not is_configured():
+        return []
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/todos",
+            headers={"apikey": SERVICE_KEY, "Authorization": f"Bearer {SERVICE_KEY}"},
+            params=[
+                ("select", "id,subs"),
+                ("owner", f"eq.{OWNER_ID}"),
+                ("done", "eq.false"),
+                ("archived", "eq.false"),
+            ],
+            timeout=15,
+        )
+        if resp.status_code >= 300:
+            return []
+        data = resp.json()
+        out = []
+        for row in data if isinstance(data, list) else []:
+            subs = row.get("subs") or []
+            if not isinstance(subs, list):
+                continue
+            for i, s in enumerate(subs):
+                if not isinstance(s, dict) or s.get("d"):
+                    continue
+                remind_at = s.get("remindAt")
+                if remind_at and not s.get("reminded") and remind_at <= now_iso:
+                    out.append({"todo_id": row["id"], "sub_index": i, "title": s.get("t") or "하위 항목"})
+        return out
+    except Exception:
+        return []
+
+
+def mark_sub_reminded(todo_id: str, sub_index: int) -> None:
+    """하위 항목 알림을 보낸 뒤 그 항목만 reminded=true로 표시(읽고-고치고-쓰기 방식 —
+    subs가 jsonb 배열이라 그 안 특정 원소만 콕 집어 갱신하는 PostgREST 연산이 없음).
+    같은 할일의 다른 하위 항목·다른 필드는 안 건드림. 실패해도 조용히 삼킴."""
+    if not is_configured():
+        return
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/todos",
+            headers={"apikey": SERVICE_KEY, "Authorization": f"Bearer {SERVICE_KEY}"},
+            params=[("select", "subs"), ("id", f"eq.{todo_id}")],
+            timeout=15,
+        )
+        if resp.status_code >= 300:
+            return
+        rows = resp.json()
+        if not rows:
+            return
+        subs = rows[0].get("subs") or []
+        if not isinstance(subs, list) or sub_index >= len(subs) or not isinstance(subs[sub_index], dict):
+            return
+        subs[sub_index]["reminded"] = True
+        requests.patch(
+            f"{SUPABASE_URL}/rest/v1/todos",
+            headers={
+                "apikey": SERVICE_KEY,
+                "Authorization": f"Bearer {SERVICE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            params=[("id", f"eq.{todo_id}")],
+            json={"subs": subs},
+            timeout=15,
+        )
+    except Exception:
+        pass
+
+
 def list_open() -> list[dict]:
     """안 끝난·완료함 아닌 할일 전체(추천용). 실패 시 빈 리스트.
 

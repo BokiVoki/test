@@ -126,8 +126,8 @@
        하위항목의 날짜/오늘 지정까지. 터치엔 호버 자체가 없어서 지금까진 존재하는지도
        몰랐거나 알아도 못 눌렀던 것들 — 항상 옅게라도 보이게(회의안건·링크 보드와 같은 처리) */
     .rowdel,.pjdel,.pjren,.subadd0,.subitem .sdel,.rowbtn,.nest,.lkrow .lkdel,.crEditTog{opacity:.5!important}
-    .sdue2,.stoday{opacity:.5!important}
-    .sdue2.has,.stoday.has{opacity:.9!important}
+    .sdue2,.stoday,.subitem .remindicon{opacity:.5!important}
+    .sdue2.has,.stoday.has,.subitem .remindicon.has{opacity:.9!important}
     /* ✎(주기 수정)와 ✕(삭제)가 나란히 붙어있어서 모바일에서 손가락으로 정확히 못 누르고
        엉뚱한 걸 누르거나 헛짚던 문제 — 실제 탭 가능 영역을 키우고(패딩+음수 마진으로
        시각적 크기는 유지) 둘 사이 간격도 벌림 */
@@ -394,6 +394,13 @@
   .remindrow .tri{padding:6px 0;align-items:center;gap:6px}
   .remindrow input[type="time"]{font:inherit;font-size:12.5px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text);padding:3px 2px}
   .remindrow input[type="time"]:focus{outline:none;border-bottom-color:var(--accent)}
+  /* 하위 항목 ⏰ 알림(2026-09-30) — .subitem이 <tr>이 아니라 <div>라서 부모용
+     tr:hover 규칙을 못 타므로 따로 지정, 펼침 박스도 형제 <div>로 */
+  .subitem:hover .remindicon{opacity:.75}
+  .subremindrow{padding:2px 0 4px 22px}
+  .subremindrow .tri{padding:0;justify-content:flex-start}
+  .subremindrow input[type="time"]{font:inherit;font-size:12px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text);padding:2px 2px}
+  .subremindrow input[type="time"]:focus{outline:none;border-bottom-color:var(--accent)}
   .rowdel{color:var(--faint);cursor:pointer;font-size:12px;opacity:0;padding-left:6px}tr:hover .rowdel{opacity:1}
   .ck{width:16px;height:16px;border:1.5px solid var(--line-2);background:var(--panel);cursor:pointer;display:grid;place-items:center}
   .ck svg{width:9px;height:9px;opacity:0}
@@ -957,6 +964,7 @@
   var hasLedgerRecurringId=false; // ledger.recurring_id 컬럼이 있으면 true (반복 항목이 만든 기록 추적용, 2026-09-28)
   var prgOpen={};        // 진행 기록 펼침 상태 (todoId→bool, 세션 한정)
   var remindOpen={};     // ⏰ 알림 설정 박스 펼침 상태 (todoId→bool, 세션 한정)
+  var subRemindOpen={};  // 하위 항목 ⏰ 알림 설정 박스 펼침 상태 (2026-09-30, "todoId:서브인덱스"→bool, 세션 한정)
   var inbOpen={};        // 주머니 행의 "⋯"(오늘/날짜/프로젝트/나중/메모/버림 메뉴) 펼침 상태 (세션 한정)
   var expanded={};       // 하위 항목 펼침 상태 (id→bool, 세션 한정)
   var nestSource=null;   // '하위로 이동' 중인 할일 id
@@ -985,7 +993,7 @@
 
   // DB mapping
   function sid(){return 's'+Math.random().toString(36).slice(2,8);}
-  function normSubs(arr){return (Array.isArray(arr)?arr:[]).map(function(s){return {t:s.t||'',d:!!s.d,id:s.id||sid(),due:s.due||'',stage:(typeof s.stage==='number'?s.stage:0),memoId:s.memoId||null,today:!!s.today};});}
+  function normSubs(arr){return (Array.isArray(arr)?arr:[]).map(function(s){return {t:s.t||'',d:!!s.d,id:s.id||sid(),due:s.due||'',stage:(typeof s.stage==='number'?s.stage:0),memoId:s.memoId||null,today:!!s.today,remindAt:s.remindAt||null,reminded:!!s.reminded};});}
   function dailyResetToday(){                 // 날짜가 바뀌면 "오늘" 지정을 전부 리셋(부모+하위) + 매일 루틴 체크 리셋
     var ti=todayISO();
     if(state.settings.todayResetDate===ti)return;
@@ -1608,12 +1616,33 @@
       +(t.remindAt?'<button class="btn-s" data-act="remind-clear">알림 끄기</button>':'')
       +'</div></td></tr>';
   }
+  // 하위 항목 ⏰ 알림(2026-09-30, "하위항목도 가능하게") — 부모 할일과 같은 UI 패턴이지만
+  // 하위 항목은 <tr>이 아니라 .subitem <div>라서 펼침 박스도 <tr> 대신 형제 <div>로 붙임.
+  // 저장 위치는 todos.subs jsonb 배열 안 그 항목 객체(remindAt/reminded) — 새 컬럼 없음.
+  function remindIconHtmlSub(t,i){
+    if(!hasRemind)return '';
+    var s=(t.subs||[])[i];if(!s)return '';
+    var has=!!s.remindAt;
+    return '<span class="remindicon'+(has?' has':'')+'" data-act="remind-tog-sub" data-i="'+i+'" title="'+(has?'알림 '+remindLocalTimeStr(s.remindAt):'알림 설정')+'">⏰</span>';
+  }
+  function subRemindRowHtml(t,i){
+    var s=(t.subs||[])[i];
+    if(!hasRemind||!s||!subRemindOpen[t.id+':'+i])return '';
+    var val=s.remindAt?remindLocalTimeStr(s.remindAt):'';
+    var dueFor=s.due||t.due;var dayLabel=dueFor?mmdd(dueFor)+' ':'오늘 ';
+    return '<div class="subremindrow" data-i="'+i+'"><div class="tri">'
+      +'<span style="color:var(--faint);font-size:12px">⏰ '+esc(dayLabel)+'</span>'
+      +'<input type="time" class="remindtime" value="'+esc(val)+'">'
+      +'<button class="btn-s" data-act="remind-save-sub" data-i="'+i+'">설정</button>'
+      +(s.remindAt?'<button class="btn-s" data-act="remind-clear-sub" data-i="'+i+'">알림 끄기</button>':'')
+      +'</div></div>';
+  }
 
   function subTogHtml(t){var s=t.subs||[],open=!!expanded[t.id];
     if(s.length){var dn=s.filter(function(x){return x.d;}).length;return '<button class="subtog" data-act="subtog">'+(open?'▾':'▸')+' '+dn+'/'+s.length+'</button>';}
     return '<button class="subtog subadd0" data-act="subtog" title="하위 항목 추가">＋하위</button>';}
   function subRowHtml(t,cols){if(!expanded[t.id])return '';var s=t.subs||[];
-    var items=s.map(function(x,i){return '<div class="subitem'+(x.d?' d':'')+'"><span class="subdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="sck" data-act="subck" data-i="'+i+'" role="checkbox" tabindex="0">'+svg()+'</span><span class="stt" data-act="subedit" data-i="'+i+'">'+esc(x.t)+'</span>'+(x.memoId?'<a class="memolink" data-act="submemo" data-i="'+i+'" title="연결된 메모">📝</a>':'')+'<span class="stoday'+(x.today?' has':'')+'" data-act="subtoday" data-i="'+i+'" title="오늘의 집중">'+(x.today?'오늘✓':'오늘')+'</span><span class="sdue2'+(x.due?' has':'')+'" data-act="subdue" data-i="'+i+'">'+(x.due?'~'+mmdd(x.due):'＋날짜')+'</span><span class="sdel" data-act="subdel" data-i="'+i+'">✕</span></div>';}).join('');
+    var items=s.map(function(x,i){return '<div class="subitem'+(x.d?' d':'')+'"><span class="subdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="sck" data-act="subck" data-i="'+i+'" role="checkbox" tabindex="0">'+svg()+'</span><span class="stt" data-act="subedit" data-i="'+i+'">'+esc(x.t)+'</span>'+(x.memoId?'<a class="memolink" data-act="submemo" data-i="'+i+'" title="연결된 메모">📝</a>':'')+remindIconHtmlSub(t,i)+'<span class="stoday'+(x.today?' has':'')+'" data-act="subtoday" data-i="'+i+'" title="오늘의 집중">'+(x.today?'오늘✓':'오늘')+'</span><span class="sdue2'+(x.due?' has':'')+'" data-act="subdue" data-i="'+i+'">'+(x.due?'~'+mmdd(x.due):'＋날짜')+'</span><span class="sdel" data-act="subdel" data-i="'+i+'">✕</span></div>'+subRemindRowHtml(t,i);}).join('');
     return '<tr class="subrow" data-id="'+t.id+'"><td colspan="'+cols+'"><div class="subwrap">'+items+'<input class="subnew" data-act="subnew" placeholder="+ 하위 항목 추가 후 Enter" aria-label="하위 항목 추가"></div></td></tr>';}
   function taskRow(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
     return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td>'+
@@ -2945,6 +2974,22 @@
       showToast('⏰ '+mmdd(rDate)+' '+tv+'에 알림을 보낼게요(하루앱 홈 화면 설치 + 알림 켜기 필요)');}
     else if(act==='remind-clear'&&t){
       t.remindAt=null;t.reminded=false;putTodo(t);remindOpen[t.id]=false;renderToday();renderProjects();showToast('알림을 껐어요');}
+    else if(act==='remind-tog-sub'&&t){
+      if(!hasRemind){showToast('알림 표가 아직 없어요');return;}
+      var rsi=+el.dataset.i,rsk=t.id+':'+rsi;
+      subRemindOpen[rsk]=!subRemindOpen[rsk];renderToday();renderProjects();
+      if(subRemindOpen[rsk]){var rsin=document.querySelector('tr.subrow[data-id="'+t.id+'"] .subremindrow[data-i="'+rsi+'"] .remindtime');if(rsin)rsin.focus();}}
+    else if(act==='remind-save-sub'&&t){
+      var rsi2=+el.dataset.i,rs2=(t.subs||[])[rsi2];if(!rs2)return;
+      var rt2=el.closest('.subremindrow').querySelector('.remindtime'),tv2=rt2&&rt2.value;
+      if(!tv2){showToast('시간을 입력해주세요');return;}
+      var rDate2=rs2.due||t.due||todayISO();
+      rs2.remindAt=localDateTimeToISO(rDate2,tv2);rs2.reminded=false;putTodo(t);
+      delete subRemindOpen[t.id+':'+rsi2];renderToday();renderProjects();
+      showToast('⏰ '+mmdd(rDate2)+' '+tv2+'에 알림을 보낼게요(하루앱 홈 화면 설치 + 알림 켜기 필요)');}
+    else if(act==='remind-clear-sub'&&t){
+      var rsi3=+el.dataset.i,rs3=(t.subs||[])[rsi3];if(!rs3)return;
+      rs3.remindAt=null;rs3.reminded=false;putTodo(t);delete subRemindOpen[t.id+':'+rsi3];renderToday();renderProjects();showToast('알림을 껐어요');}
     else if(act==='ag-tog'||act==='ag-del'||act==='ag-add'||act==='ag-memo'){
       var agEl=el.closest('[data-ag]'),ag=agEl&&state.agenda.filter(function(x){return x.id===agEl.dataset.ag;})[0];
       if(!ag)return;

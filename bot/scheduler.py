@@ -98,6 +98,17 @@ async def check_reminders_job(context: CallbackContext):
                     haru_app.mark_reminded(item["id"])
                 except Exception as e:
                     logger.error(f"Haru todo push reminder send error: {e}")
+            # 하위 항목(subs) ⏰ 알림 — 2026-09-30, "하위항목도 가능하게" 요청으로 추가
+            for sub_item in haru_app.list_due_sub_reminders(now_iso):
+                try:
+                    webpush_notify.send(
+                        title="⏰ " + (sub_item.get("title") or "하위 항목"),
+                        body="설정한 시간이에요",
+                        url="./",
+                    )
+                    haru_app.mark_sub_reminded(sub_item["todo_id"], sub_item["sub_index"])
+                except Exception as e:
+                    logger.error(f"Haru sub-item push reminder send error: {e}")
     except Exception as e:
         logger.error(f"Haru todo push reminder check error: {e}")
 
