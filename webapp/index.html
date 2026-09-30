@@ -537,6 +537,9 @@
   .btn-s:disabled{color:var(--faint);cursor:default;opacity:.55}
   .btn-s:hover{border-color:var(--accent)}
   .hidden{display:none!important}
+  /* showPicker()는 요소가 실제로 "렌더링"돼 있어야 동작해서(display:none은 거부됨)
+     화면 밖으로 숨기되 박스는 남겨둠 — 하루 로그(log.html)의 캘린더 아이콘과 같은 패턴 */
+  .datepick-hidden{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;border:0;padding:0}
   .foot{margin-top:20px;text-align:center;font-size:12px;color:var(--faint)}
   .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--text);color:var(--bg);font-size:13px;padding:9px 15px;opacity:0;pointer-events:none;transition:.18s;z-index:10;display:flex;gap:12px;align-items:center}
   .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
@@ -893,6 +896,8 @@
 </div>
 
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo" class="hidden">되돌리기</button></div>
+<input type="date" id="dueDatePicker" class="datepick-hidden">
+
 
 <div class="art-sketch-modal hidden" id="artSketchModal">
   <div class="art-sketch-bar">
@@ -3009,7 +3014,7 @@
     else if(act==='t-later'&&t){t.bucket='later';putTodo(t);renderInbox();showToast('나중으로 미뤘어요');}
     else if(act==='t-memo'&&t){var m={id:'m'+uid(),folder:'업무',title:t.title,body:'',link:''};state.memos.unshift(m);putMemo(m);removeTodo(t,'메모로 보냈어요');}
     else if(act==='t-del'&&t){removeTodo(t,'버렸어요');}
-    else if(act==='due'&&t){var v=prompt('마감일 (예: 8/5, 비우면 없음)',t.due?mmdd(t.due):'');if(v!==null){t.due=parseDue(v);putTodo(t);renderAll();}}
+    else if(act==='due'&&t){openDuePicker(t);}
     else if(act==='art-tag-nav'){state.artSel={type:'tag',tag:el.dataset.tag};renderArtMain();renderArtSidebar();}
     else if(act==='art-open-work'){state.artSel={type:'work',id:el.dataset.id};renderArtMain();}
     else if(act==='art-new-work'){state.artSel={type:'newWork',artistId:el.dataset.artist||''};renderArtMain();}
@@ -3072,6 +3077,19 @@
 
   function removeTodo(t,msg){var idx=state.todos.indexOf(t);if(idx<0)return;state.todos.splice(idx,1);delTodoDB(t.id);renderAll();showToast(msg,function(){state.todos.unshift(t);putTodo(t);});}
   function parseDue(v){v=(v||'').trim();if(!v)return '';var p=v.split(/[\/\-.]/);if(p.length>=2){var mo=+p[p.length-2],da=+p[p.length-1];if(mo&&da)return state.calYear+'-'+pad(mo)+'-'+pad(da);}return '';}
+  // 마감일 "📅 날짜" 버튼 — 예전엔 prompt()로 "8/5" 텍스트를 받았는데,
+  // 네이티브 <input type="date"> showPicker()로 교체(2026-09-30, "그냥 캘린더에서
+  // 선택하면 안되는거야?" 요청). t.due가 이미 ISO(YYYY-MM-DD)라 값 변환 없이 그대로 씀.
+  function openDuePicker(t){
+    var dp=document.getElementById('dueDatePicker');
+    dp.value=t.due||'';dp.dataset.todoId=t.id;
+    if(dp.showPicker){try{dp.showPicker();return;}catch(e){}}
+    dp.focus();dp.click();
+  }
+  document.getElementById('dueDatePicker').addEventListener('change',function(){
+    var t=tById(this.dataset.todoId);if(!t)return;
+    t.due=this.value||'';putTodo(t);renderAll();
+  });
 
   // 일상 탭(루틴/투두) 서브탭
   // calendar drag
