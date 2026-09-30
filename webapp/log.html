@@ -76,9 +76,12 @@
   .daynav h2{margin:0;font-family:var(--pixel);font-size:14px;flex:1;text-align:center;letter-spacing:.03em}
   .daynav .today{font-family:var(--pixel);font-size:10.5px;color:var(--accent);border-bottom:1px dashed var(--accent);cursor:pointer}
   .daynavicons{display:flex;align-items:center;gap:4px}
-  .iconbtnwrap{position:relative;display:inline-flex}
-  .iconbtnwrap input[type=date]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:0}
   .iconbtn{font-size:16px;line-height:1;cursor:pointer;padding:4px 6px;color:var(--muted)}
+  /* showPicker()가 동작하려면 실제로 "렌더링"은 돼 있어야 함(display:none은 안 됨) —
+     화면엔 안 보이지만 박스는 있게 1px 크기+투명으로만 숨김. 아이콘과 안 겹치게
+     오버레이 방식 대신 이 방식을 씀(오버레이는 date input의 최소 렌더 폭이 아이콘보다
+     넓어서 옆 아이콘 클릭까지 가로채는 버그가 있었음, 2026-09-30). */
+  .datepick-hidden{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;border:0;padding:0}
   .iconbtn:hover{color:var(--accent)}
   .iconbtn[aria-pressed="true"]{color:var(--accent)}
   .boardempty{color:var(--faint);font-family:var(--pixel);font-size:12px;padding:40px 0;text-align:center}
@@ -213,14 +216,12 @@
       <h2 id="dayTitle"></h2>
       <button id="dayNext">›</button>
       <span class="daynavicons">
-        <span class="iconbtnwrap" title="날짜로 이동">
-          <span class="iconbtn">📅</span>
-          <input id="dayPicker" type="date">
-        </span>
+        <span class="iconbtn" id="calBtn" title="날짜로 이동">📅</span>
         <span class="iconbtn" id="searchToggleBtn" title="캡션 검색" aria-pressed="false">🔍</span>
       </span>
       <span class="today hidden" id="dayToday">오늘로</span>
     </div>
+    <input id="dayPicker" type="date" class="datepick-hidden">
     <div id="searchPanel" class="searchpanel hardbox hidden">
       <input id="searchInput" type="text" placeholder="캡션 검색…">
       <div id="searchResults"></div>
@@ -379,7 +380,12 @@
   });
 
   // ===== 날짜로 바로 이동(캘린더) =====
-  document.getElementById('dayPicker').addEventListener('change',function(){
+  var dayPickerEl=document.getElementById('dayPicker');
+  document.getElementById('calBtn').addEventListener('click',function(){
+    if(dayPickerEl.showPicker){try{dayPickerEl.showPicker();return;}catch(e){}}
+    dayPickerEl.focus();dayPickerEl.click();
+  });
+  dayPickerEl.addEventListener('change',function(){
     if(this.value){state.day=this.value;this.value='';renderDay();}
   });
 
