@@ -12,69 +12,72 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="하루 로그">
-<meta name="theme-color" content="#F4EEDD">
+<meta name="theme-color" content="#FBF6E8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/gh/wan2land/galmuri@1.5.0/dist/galmuri.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  /* 레트로 디지캠(Y2K) 톤 — 크림 배경 + 굵은 검정 테두리 + 하드 섀도, 타임스탬프는
-     옛날 디지털카메라 각인 날짜처럼 앰버색 픽셀폰트로. "뉴진스st" 요청에 맞춰
-     인덱스(하루앱)의 차분한 톤과는 일부러 다르게, 이 페이지만 독립적으로 꾸밈. */
+  /* "구닥(Gudak Cam)" 일회용 필름카메라 앱st(2026-09-30, "구닥앱처럼" 요청으로
+     기존 뉴진스st Y2K 하드섀도 톤에서 교체) — 머스타드 옐로우 포인트 +
+     둥근 카드/필 모양(각진 하드박스·기울임 스티커 제거) + 미니멀한 뷰파인더
+     (모서리 장식 제거) + 사진에 따뜻한 필름톤 필터. 타임스탬프는 예전처럼
+     디지털카메라 각인 날짜 느낌 유지(모노스페이스+앰버색). 픽셀폰트(Galmuri)는
+     둥글둥글한 한글 폰트 Jua로 교체 — 변수명 --pixel은 "UI 장식용 폰트"라는
+     역할이 안 바뀌어서 그대로 씀(캡션 등 실제로 긴 글은 여전히 --sans).
+     인덱스(하루앱)의 차분한 톤과는 독립적으로 이 페이지만 꾸밈. */
   :root{
-    --bg:#F4EEDD; --panel:#FFFDF5; --sunk:#EDE4CC; --line:#E4DBC2; --line-2:#2B2620;
-    --text:#211D17; --muted:#6E6656; --faint:#A79F87; --accent:#FF4136; --accent-2:#0E76AC; --accent-wash:#FFE3DF;
-    --amber:#E08900; --ink:#1C1811; --shadowc:#1C1811;
+    --bg:#FBF6E8; --panel:#FFFFFF; --sunk:#F5EFDB; --line:#EAE0BE; --line-2:#4A3B22;
+    --text:#332711; --muted:#8C7F5C; --faint:#C3B78E; --accent:#F6C445; --accent-2:#C97A1B; --accent-wash:#FFF3D0;
+    --amber:#D9720E; --ink:#332711; --shadowc:rgba(51,39,17,.14);
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
     --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
-    --display:'Do Hyeon',var(--sans);
-    --pixel:'Galmuri11','Galmuri9',var(--sans);
+    --pixel:'Jua',var(--sans);
   }
-  @media (prefers-color-scheme:dark){:root{--bg:#171310;--panel:#221D17;--sunk:#2A241C;--line:#3A3226;--line-2:#EFE6D2;--text:#F3ECDC;--muted:#B7AC91;--faint:#7A705A;--accent:#FF6B5E;--accent-2:#5FB4E6;--accent-wash:#3A241E;--amber:#FFC14D;--ink:#EFE6D2;--shadowc:#000;}}
-  :root[data-theme="light"]{--bg:#F4EEDD;--panel:#FFFDF5;--sunk:#EDE4CC;--line:#E4DBC2;--line-2:#2B2620;--text:#211D17;--muted:#6E6656;--faint:#A79F87;--accent:#FF4136;--accent-2:#0E76AC;--accent-wash:#FFE3DF;--amber:#E08900;--ink:#1C1811;--shadowc:#1C1811;}
-  :root[data-theme="dark"]{--bg:#171310;--panel:#221D17;--sunk:#2A241C;--line:#3A3226;--line-2:#EFE6D2;--text:#F3ECDC;--muted:#B7AC91;--faint:#7A705A;--accent:#FF6B5E;--accent-2:#5FB4E6;--accent-wash:#3A241E;--amber:#FFC14D;--ink:#EFE6D2;--shadowc:#000;}
+  @media (prefers-color-scheme:dark){:root{--bg:#20180B;--panel:#2A2011;--sunk:#332813;--line:#4A3D22;--line-2:#F0E6C8;--text:#F5EEDA;--muted:#C4B78E;--faint:#7A6C48;--accent:#FFD35C;--accent-2:#FFB25C;--accent-wash:#3A2C12;--amber:#FFB25C;--ink:#F5EEDA;--shadowc:rgba(0,0,0,.45);}}
+  :root[data-theme="light"]{--bg:#FBF6E8;--panel:#FFFFFF;--sunk:#F5EFDB;--line:#EAE0BE;--line-2:#4A3B22;--text:#332711;--muted:#8C7F5C;--faint:#C3B78E;--accent:#F6C445;--accent-2:#C97A1B;--accent-wash:#FFF3D0;--amber:#D9720E;--ink:#332711;--shadowc:rgba(51,39,17,.14);}
+  :root[data-theme="dark"]{--bg:#20180B;--panel:#2A2011;--sunk:#332813;--line:#4A3D22;--line-2:#F0E6C8;--text:#F5EEDA;--muted:#C4B78E;--faint:#7A6C48;--accent:#FFD35C;--accent-2:#FFB25C;--accent-wash:#3A2C12;--amber:#FFB25C;--ink:#F5EEDA;--shadowc:rgba(0,0,0,.45);}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
   .hidden{display:none!important}
   button,input,textarea{font:inherit;color:inherit}
-  .hardbox{background:var(--panel);border:2.5px solid var(--line-2);box-shadow:4px 4px 0 var(--shadowc)}
-  .pixel{font-family:var(--pixel);letter-spacing:.02em}
+  .hardbox{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:0 6px 20px var(--shadowc)}
+  .pixel{font-family:var(--pixel);letter-spacing:.01em}
   /* ── 로그인 (하루앱과 같은 계정 — storageKey가 같아서 이미 로그인돼 있으면 자동으로 통과됨) ── */
   .authwrap{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:80;padding:20px}
-  .authcard{width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px;padding:22px 20px;transform:rotate(-1deg)}
+  .authcard{width:100%;max-width:320px;display:flex;flex-direction:column;gap:14px;padding:28px 24px}
   .authcard form{display:flex;flex-direction:column;gap:10px}
-  .authcard h1{font-family:var(--pixel);font-size:26px;font-weight:400;margin:0 0 4px;color:var(--accent)}
+  .authcard h1{font-family:var(--pixel);font-size:28px;font-weight:400;margin:0 0 4px;color:var(--accent-2)}
   .authcard p.sub{margin:0 0 12px;color:var(--muted);font-size:13px}
-  .authcard input{font:inherit;font-size:15px;padding:10px;border:2px solid var(--line-2);background:var(--sunk);color:var(--text)}
-  .authcard input:focus{outline:none;border-color:var(--accent)}
+  .authcard input{font:inherit;font-size:15px;padding:11px;border:1.5px solid var(--line);border-radius:12px;background:var(--sunk);color:var(--text)}
+  .authcard input:focus{outline:none;border-color:var(--accent-2)}
   .authcard .row{display:flex;gap:8px}
-  .authcard .row button{flex:1;font-family:var(--pixel);font-size:13px;padding:11px;cursor:pointer;background:var(--accent);color:#fff;border:2px solid var(--line-2);box-shadow:3px 3px 0 var(--shadowc)}
-  .authcard .row button:active{box-shadow:1px 1px 0 var(--shadowc);transform:translate(2px,2px)}
-  .authcard .row button#logSignupBtn{background:var(--panel);color:var(--text)}
-  #authMsg{font-size:12.5px;color:var(--accent);min-height:16px}
+  .authcard .row button{flex:1;font-family:var(--pixel);font-size:14px;padding:12px;cursor:pointer;background:var(--accent);color:var(--ink);border:0;border-radius:999px;box-shadow:0 3px 10px var(--shadowc)}
+  .authcard .row button:active{transform:scale(.97)}
+  .authcard .row button#logSignupBtn{background:var(--sunk);color:var(--text);border:1.5px solid var(--line);box-shadow:none}
+  #authMsg{font-size:12.5px;color:var(--accent-2);min-height:16px}
 
   /* ── 공통 ── */
   .wrap{max-width:640px;margin:0 auto;padding:14px 16px 90px}
   header.hd{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-  .brand{font-family:var(--pixel);font-size:16px;font-weight:400;color:#fff;background:var(--accent);padding:6px 12px;border:2px solid var(--line-2);box-shadow:3px 3px 0 var(--shadowc);transform:rotate(-2deg);display:inline-block}
+  .brand{font-family:var(--pixel);font-size:16px;font-weight:400;color:var(--ink);background:var(--accent);padding:7px 15px;border-radius:999px;display:inline-block}
   .backlink{font-family:var(--pixel);font-size:11px;color:var(--muted);text-decoration:none;border-bottom:1px dashed var(--muted)}
-  .backlink:hover{color:var(--accent);border-color:var(--accent)}
-  .btn-s{font-family:var(--pixel);font-size:11.5px;background:var(--panel);border:2px solid var(--line-2);color:var(--text);cursor:pointer;padding:6px 10px;box-shadow:2px 2px 0 var(--shadowc)}
-  .btn-s:hover{color:var(--accent)}
-  .btn-s:active{box-shadow:0 0 0 var(--shadowc);transform:translate(2px,2px)}
-  .btn-main{font-family:var(--pixel);font-size:13px;background:var(--accent);color:#fff;border:2px solid var(--line-2);padding:11px 14px;cursor:pointer;box-shadow:3px 3px 0 var(--shadowc)}
-  .btn-main:active:not(:disabled){box-shadow:1px 1px 0 var(--shadowc);transform:translate(2px,2px)}
+  .backlink:hover{color:var(--accent-2);border-color:var(--accent-2)}
+  .btn-s{font-family:var(--pixel);font-size:12px;background:var(--panel);border:1.5px solid var(--line);color:var(--text);cursor:pointer;padding:7px 13px;border-radius:999px}
+  .btn-s:hover{color:var(--accent-2);border-color:var(--accent-2)}
+  .btn-s:active{transform:scale(.96)}
+  .btn-main{font-family:var(--pixel);font-size:14px;background:var(--accent);color:var(--ink);border:0;border-radius:999px;padding:12px 16px;cursor:pointer;box-shadow:0 3px 10px var(--shadowc)}
+  .btn-main:active:not(:disabled){transform:scale(.97)}
   .btn-main:disabled{opacity:.4;cursor:default}
-  .toast{position:fixed;left:50%;bottom:78px;transform:translate(-50%,20px);background:var(--ink);color:var(--bg);font-family:var(--pixel);font-size:12px;padding:10px 15px;opacity:0;pointer-events:none;transition:.18s;z-index:90;display:flex;gap:12px;align-items:center;border:2px solid var(--line-2);box-shadow:3px 3px 0 var(--shadowc)}
+  .toast{position:fixed;left:50%;bottom:78px;transform:translate(-50%,20px);background:var(--ink);color:var(--bg);font-family:var(--pixel);font-size:12px;padding:11px 17px;opacity:0;pointer-events:none;transition:.18s;z-index:90;display:flex;gap:12px;align-items:center;border-radius:999px;box-shadow:0 8px 22px rgba(0,0,0,.28)}
   .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
   .toast button{font-family:var(--pixel);font-size:11px;color:var(--accent);background:none;border:0;cursor:pointer;text-decoration:underline;padding:0}
 
   /* ── 날짜 이동 + 게시판 ── */
   .daynav{display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:8px 10px;flex-wrap:wrap}
-  .daynav button{font-family:var(--pixel);background:var(--panel);border:2px solid var(--line-2);color:var(--text);cursor:pointer;padding:4px 10px;box-shadow:2px 2px 0 var(--shadowc)}
-  .daynav h2{margin:0;font-family:var(--pixel);font-size:14px;flex:1;text-align:center;letter-spacing:.03em}
-  .daynav .today{font-family:var(--pixel);font-size:10.5px;color:var(--accent);border-bottom:1px dashed var(--accent);cursor:pointer}
+  .daynav button{font-family:var(--pixel);background:var(--panel);border:1.5px solid var(--line);border-radius:999px;color:var(--text);cursor:pointer;padding:5px 13px}
+  .daynav h2{margin:0;font-family:var(--pixel);font-size:15px;flex:1;text-align:center}
+  .daynav .today{font-family:var(--pixel);font-size:11px;color:var(--accent-2);border-bottom:1px dashed var(--accent-2);cursor:pointer}
   .daynavicons{display:flex;align-items:center;gap:4px}
   .iconbtn{font-size:16px;line-height:1;cursor:pointer;padding:4px 6px;color:var(--muted)}
   /* showPicker()가 동작하려면 실제로 "렌더링"은 돼 있어야 함(display:none은 안 됨) —
@@ -82,106 +85,102 @@
      오버레이 방식 대신 이 방식을 씀(오버레이는 date input의 최소 렌더 폭이 아이콘보다
      넓어서 옆 아이콘 클릭까지 가로채는 버그가 있었음, 2026-09-30). */
   .datepick-hidden{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;border:0;padding:0}
-  .iconbtn:hover{color:var(--accent)}
-  .iconbtn[aria-pressed="true"]{color:var(--accent)}
+  .iconbtn:hover{color:var(--accent-2)}
+  .iconbtn[aria-pressed="true"]{color:var(--accent-2)}
   .boardempty{color:var(--faint);font-family:var(--pixel);font-size:12px;padding:40px 0;text-align:center}
   /* ── 캡션 검색 패널 ── */
-  .searchpanel{padding:12px;margin:0 0 16px;display:flex;flex-direction:column;gap:8px}
-  .searchpanel input{border:2px solid var(--line-2);background:var(--sunk);padding:9px;color:var(--text)}
-  .searchpanel input:focus{outline:none;border-color:var(--accent)}
+  .searchpanel{padding:14px;margin:0 0 16px;display:flex;flex-direction:column;gap:8px}
+  .searchpanel input{border:1.5px solid var(--line);border-radius:12px;background:var(--sunk);padding:10px;color:var(--text)}
+  .searchpanel input:focus{outline:none;border-color:var(--accent-2)}
   .searchresitem{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}
   .searchresitem:first-child{border-top:0}
-  .searchresitem:hover .srcap{color:var(--accent)}
+  .searchresitem:hover .srcap{color:var(--accent-2)}
   .searchresitem .srdate{font-family:var(--pixel);font-size:10px;color:var(--muted);white-space:nowrap}
   .searchresitem .srcap{font-size:12.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .searchempty{color:var(--faint);font-size:12.5px;padding:8px 0}
   .logent{margin:0 0 20px;padding:0;display:flex;flex-direction:column}
-  .logenthead{display:flex;align-items:center;gap:8px;font-family:var(--pixel);font-size:10.5px;color:var(--muted);padding:6px 10px;border:2px solid var(--line-2);border-bottom:0}
+  .logenthead{display:flex;align-items:center;gap:8px;font-family:var(--pixel);font-size:11px;color:var(--muted);padding:8px 13px;background:var(--panel);border:1.5px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0}
   .logenthead .logtime{color:var(--text)}
   .logenthead .logactions{margin-left:auto;display:flex;gap:6px;align-items:center}
   .logenthead .logdel{cursor:pointer;color:var(--faint)}
-  .logenthead .logdel:hover{color:var(--accent)}
+  .logenthead .logdel:hover{color:var(--accent-2)}
   /* 회전 버튼은 실제로 눌러야 하는 조작이라 삭제 텍스트보다 훨씬 크게 —
      탭 영역도 최소 32px는 되게 패딩을 넉넉히 줌(2026-09-30, "회전버튼이 너무 작아") */
   .logenthead .logrot{cursor:pointer;color:var(--faint);font-size:20px;line-height:1;padding:6px 8px;margin:-6px 0}
-  .logenthead .logrot:hover{color:var(--accent)}
-  .logenthead .logrot:active{color:var(--accent);transform:scale(.9)}
-  .logmedia{width:100%;max-height:520px;object-fit:contain;background:#000;display:block;border:2px solid var(--line-2)}
+  .logenthead .logrot:hover{color:var(--accent-2)}
+  .logenthead .logrot:active{color:var(--accent-2);transform:scale(.9)}
+  /* 사진·영상 전부 옅은 필름톤 필터 — "구닥"의 따뜻하게 빛바랜 발색을 흉내 */
+  .logmedia{width:100%;max-height:520px;object-fit:contain;background:#171310;display:block;filter:sepia(.12) saturate(1.05) contrast(1.03)}
   img.logmedia{object-fit:cover;max-height:460px}
-  .logvidwrap{position:relative;border:2px solid var(--line-2);box-shadow:4px 4px 0 var(--shadowc)}
-  .logvidwrap .logmedia{border:0;box-shadow:none}
+  .logvidwrap{position:relative;border:1.5px solid var(--line);border-radius:0 0 16px 16px;overflow:hidden}
+  .logvidwrap .logmedia{border:0}
+  .logmediawrap{position:relative;border:1.5px solid var(--line);border-top:0;border-radius:0 0 16px 16px;overflow:hidden;background:#171310}
+  .logmediawrap>.logmedia{border:0}
   /* 사진 수동 회전(게시판 ↻ 버튼) — 90/270도는 사각형(1:1) 박스로 바꿔서 그 안에서
      object-fit:contain으로 돌려도 잘리지 않게 함(정사각형은 90도 돌려도 같은 경계). */
-  .logmediawrap.sq{position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;border:2px solid var(--line-2);box-shadow:4px 4px 0 var(--shadowc);background:#000}
-  .logmediawrap.sq>.logmedia{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:contain;border:0;box-shadow:none}
+  .logmediawrap.sq{aspect-ratio:1/1}
+  .logmediawrap.sq>.logmedia{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:contain}
   .logmedia.rot90{transform:rotate(90deg)}
   .logmedia.rot180{transform:rotate(180deg)}
   .logmedia.rot270{transform:rotate(270deg)}
   /* video 태그의 네이티브 컨트롤바(하단)와 안 겹치게 그 위쪽에 여백을 둠 */
   .logcapover{position:absolute;left:0;right:0;bottom:34px;background:linear-gradient(transparent,rgba(0,0,0,.78));color:#fff;font-size:13px;padding:22px 12px 8px;pointer-events:none;white-space:pre-wrap}
   .logcap{margin:8px 2px 0;font-size:13px;color:var(--text);white-space:pre-wrap}
-  /* 옛날 디지털카메라 각인 날짜(digicam date stamp) — 사진 오른쪽 아래에 앰버색 픽셀폰트로 */
-  .logstamp{position:absolute;right:8px;bottom:8px;font-family:var(--pixel);font-size:11px;color:var(--amber);text-shadow:1px 1px 0 rgba(0,0,0,.55);pointer-events:none;letter-spacing:.03em}
+  /* 옛날 디지털카메라 각인 날짜(digicam date stamp) — 모노스페이스+앰버색은 그대로 유지 */
+  .logstamp{position:absolute;right:10px;bottom:10px;font-family:var(--mono);font-weight:600;font-size:11px;color:var(--amber);text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none;letter-spacing:.02em}
   /* 영상은 하단에 네이티브 컨트롤바가 있어서 각인 날짜를 위쪽 모서리로 올림 */
-  .logvidwrap .logstamp{bottom:auto;top:8px}
-  .logmediawrap{position:relative}
-  .logmediawrap>.logmedia{border:2px solid var(--line-2);box-shadow:4px 4px 0 var(--shadowc)}
+  .logvidwrap .logstamp{bottom:auto;top:10px}
 
   /* ── 데스크톱 업로드 패널 ── */
-  #uploadPanel{padding:16px;margin-bottom:22px;display:flex;flex-direction:column;gap:10px;transform:rotate(.4deg)}
-  #uploadPanel .uphead{font-family:var(--pixel);font-size:12px;color:var(--text)}
+  #uploadPanel{padding:18px;margin-bottom:24px;display:flex;flex-direction:column;gap:12px}
+  #uploadPanel .uphead{font-family:var(--pixel);font-size:13px;color:var(--text)}
   #upFile{font-size:13px}
-  #upCaption{border:2px solid var(--line-2);background:var(--sunk);padding:8px;resize:vertical;min-height:44px}
-  #upCaption:focus{outline:none;border-color:var(--accent)}
+  #upCaption{border:1.5px solid var(--line);border-radius:12px;background:var(--sunk);padding:10px;resize:vertical;min-height:48px}
+  #upCaption:focus{outline:none;border-color:var(--accent-2)}
   #upPreviewWrap{display:none}
   #upPreviewWrap.show{display:block}
-  #upPreviewWrap img{max-width:180px;max-height:180px;display:block;margin-bottom:8px;object-fit:cover;border:2px solid var(--line-2);box-shadow:3px 3px 0 var(--shadowc)}
+  #upPreviewWrap img{max-width:180px;max-height:180px;display:block;margin-bottom:8px;object-fit:cover;border-radius:12px;filter:sepia(.12) saturate(1.05) contrast(1.03)}
   .uprow{display:flex;gap:8px;align-items:center}
 
   /* ── 모바일 하단 탭 ── */
   /* z-index가 카메라 화면(60)보다 높아야 카메라가 켜져 있을 때도 탭을 눌러 게시판으로 빠져나올 수 있음 */
-  #mobileNav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--panel);border-top:2.5px solid var(--line-2);z-index:65}
+  #mobileNav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--panel);border-top:1.5px solid var(--line);z-index:65}
   #mobileNav button{flex:1;background:none;border:0;padding:10px 0 8px;font-family:var(--pixel);font-size:10px;color:var(--faint);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
   #mobileNav button .ic{font-size:19px}
-  #mobileNav button[aria-selected="true"]{color:var(--accent)}
+  #mobileNav button[aria-selected="true"]{color:var(--accent-2)}
 
   /* ── 카메라 화면 (모바일 전용, 전체화면 오버레이) ── */
+  /* "구닥"처럼 뷰파인더는 장식 없이 미니멀하게 — 예전 네 모서리 브래킷 장식 제거 */
   #camOverlay{position:fixed;inset:0;background:#000;z-index:60;display:flex;flex-direction:column}
-  #camVideo{flex:1;width:100%;height:100%;object-fit:cover;background:#000;filter:contrast(1.06) saturate(1.12)}
-  /* 뷰파인더 모서리 표시(장식용) — 디지캠st */
-  .camCorner{position:absolute;width:22px;height:22px;border-color:#fff;opacity:.85;pointer-events:none}
-  .camCorner.tl{top:70px;left:14px;border-top:2.5px solid;border-left:2.5px solid}
-  .camCorner.tr{top:70px;right:14px;border-top:2.5px solid;border-right:2.5px solid}
-  .camCorner.bl{bottom:150px;left:14px;border-bottom:2.5px solid;border-left:2.5px solid}
-  .camCorner.br{bottom:150px;right:14px;border-bottom:2.5px solid;border-right:2.5px solid}
+  #camVideo{flex:1;width:100%;height:100%;object-fit:cover;background:#000;filter:sepia(.08) contrast(1.04) saturate(1.08)}
   .camTop{position:absolute;top:0;left:0;right:0;display:flex;justify-content:center;padding:16px 12px;padding-top:max(16px,env(safe-area-inset-top))}
-  .camToggle{display:flex;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.6);padding:3px}
-  .camToggle button{font-family:var(--pixel);background:none;border:0;color:#fff;opacity:.65;font-size:11px;padding:7px 16px;cursor:pointer}
-  .camToggle button[aria-selected="true"]{opacity:1;background:var(--accent);font-weight:400}
+  .camToggle{display:flex;background:rgba(0,0,0,.45);border-radius:999px;padding:3px}
+  .camToggle button{font-family:var(--pixel);background:none;border:0;border-radius:999px;color:#fff;opacity:.7;font-size:12px;padding:8px 18px;cursor:pointer}
+  .camToggle button[aria-selected="true"]{opacity:1;background:var(--accent);color:var(--ink)}
   /* 아래 하단 탭(#mobileNav, 약 60px)에 안 가리게 그 위로 여백을 둠 */
   .camBottom{position:absolute;left:0;right:0;bottom:60px;display:flex;align-items:center;padding:18px 26px;padding-bottom:max(18px,env(safe-area-inset-bottom))}
-  #camGalleryBtn{background:rgba(0,0,0,.5);border:2px solid #fff;color:#fff;width:44px;height:44px;font-size:17px;cursor:pointer}
-  #camShutter{width:70px;height:70px;border-radius:50%;background:#fff;border:3px solid #000;box-shadow:0 0 0 3px #fff;margin:0 auto;cursor:pointer;position:relative}
-  #camShutter.recording{background:var(--accent)}
-  #camShutter.recording::after{content:'';position:absolute;inset:22px;background:#fff}
-  .camSpacer{width:44px}
-  #camTimer{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;color:#fff;background:rgba(0,0,0,.55);font-family:var(--pixel);font-size:12px;padding:4px 10px 4px 8px;border:1px solid rgba(255,255,255,.6)}
-  #camTimer .recdot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:recblink 1s step-start infinite}
+  #camGalleryBtn{background:rgba(0,0,0,.45);border:0;color:#fff;width:46px;height:46px;border-radius:50%;font-size:18px;cursor:pointer}
+  #camShutter{width:72px;height:72px;border-radius:50%;background:#fff;border:0;box-shadow:0 0 0 3px rgba(255,255,255,.4),0 4px 16px rgba(0,0,0,.4);margin:0 auto;cursor:pointer;position:relative}
+  #camShutter.recording{background:#FF4136}
+  #camShutter.recording::after{content:'';position:absolute;inset:24px;background:#fff;border-radius:4px}
+  .camSpacer{width:46px}
+  #camTimer{position:absolute;top:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;color:#fff;background:rgba(0,0,0,.5);font-family:var(--pixel);font-size:12px;padding:6px 13px 6px 10px;border-radius:999px}
+  #camTimer .recdot{width:8px;height:8px;border-radius:50%;background:#FF4136;animation:recblink 1s step-start infinite}
   @keyframes recblink{50%{opacity:.15}}
   #camErr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--pixel);font-size:12px;text-align:center;padding:0 30px;line-height:1.7}
 
   /* ── 캡션 미리보기 화면 (촬영/갤러리 공통, 전체화면 오버레이) ── */
   #previewOverlay{position:fixed;inset:0;background:var(--bg);z-index:70;display:flex;flex-direction:column}
   #previewMediaWrap{flex:1;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
-  #previewMediaWrap img,#previewMediaWrap video{max-width:100%;max-height:100%;object-fit:contain}
-  #previewForm{padding:14px 16px;padding-bottom:max(14px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;background:var(--panel);border-top:2.5px solid var(--line-2)}
-  #previewCaption{border:2px solid var(--line-2);background:var(--sunk);padding:9px;resize:none;min-height:20px}
-  #previewCaption:focus{outline:none;border-color:var(--accent)}
+  #previewMediaWrap img,#previewMediaWrap video{max-width:100%;max-height:100%;object-fit:contain;filter:sepia(.12) saturate(1.05) contrast(1.03)}
+  #previewForm{padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;background:var(--panel);border-top:1.5px solid var(--line);border-radius:20px 20px 0 0}
+  #previewCaption{border:1.5px solid var(--line);border-radius:12px;background:var(--sunk);padding:10px;resize:none;min-height:22px}
+  #previewCaption:focus{outline:none;border-color:var(--accent-2)}
   #previewBtns{display:flex;gap:10px}
-  #previewBtns button{flex:1;padding:11px;cursor:pointer;font-family:var(--pixel);font-size:12.5px;border:2px solid var(--line-2)}
-  #retakeBtn{background:var(--panel);color:var(--text)}
-  #saveBtn{background:var(--accent);color:#fff;box-shadow:3px 3px 0 var(--shadowc)}
-  #saveBtn:active:not(:disabled){box-shadow:1px 1px 0 var(--shadowc);transform:translate(2px,2px)}
+  #previewBtns button{flex:1;padding:12px;cursor:pointer;font-family:var(--pixel);font-size:13px;border:0;border-radius:999px}
+  #retakeBtn{background:var(--sunk);color:var(--text);border:1.5px solid var(--line)}
+  #saveBtn{background:var(--accent);color:var(--ink);box-shadow:0 3px 10px var(--shadowc)}
+  #saveBtn:active:not(:disabled){transform:scale(.97)}
 
   @media(max-width:520px){.logmedia,img.logmedia{max-height:70vh}}
 </style>
@@ -243,7 +242,6 @@
 <div id="camOverlay" class="hidden">
   <div id="camErr" class="hidden"></div>
   <video id="camVideo" autoplay muted playsinline></video>
-  <div class="camCorner tl"></div><div class="camCorner tr"></div><div class="camCorner bl"></div><div class="camCorner br"></div>
   <div class="camTop">
     <div class="camToggle" role="tablist">
       <button data-captype="video" aria-selected="false">브이로그</button>
