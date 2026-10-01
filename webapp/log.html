@@ -93,6 +93,11 @@
      오버레이 방식 대신 이 방식을 씀(오버레이는 date input의 최소 렌더 폭이 아이콘보다
      넓어서 옆 아이콘 클릭까지 가로채는 버그가 있었음, 2026-09-30). */
   .datepick-hidden{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;border:0;padding:0}
+  /* 업로드 패널·캡션 화면에서 "오늘"로 고정돼있던 저장 날짜를 바꿀 수 있게 — 지난 날짜에도
+     사진·캡션을 올릴 수 있게 하는 날짜 선택 버튼(2026-10-01). 기본값은 지금 보고 있는
+     게시판 날짜(state.day)를 따라가고, 눌러서 showPicker()로 자유롭게 바꿀 수 있음. */
+  .datefield{font-family:var(--pixel);font-size:11.5px;color:var(--muted);background:none;border:0;cursor:pointer;padding:2px 0;display:inline-flex;align-items:center;gap:4px;align-self:flex-start}
+  .datefield:hover{color:var(--accent-2)}
   .iconbtn:hover{color:var(--accent-2)}
   .iconbtn[aria-pressed="true"]{color:var(--accent-2)}
   .boardempty{color:var(--faint);font-family:var(--pixel);font-size:12px;padding:40px 0;text-align:center}
@@ -219,10 +224,12 @@
 
     <div id="uploadPanel" class="hardbox">
       <div class="uphead">📷 사진 + 글 올리기</div>
+      <button type="button" id="upCalBtn" class="datefield" title="저장할 날짜 바꾸기">📅 <span id="upDateLabel"></span></button>
+      <input id="upDatePicker" type="date" class="datepick-hidden">
       <input id="upFile" type="file" accept="image/*">
       <div id="upPreviewWrap"><img id="upPreviewImg"></div>
       <textarea id="upCaption" placeholder="캡션을 적어보세요"></textarea>
-      <div class="uprow"><button class="btn-main" id="upSaveBtn" disabled>오늘 로그에 저장</button></div>
+      <div class="uprow"><button class="btn-main" id="upSaveBtn" disabled>저장</button></div>
     </div>
 
     <div class="daynav">
@@ -270,6 +277,8 @@
 <div id="previewOverlay" class="hidden">
   <div id="previewMediaWrap"></div>
   <div id="previewForm">
+    <button type="button" id="previewCalBtn" class="datefield" title="저장할 날짜 바꾸기">📅 <span id="previewDateLabel"></span></button>
+    <input id="previewDatePicker" type="date" class="datepick-hidden">
     <textarea id="previewCaption" placeholder="캡션을 적어보세요" rows="2"></textarea>
     <div id="previewBtns">
       <button id="retakeBtn" type="button">다시</button>
@@ -342,6 +351,9 @@
   function renderDay(){
     document.getElementById('dayTitle').textContent=dayLabel(state.day);
     document.getElementById('dayToday').classList.toggle('hidden',state.day===todayISO());
+    // 지금 보고 있는 날이 바뀌면, 업로드 패널의 "저장할 날짜"도 그 날을 기본값으로 따라감
+    // (지난 날짜를 보고 있다가 사진을 올리면 자연스럽게 그 날짜에 담기게)
+    setUpDate(state.day);
     if(!state.uid)return;
     sb.from('log_entries').select('*').eq('date',state.day).order('sort',{ascending:true}).then(function(r){
       state.entries=(r.data||[]);
@@ -454,15 +466,38 @@
     if(mime.indexOf('quicktime')>=0)return 'mov';
     return 'bin';
   }
-  function saveEntry(blob,type,caption){
+  // date를 안 넘기면(옛 호출부 대비) 오늘로 — 지난 날짜 저장은 호출부에서 target date를 넘겨줌(2026-10-01)
+  function saveEntry(blob,type,caption,date){
     if(!state.uid)return Promise.reject(new Error('로그인이 필요해요'));
     var ext=extFor(blob.type||''),path=state.uid+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.'+ext;
     return sb.storage.from('log').upload(path,blob,{contentType:blob.type||'application/octet-stream'}).then(function(up){
       if(up.error)throw up.error;
-      var row={id:uid(),date:todayISO(),type:type,media_path:path,caption:(caption||'').trim(),sort:Date.now()};
+      var row={id:uid(),date:date||todayISO(),type:type,media_path:path,caption:(caption||'').trim(),sort:Date.now()};
       return sb.from('log_entries').insert(row).then(function(r){if(r.error)throw r.error;return row;});
     });
   }
+
+  // ===== 지난 날짜에도 저장 가능하게 — 업로드/캡션 화면 공용 날짜 선택 헬퍼(2026-10-01) =====
+  // showPicker() 트릭은 날짜 이동 바의 📅(dayPickerEl)과 같은 방식: 화면엔 숨기고(1px+opacity:0+
+  // pointer-events:none) 버튼 클릭 시 그 input의 showPicker()만 불러 네이티브 캘린더를 띄움.
+  var upCalBtn=document.getElementById('upCalBtn'),upDatePickerEl=document.getElementById('upDatePicker'),upDateLabel=document.getElementById('upDateLabel');
+  var upTargetDate=state.day;
+  function setUpDate(d){upTargetDate=d;upDateLabel.textContent=dayLabel(d);upDatePickerEl.value=d;}
+  upCalBtn.addEventListener('click',function(){
+    if(upDatePickerEl.showPicker){try{upDatePickerEl.showPicker();return;}catch(e){}}
+    upDatePickerEl.focus();upDatePickerEl.click();
+  });
+  upDatePickerEl.addEventListener('change',function(){if(this.value)setUpDate(this.value);});
+  setUpDate(state.day);
+
+  var previewCalBtn=document.getElementById('previewCalBtn'),previewDatePickerEl=document.getElementById('previewDatePicker'),previewDateLabel=document.getElementById('previewDateLabel');
+  var previewTargetDate=state.day;
+  function setPreviewDate(d){previewTargetDate=d;previewDateLabel.textContent=dayLabel(d);previewDatePickerEl.value=d;}
+  previewCalBtn.addEventListener('click',function(){
+    if(previewDatePickerEl.showPicker){try{previewDatePickerEl.showPicker();return;}catch(e){}}
+    previewDatePickerEl.focus();previewDatePickerEl.click();
+  });
+  previewDatePickerEl.addEventListener('change',function(){if(this.value)setPreviewDate(this.value);});
 
   // ===== 데스크톱 업로드 =====
   var upFileEl=document.getElementById('upFile'),upPreviewWrap=document.getElementById('upPreviewWrap'),upPreviewImg=document.getElementById('upPreviewImg'),upSaveBtn=document.getElementById('upSaveBtn');
@@ -475,12 +510,13 @@
   upSaveBtn.addEventListener('click',function(){
     if(!upPendingFile)return;
     upSaveBtn.disabled=true;upSaveBtn.textContent='저장 중…';
-    saveEntry(upPendingFile,'photo',document.getElementById('upCaption').value).then(function(){
+    var savedDate=upTargetDate;
+    saveEntry(upPendingFile,'photo',document.getElementById('upCaption').value,savedDate).then(function(){
       upPendingFile=null;upFileEl.value='';upPreviewWrap.classList.remove('show');document.getElementById('upCaption').value='';
-      upSaveBtn.textContent='오늘 로그에 저장';upSaveBtn.disabled=true;
-      if(state.day===todayISO())renderDay();
-      showToast('오늘 로그에 저장했어요');
-    }).catch(function(err){upSaveBtn.disabled=false;upSaveBtn.textContent='오늘 로그에 저장';showToast('저장 실패: '+(err&&err.message||err));});
+      upSaveBtn.textContent='저장';upSaveBtn.disabled=true;
+      if(state.day===savedDate)renderDay();
+      showToast(dayLabel(savedDate)+'에 저장했어요');
+    }).catch(function(err){upSaveBtn.disabled=false;upSaveBtn.textContent='저장';showToast('저장 실패: '+(err&&err.message||err));});
   });
 
   // ===== 모바일 하단 탭 =====
@@ -607,6 +643,7 @@
     var url=URL.createObjectURL(blob);
     previewMediaWrap.innerHTML=type==='video'?'<video src="'+url+'" controls autoplay playsinline muted loop></video>':'<img src="'+url+'">';
     previewCaption.value='';
+    setPreviewDate(state.day); // 지금 보고 있는 게시판 날짜를 기본값으로(필요하면 📅로 바꿀 수 있음)
     previewOverlay.classList.remove('hidden');
     saveBtn.disabled=false;saveBtn.textContent='저장';
   }
@@ -615,10 +652,11 @@
   saveBtn.addEventListener('click',function(){
     if(!state.pending)return;
     saveBtn.disabled=true;saveBtn.textContent='저장 중…';
-    saveEntry(state.pending.blob,state.pending.type,previewCaption.value).then(function(){
+    var savedDate=previewTargetDate;
+    saveEntry(state.pending.blob,state.pending.type,previewCaption.value,savedDate).then(function(){
       closePreview();
-      if(state.day===todayISO())renderDay();
-      showToast('오늘 로그에 저장했어요');
+      if(state.day===savedDate)renderDay();
+      showToast(dayLabel(savedDate)+'에 저장했어요');
     }).catch(function(err){saveBtn.disabled=false;saveBtn.textContent='저장';showToast('저장 실패: '+(err&&err.message||err));});
   });
 
