@@ -120,6 +120,10 @@
     /* 오늘의 집중·마감 임박 표는 프로젝트 칸까지 있으면 제목이 심하게 줄바꿈돼서 뺌
        (프로젝트별로 묶인 아래 월간 표에선 어차피 안 보이는 칸이라 여기만 해당) */
     .blk table.tbl thead th:nth-child(3),.blk table.tbl td.pj{display:none}
+    /* 오늘의 집중에 추가된 회고 칸도 프로젝트 월간 표와 같은 이유로 책상에서 쓰는 칸이라
+       모바일에서 숨김(2026-10-03) — 마감 임박 표는 이 칸이 없어서(nth-child(4)=마감) #todayTable로
+       범위를 좁혀야 그 표의 마감 헤더가 같이 숨는 걸 막음 */
+    #todayTable thead th:nth-child(4),#todayTable td.rvwcell{display:none}
     /* 마우스 드래그 전용 손잡이 — 터치에선 애초에 동작 안 해서 자리만 차지하니 숨김 */
     .rowdrag,.pjhandle,.subdrag{display:none}
     /* 호버해야만 보이던 버튼들 — 삭제·이름변경·반복설정·하위로 옮기기·링크삭제·
@@ -394,8 +398,14 @@
   .ttl{letter-spacing:-.01em;cursor:text}
   .subctx{color:var(--faint);font-size:11.5px;margin-left:6px}
   .pj{color:var(--faint);font-size:12.5px;white-space:nowrap}
-  .due{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
+  .due{position:relative;font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
   .due.over{color:var(--text);font-weight:700}
+  /* 마감 셀 — 실제 <input type="date">를 셀 전체에 투명하게 겹쳐서 "진짜 탭"이 그 input에
+     바로 떨어지게 함(2026-10-03, "마감설정이 안 되고 있다" 제보 — 숨겨둔 input에 JS로
+     showPicker()/click()을 대신 호출해주던 예전 방식이 실기기(폰·PC 둘 다)에서 캘린더가
+     안 열리는 문제가 있었음. 네이티브 피커는 진짜 사용자 탭이 그 input에 직접 닿아야
+     믿을 수 있게 열려서, 프록시 호출 대신 셀 전체를 input으로 덮는 쪽으로 바꿈). */
+  .dueip{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;cursor:pointer;font-size:16px}
   .imp{color:var(--accent);font-size:9px;letter-spacing:2px;white-space:nowrap;cursor:pointer;user-select:none}
   .grp td{font-size:10.5px;color:var(--faint);font-weight:600;padding:9px 8px 4px;letter-spacing:.03em;border-bottom:1px solid var(--line)}
   .est{cursor:text;border-bottom:1px dashed transparent}tr:hover .est{border-bottom-color:var(--line-2)}.est:focus{outline:none;border-bottom-color:var(--accent)}
@@ -422,10 +432,13 @@
   tr.done .ttl{color:var(--faint);text-decoration:line-through}
   td.ckcell{width:30px;text-align:center;padding-left:2px}
   .tri{display:flex;flex-wrap:wrap;gap:2px;justify-content:flex-end}
-  .tri button{font:inherit;font-size:11.5px;color:var(--faint);background:none;border:0;padding:3px 7px;cursor:pointer}
-  .tri button:hover{color:var(--accent);background:var(--accent-wash)}
-  .tri button.inbdue.has{color:var(--accent);font-family:var(--mono)}
-  .tri button.inbdue.over{color:var(--text);font-weight:700}
+  .tri button,.tri .inbdue{font:inherit;font-size:11.5px;color:var(--faint);background:none;border:0;padding:3px 7px;cursor:pointer}
+  .tri button:hover,.tri .inbdue:hover{color:var(--accent);background:var(--accent-wash)}
+  /* 주머니 "📅 날짜" — <input>을 못 담는 <button> 대신 <span role="button">으로
+     (아래 .due와 같은 투명 input 오버레이 트릭을 쓰려면 실제 input을 담아야 해서) */
+  .inbdue{position:relative;display:inline-block}
+  .inbdue.has{color:var(--accent);font-family:var(--mono)}
+  .inbdue.over{color:var(--text);font-weight:700}
   .tri select{font:inherit;font-size:11.5px;color:var(--faint);background:var(--panel);border:1px solid var(--line-2);padding:2px 4px}
   .pjsec{border:1px solid var(--line-2);background:var(--panel);margin-bottom:12px;padding:0 10px}
   .pjtog{width:100%;display:flex;align-items:center;gap:8px;font:inherit;font-size:14.5px;font-weight:700;color:var(--text);background:none;border:0;cursor:pointer;padding:9px 2px;text-align:left}
@@ -555,9 +568,6 @@
   .btn-s:disabled{color:var(--faint);cursor:default;opacity:.55}
   .btn-s:hover{border-color:var(--accent)}
   .hidden{display:none!important}
-  /* showPicker()는 요소가 실제로 "렌더링"돼 있어야 동작해서(display:none은 거부됨)
-     화면 밖으로 숨기되 박스는 남겨둠 — 하루 로그(log.html)의 캘린더 아이콘과 같은 패턴 */
-  .datepick-hidden{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;border:0;padding:0}
   .foot{margin-top:20px;text-align:center;font-size:12px;color:var(--faint)}
   .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--text);color:var(--bg);font-size:13px;padding:9px 15px;opacity:0;pointer-events:none;transition:.18s;z-index:10;display:flex;gap:12px;align-items:center}
   .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
@@ -704,7 +714,7 @@
         <div class="todayzone">
           <section class="blk">
             <div class="bhead"><h2>오늘의 집중</h2><div class="r">오늘 <input class="hours" id="hours" type="number" min="0" max="16" value="4">시간 <span class="budget" id="budget"></span> <button class="btn-s hidden" id="archAll" data-act="archive-all"></button></div></div>
-            <table class="tbl"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody id="todayBody"></tbody></table>
+            <table class="tbl" id="todayTable"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody id="todayBody"></tbody></table>
           </section>
           <section class="blk">
             <div class="bhead"><h2>마감 임박 · 밀린 것</h2></div>
@@ -929,7 +939,6 @@
 </div>
 
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo" class="hidden">되돌리기</button></div>
-<input type="date" id="dueDatePicker" class="datepick-hidden">
 
 <!-- 어디 스크롤해있든 다른 탭으로 바로 가고 검색도 할 수 있게 — 플로팅 햄버거(2026-10-01) -->
 <button id="navFab" class="navfab hidden" type="button" aria-expanded="false" title="탭 이동 · 검색" aria-label="탭 이동 메뉴">☰</button>
@@ -1639,6 +1648,12 @@
   function fmtEst(m){if(!m)return '—';var h=Math.floor(m/60),mm=m%60;return (h?h+'h':'')+(mm?mm+'m':(h?'':'0m'));}
   function parseMin(s){var h=/(\d+)\s*h/.exec(s),m=/(\d+)\s*m/.exec(s);var t=(h?+h[1]*60:0)+(m?+m[1]:0);if(!t){var n=parseInt(s,10);t=isNaN(n)?0:n;}return t;}
   function mmdd(iso){if(!iso)return '—';var p=iso.split('-');return (+p[1])+'/'+(+p[2]);}
+  // 마감 셀 공용 — 실제 <input type="date">를 셀에 투명하게 겹쳐서 진짜 탭으로 네이티브
+  // 캘린더가 열리게 함(showPicker()를 대신 호출해주던 예전 방식이 실기기에서 안 열리는
+  // 문제가 있어서 2026-10-03에 교체, 아래 input.dueip change 델리게이트가 저장을 처리)
+  function dueCellHtml(id,due,over){
+    return '<td class="due'+(over?' over':'')+'"><span class="duetxt">'+mmdd(due)+'</span><input type="date" class="dueip" data-id="'+id+'" value="'+(due||'')+'"></td>';
+  }
   function daysTo(iso){if(!iso)return null;return Math.round((new Date(iso)-new Date(todayISO()))/86400000);}
   function priority(t){var s=t.imp*25,d=daysTo(t.due);if(d!==null){if(d<0)s+=100;else if(d<=1)s+=60;else if(d<=3)s+=30;}if(t.est&&t.est<=20)s+=10;return s;}
   function dots(n){return '●●●'.slice(0,n);}
@@ -1695,16 +1710,16 @@
   function taskRow(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
     return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td>'+
       '<td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+remindIconHtml(t)+subTogHtml(t)+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td>'+
-      '<td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td>'+
-      '<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+remindRowHtml(t,6)+subRowHtml(t,6);}
+      '<td class="pj">'+esc(t.project||'—')+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td>'+dueCellHtml(t.id,t.due,over)+
+      '<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+remindRowHtml(t,7)+subRowHtml(t,7);}
   function renderToday(){
     var body=document.getElementById('todayBody');
     var list=wsTodos().filter(function(t){
       if(t.today||daysTo(t.due)===0)return true;
       return (t.subs||[]).some(function(s){return !s.d&&(s.today||daysTo(s.due)===0);});});
     var pick=list.slice().sort(function(a,b){return (a.done-b.done)||(priority(b)-priority(a));});
-    var html='<tr class="grp"><td colspan="6">오늘 할 일</td></tr>';
-    html+=pick.length?pick.map(taskRow).join(''):'<tr><td colspan="6" class="empty">주머니·프로젝트에서 오늘 할 일을 골라 담아보세요</td></tr>';
+    var html='<tr class="grp"><td colspan="7">오늘 할 일</td></tr>';
+    html+=pick.length?pick.map(taskRow).join(''):'<tr><td colspan="7" class="empty">주머니·프로젝트에서 오늘 할 일을 골라 담아보세요</td></tr>';
     body.innerHTML=html;
     var mins=list.filter(function(t){return !t.done;}).reduce(function(s,t){return s+(t.est||0);},0);
     var cap=(+state.hours||0)*60,bd=document.getElementById('budget');
@@ -1721,7 +1736,7 @@
     list.sort(function(a,b){return a.due<b.due?-1:1;});list=list.slice(0,12);
     if(!list.length){body.innerHTML='<tr><td colspan="6" class="empty">마감 있는 할일이 없어요</td></tr>';return;}
     body.innerHTML=list.map(function(x){var t=x.t,s=x.sub,d=daysTo(x.due),over=d<0;var stat=over?('<span style="color:var(--text);font-weight:700">'+(-d)+'일 지남</span>'):(d===0?'오늘':d+'일 남음');
-      if(!s)return '<tr data-id="'+t.id+'"><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(x.due)+'</td><td class="num">'+stat+'</td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>';
+      if(!s)return '<tr data-id="'+t.id+'"><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td class="pj">'+esc(t.project||'—')+'</td>'+dueCellHtml(t.id,x.due,over)+'<td class="num">'+stat+'</td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>';
       return '<tr data-id="'+t.id+'"><td class="ckcell"><span class="sck" data-act="subck" data-i="'+x.i+'" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="stt" data-act="subedit" data-i="'+x.i+'">'+esc(s.t)+'</span><span class="subctx">↳ '+esc(t.title)+'</span></td><td class="pj">'+esc(t.project||'—')+'</td><td class="due'+(over?' over':'')+'" data-act="subdue" data-i="'+x.i+'">'+mmdd(x.due)+'</td><td class="num">'+stat+'</td><td class="imp">—</td></tr>';}).join('');}
   function projectNames(){var s={};wsTodos().forEach(function(t){if(t.project)s[t.project]=1;});return Object.keys(s);}
   function orderedProjects(){var names=projectNames();var ord=(state.settings.projOrder&&state.settings.projOrder[state.ws])||[];var a=ord.filter(function(n){return names.indexOf(n)>=0;});var rest=names.filter(function(n){return a.indexOf(n)<0;});return a.concat(rest);}
@@ -1733,7 +1748,7 @@
     if(!list.length){body.innerHTML='<tr><td colspan="3" class="empty">주머니 비었어요 ✓</td></tr>';return;}
     body.innerHTML=list.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0),open=!!inbOpen[t.id];
       return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span></td><td class="inbmorecell"><span class="moretog" data-act="inb-more" title="오늘·날짜·프로젝트·나중·메모·버림">'+(open?'▴':'⋯')+'</span></td></tr>'
-        +(open?('<tr class="inbmorerow" data-id="'+t.id+'"><td colspan="3"><div class="tri inbmenu">'+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'')+'<button data-act="t-today">오늘</button><button class="inbdue'+(t.due?' has':'')+(over?' over':'')+'" data-act="due">'+(t.due?'📅 '+mmdd(t.due):'📅 날짜')+'</button><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>'):'');}).join('');}
+        +(open?('<tr class="inbmorerow" data-id="'+t.id+'"><td colspan="3"><div class="tri inbmenu">'+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'')+'<button data-act="t-today">오늘</button><span class="inbdue'+(t.due?' has':'')+(over?' over':'')+'" role="button" tabindex="0">'+(t.due?'📅 '+mmdd(t.due):'📅 날짜')+'<input type="date" class="dueip" data-id="'+t.id+'" value="'+(t.due||'')+'"></span><select data-act="t-proj"><option value="">프로젝트…</option>'+opts+'<option value="__new">+ 새 프로젝트</option></select><button data-act="t-later">나중</button><button data-act="t-memo">메모</button><button data-act="t-del">버림</button></div></td></tr>'):'');}).join('');}
   function renderProjects(){var wrap=document.getElementById('projAll'),names=orderedProjects();
     if(!names.length){wrap.innerHTML='<p class="empty">프로젝트가 아직 없어요 · 주머니에서 항목을 프로젝트로 분류해보세요</p>';return;}
     var m=state.month||thisMonth();
@@ -1741,7 +1756,7 @@
       // 지금 보고 있는 달의 항목만 — 월이 안 정해진 예전 할일은 tMonth()가 이번 달로 쳐줌
       var items=wsTodos().filter(function(t){return t.project===name&&t.bucket!=='inbox'&&tMonth(t)===m;}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
-        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.rolled?'<span class="rolled" title="지난달에 안 끝나서 따라온 항목">↩︎이월</span>':'')+(t.routineId?'<span class="rolled" title="상시업무에서 자동으로 올라온 항목">상시</span>':'')+remindIconHtml(t)+subTogHtml(t)+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td><td class="due'+(over?' over':'')+'" data-act="due">'+mmdd(t.due)+'</td><td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+remindRowHtml(t,7)+subRowHtml(t,7);}).join('');
+        return '<tr data-id="'+t.id+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+(t.rolled?'<span class="rolled" title="지난달에 안 끝나서 따라온 항목">↩︎이월</span>':'')+(t.routineId?'<span class="rolled" title="상시업무에서 자동으로 올라온 항목">상시</span>':'')+remindIconHtml(t)+subTogHtml(t)+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td>'+dueCellHtml(t.id,t.due,over)+'<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+remindRowHtml(t,7)+subRowHtml(t,7);}).join('');
       var dn=items.filter(function(t){return t.done;}).length;
       return '<div class="pjsec" data-proj="'+esc(name)+'"><div class="pjtog" role="button" tabindex="0" aria-expanded="true"><span class="pjhandle" draggable="true" title="끌어서 순서 변경">⠿</span><span class="pjname">'+esc(name)+'</span> <span class="n">'+dn+'/'+items.length+'</span><select class="pjcat" data-act="proj-cat" data-proj="'+esc(name)+'" title="일상/업무/개인작업 — 저널에서 이 기준으로 묶여요">'+JOURNAL_CATS.map(function(c){return '<option value="'+c+'"'+(projCategory(name)===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select><span class="pjren" data-act="proj-rename" data-proj="'+esc(name)+'" title="이름 변경">✎</span><span class="pjdel" data-act="proj-del" data-proj="'+esc(name)+'" title="프로젝트 삭제">✕</span><span class="chev">▾</span></div><div class="pjbody"><table class="tbl"><thead><tr><th></th><th>할일</th><th>진행사항</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7" class="empty">'+monthLabel(m)+'엔 아직 없어요</td></tr>')+'</tbody></table><div class="pjadd"><input class="pjaddin" placeholder="이 프로젝트에 할일 추가…"><button class="btn-s" data-act="proj-add">추가</button></div></div></div>';}).join('');}
   // ===== v2: 진행 기록 — 덮어쓰지 않고 날짜별로 쌓임 =====
@@ -2897,7 +2912,11 @@
     var el=e.target&&e.target.closest?e.target.closest('[data-act="rvw"]'):null;if(!el)return;
     var t=tById(rowId(el));if(!t)return;
     var v=el.textContent.trim();if(v===(t.review||''))return;
-    t.review=v;putTodo(t);},true);
+    t.review=v;putTodo(t);
+    // 2026-10-03부터 오늘의 집중에도 같은 회고 칸이 생겨서, 한쪽에서 고치면 다른 쪽도
+    // 바로 맞게 보이도록 둘 다 다시 그림(지금 포커스가 있는 칸 자체는 다시 그려도 값이
+    // 똑같아서 깜빡임 없음 — renderToday/renderProjects는 매번 state에서 새로 읽어 그림)
+    renderToday();renderProjects();},true);
   // 루틴/투두 제목 — 같은 방식으로 포커스 빠질 때 저장(빈 제목으로는 못 바꾸게 방어)
   document.addEventListener('blur',function(e){
     var el=e.target&&e.target.closest?e.target.closest('[data-act="cr-rename"]'):null;if(!el)return;
@@ -3147,7 +3166,6 @@
     else if(act==='t-later'&&t){t.bucket='later';putTodo(t);renderInbox();showToast('나중으로 미뤘어요');}
     else if(act==='t-memo'&&t){var m={id:'m'+uid(),folder:'업무',title:t.title,body:'',link:''};state.memos.unshift(m);putMemo(m);removeTodo(t,'메모로 보냈어요');}
     else if(act==='t-del'&&t){removeTodo(t,'버렸어요');}
-    else if(act==='due'&&t){openDuePicker(t);}
     else if(act==='art-tag-nav'){state.artSel={type:'tag',tag:el.dataset.tag};renderArtMain();renderArtSidebar();}
     else if(act==='art-open-work'){state.artSel={type:'work',id:el.dataset.id};renderArtMain();}
     else if(act==='art-new-work'){state.artSel={type:'newWork',artistId:el.dataset.artist||''};renderArtMain();}
@@ -3210,18 +3228,14 @@
 
   function removeTodo(t,msg){var idx=state.todos.indexOf(t);if(idx<0)return;state.todos.splice(idx,1);delTodoDB(t.id);renderAll();showToast(msg,function(){state.todos.unshift(t);putTodo(t);});}
   function parseDue(v){v=(v||'').trim();if(!v)return '';var p=v.split(/[\/\-.]/);if(p.length>=2){var mo=+p[p.length-2],da=+p[p.length-1];if(mo&&da)return state.calYear+'-'+pad(mo)+'-'+pad(da);}return '';}
-  // 마감일 "📅 날짜" 버튼 — 예전엔 prompt()로 "8/5" 텍스트를 받았는데,
-  // 네이티브 <input type="date"> showPicker()로 교체(2026-09-30, "그냥 캘린더에서
-  // 선택하면 안되는거야?" 요청). t.due가 이미 ISO(YYYY-MM-DD)라 값 변환 없이 그대로 씀.
-  function openDuePicker(t){
-    var dp=document.getElementById('dueDatePicker');
-    dp.value=t.due||'';dp.dataset.todoId=t.id;
-    if(dp.showPicker){try{dp.showPicker();return;}catch(e){}}
-    dp.focus();dp.click();
-  }
-  document.getElementById('dueDatePicker').addEventListener('change',function(){
-    var t=tById(this.dataset.todoId);if(!t)return;
-    t.due=this.value||'';putTodo(t);renderAll();
+  // 마감 셀 — 2026-09-30엔 숨겨둔 <input type="date"> 하나를 두고 JS로 showPicker()/click()을
+  // 대신 호출해주는 방식이었는데, 실기기(폰·PC 둘 다)에서 캘린더가 안 열린다는 제보(2026-10-03)로
+  // 교체 — 각 마감 셀에 실제 input을 투명하게 덮어서 진짜 탭이 그 input에 바로 닿게 함
+  // (dueCellHtml, .dueip). 저장은 아래 input.dueip change 델리게이트가 처리.
+  document.addEventListener('change',function(e){
+    var el=e.target.closest('input.dueip');if(!el)return;
+    var t=tById(el.dataset.id);if(!t)return;
+    t.due=el.value||'';putTodo(t);renderAll();
   });
 
   // 일상 탭(루틴/투두) 서브탭
