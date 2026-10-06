@@ -457,15 +457,15 @@
 
     <div style="margin-top:20px;">
       <div class="panel-head">
-        <label style="display:block;font-size:12px;color:var(--ink-soft);">6종 블렌딩 구성 — 비율(%)과 구매처를 지정하세요</label>
+        <label style="display:block;font-size:12px;color:var(--ink-soft);">블렌딩 구성 — 비율(%)과 구매처를 지정하세요 · 차종을 바꾸거나 행을 추가/삭제할 수 있어요</label>
         <button type="button" class="csv-btn" id="csvBlendBtn">⬇ CSV 다운로드</button>
       </div>
       <div class="table-scroll">
-        <table class="blend-table" id="blendTable">
+        <table class="blend-table" id="blendTable" data-colw-v="2">
           <thead>
             <tr>
               <th style="min-width:70px;">비율(%)</th>
-              <th style="min-width:80px;">차종</th>
+              <th style="min-width:90px;">차종</th>
               <th style="min-width:190px;">구매처 선택</th>
               <th style="min-width:100px;">잔당 찻잎량(g)</th>
               <th style="min-width:90px;">찻잎 원가</th>
@@ -478,11 +478,13 @@
               <th>월 원가</th>
               <th style="min-width:170px;">다과 상 선택</th>
               <th style="min-width:90px;">다과 원가</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="blendTableBody"></tbody>
         </table>
       </div>
+      <button class="add-row-btn" id="addBlendRowBtn">+ 블렌딩 구성 추가</button>
       <div class="pct-total" id="pctTotal">-</div>
     </div>
 
@@ -1459,7 +1461,7 @@ async function loadSnackRows(){
   renderSnackTable();
 }
 
-// ---- 6종 블렌딩 구성표 ----
+// ---- 블렌딩 구성표 (처음엔 기본 6종으로 시작하지만 행 추가/삭제 가능, 2026-10-06) ----
 let blendRows = [
   {type:'대용차', pct:5, vendorKey:'c02', manualPrice:0, sellingPrice:7000, gpc:3, snackKey:'manual', manualSnackPrice:0},
   {type:'홍차', pct:30, vendorKey:'c01', manualPrice:0, sellingPrice:8000, gpc:3, snackKey:'manual', manualSnackPrice:0},
@@ -1711,9 +1713,13 @@ function renderBlendTable(){
       snackCellHtml = '<span class="readonly-cell cell-snackprice"></span>';
     }
 
+    let typeSelectHtml = '<select data-idx="'+idx+'" data-field="type">' +
+      CATEGORY_OPTIONS.map(c=>'<option value="'+c+'"'+(c===row.type?' selected':'')+'>'+c+'</option>').join('') +
+      '</select>';
+
     tr.innerHTML =
       '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="pct" value="'+row.pct+'" min="0" max="100" step="1"></td>' +
-      '<td class="tea-type-cell">'+row.type+'</td>' +
+      '<td>'+typeSelectHtml+'</td>' +
       '<td>'+selectHtml+'</td>' +
       '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="gpc" value="'+(parseFloat(row.gpc)||0)+'" min="0" step="0.5"></td>' +
       '<td class="readonly-cell cell-costpercup"></td>' +
@@ -1725,7 +1731,8 @@ function renderBlendTable(){
       '<td class="readonly-cell cell-monthlykg"></td>' +
       '<td class="readonly-cell cell-cost"></td>' +
       '<td>'+snackSelectHtml+'</td>' +
-      '<td class="numcell">'+snackCellHtml+'</td>';
+      '<td class="numcell">'+snackCellHtml+'</td>' +
+      '<td><button class="del-btn" data-idx="'+idx+'">삭제</button></td>';
     tbody.appendChild(tr);
     updateBlendRowCells(tr, idx);
   });
@@ -1736,7 +1743,7 @@ function renderBlendTable(){
       const field = e.target.getAttribute('data-field');
       blendRows[idx][field] = e.target.value;
 
-      if(field === 'vendorKey' || field === 'snackKey'){
+      if(field === 'vendorKey' || field === 'snackKey' || field === 'type'){
         renderBlendTable();
       }else{
         const tr = e.target.closest('tr');
@@ -1749,9 +1756,26 @@ function renderBlendTable(){
     el.addEventListener('change', ()=>{ clearTimeout(saveTimer); saveState(); });
   });
 
+  tbody.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      blendRows.splice(idx, 1);
+      renderBlendTable();
+      scheduleSave();
+      computeAll();
+    });
+  });
+
   updatePctTotal();
   renderBrewRefTable();
 }
+
+$('addBlendRowBtn').addEventListener('click', ()=>{
+  blendRows.push({type:'기타', pct:0, vendorKey:'manual', manualPrice:0, sellingPrice:0, gpc:0, snackKey:'manual', manualSnackPrice:0});
+  renderBlendTable();
+  scheduleSave();
+  computeAll();
+});
 
 function updateBlendRowCells(tr, idx){
   const row = blendRows[idx];
@@ -1869,7 +1893,7 @@ async function loadState(){
         if(state.jamwon[f] !== undefined) $(s+'-'+f).value = state.jamwon[f];
       });
     }
-    if(Array.isArray(state.blendRows) && state.blendRows.length === TEA_TYPES.length){
+    if(Array.isArray(state.blendRows) && state.blendRows.length){
       blendRows = state.blendRows;
       // 예전엔 "이름__구매처" 문자열을 구매처 선택 키로 썼음(비교표에서 이름만 살짝
       // 고쳐도 링크가 끊기던 원인) — id 기반으로 옮기면서, 남아있는 예전 형식은
