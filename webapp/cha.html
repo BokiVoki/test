@@ -1800,6 +1800,8 @@ function updateMenuItemCard(box, mi){
   });
   const costWrap = card.querySelector('.menu-cost-wrap');
   if(costWrap) costWrap.innerHTML = menuCostHtml(menu);
+  const volWrap = card.querySelector('.menu-vol-wrap');
+  if(volWrap) volWrap.textContent = menuVolumeLabel(menu);
 }
 
 function menuCostHtml(menu){
@@ -1812,6 +1814,21 @@ function menuCostHtml(menu){
     marginHtml = ' · 마진 <b style="color:'+(margin>=0?'var(--green-tea)':'var(--warn)')+'">'+fmt(margin,0)+'원 ('+fmt(marginRate,1)+'%)</b>';
   }
   return '원가 <b>'+fmt(cost,0)+'원</b>'+marginHtml;
+}
+
+// 메뉴 하나의 총 용량 — 재료 단위가 다 같으면 "45ml"처럼 한 번에, 단위가 섞여있으면
+// (물·분말 등) 단위별로 따로 더해서 "45ml + 10g"처럼 보여줌(서로 다른 단위를 하나로
+// 억지로 합산하면 숫자가 의미 없어지므로 단위별 합계를 분리).
+function menuVolumeLabel(menu){
+  const totals = {};
+  (menu.items||[]).forEach(it=>{
+    const ing = menuIngRows.find(r=>r.id===it.ingId);
+    if(!ing) return;
+    const u = ing.unit || '단위';
+    totals[u] = (totals[u]||0) + (parseFloat(it.qty)||0);
+  });
+  const parts = Object.keys(totals).filter(u=>totals[u]>0).map(u=>fmt(totals[u],2)+u);
+  return parts.length ? '총 '+parts.join(' + ') : '';
 }
 
 function renderMenuItems(){
@@ -1836,6 +1853,7 @@ function renderMenuItems(){
       '<div class="snackset-head">' +
         '<input type="text" class="snackset-name" data-set="'+mi+'" data-field="name" value="'+escapeHtml(menu.name||'')+'" placeholder="메뉴 이름 (예: 복숭아 아이스티)">' +
         '<span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-soft);white-space:nowrap;">판매가<input type="number" data-set="'+mi+'" data-field="sellingPrice" value="'+(parseFloat(menu.sellingPrice)||0)+'" min="0" step="500" style="width:72px;padding:4px 6px;border:1px solid var(--rule);border-radius:3px;"></span>' +
+        '<span class="snackset-cost menu-vol-wrap">'+escapeHtml(menuVolumeLabel(menu))+'</span>' +
         '<span class="snackset-cost menu-cost-wrap">'+menuCostHtml(menu)+'</span>' +
         '<button class="del-btn" data-act="delset" data-set="'+mi+'">메뉴 삭제</button>' +
       '</div>' +
