@@ -400,9 +400,10 @@
   <div class="page" id="page-ledger">
 
   <div class="tabs subtabs" role="tablist" id="ledgerTabs">
-    <button class="tab" role="tab" aria-selected="true" data-page="sub-hangang">한강점</button>
+    <button class="tab" role="tab" aria-selected="true" data-page="sub-hangang">메뉴판구성</button>
     <button class="tab" role="tab" aria-selected="false" data-page="sub-vendors">구매처</button>
     <button class="tab" role="tab" aria-selected="false" data-page="sub-snacks">다과</button>
+    <button class="tab" role="tab" aria-selected="false" data-page="sub-menu">메뉴단가</button>
   </div>
 
   <!-- ---- 한강점: 운영·발주 설정 + 블렌딩 구성 + 최적 우림법 + 요약 ---- -->
@@ -557,6 +558,7 @@
       <span class="find-count" id="compareFindCount"></span>
       <button type="button" class="find-nav" id="compareFindPrev" title="이전 결과 (Shift+Enter)">‹</button>
       <button type="button" class="find-nav" id="compareFindNext" title="다음 결과 (Enter)">›</button>
+      <select id="compareFilterCat" style="margin-left:auto;" title="구분으로 필터"></select>
     </div>
     <div class="moq-note">
       <b>예평</b>: 단일 품종 구매 시 최소 300g / 여러 품종 함께 구매 시 품종당 100g부터 가능
@@ -639,6 +641,41 @@
   </div>
 
   </div><!-- /sub-snacks -->
+
+  <!-- ---- 메뉴단가: 재료표 + 메뉴 레시피(원가 계산) ---- -->
+  <div class="page" id="sub-menu" hidden>
+
+  <div class="panel">
+    <div class="panel-head"><h2>재료</h2><button type="button" class="csv-btn" id="csvMenuIngBtn">⬇ CSV 다운로드</button></div>
+    <p class="hint-top">티 믹솔로지 등 메뉴에 들어가는 재료예요. 구매 단가와 그 단가에 포함된 용량(+단위)을 넣으면 단위당 단가가 자동 계산돼요. 아래 "메뉴"에서 이 재료들을 골라 용량을 더해 메뉴 원가를 만듭니다.</p>
+    <div class="table-scroll">
+      <table class="compare-table" id="menuIngTable">
+        <thead>
+          <tr>
+            <th style="min-width:130px;">상품명</th>
+            <th style="min-width:110px;">구매처</th>
+            <th style="min-width:100px;">판매단가(원)</th>
+            <th style="min-width:80px;">판매용량</th>
+            <th style="min-width:60px;">단위</th>
+            <th style="min-width:100px;">단위당 단가</th>
+            <th style="min-width:130px;">비고</th>
+            <th style="min-width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="menuIngTableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" id="addMenuIngRowBtn">+ 재료 추가</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>메뉴</h2><button type="button" class="csv-btn" id="csvMenuItemBtn">⬇ CSV 다운로드</button></div>
+    <p class="hint-top">위 재료표에서 골라 용량(각 재료의 단위 기준)을 더하면 메뉴 하나의 원가가 자동으로 계산돼요. 판매가를 넣으면 마진도 같이 보여요.</p>
+    <div id="menuItemsBody"></div>
+    <button class="add-row-btn" id="addMenuItemBtn">+ 메뉴 추가</button>
+  </div>
+
+  </div><!-- /sub-menu -->
 
   <div class="save-status" id="saveStatus">&nbsp;</div>
   </div><!-- /page-ledger -->
@@ -817,6 +854,8 @@ const s = 'jamwon';
 const fields = ['visitors','teaRate','cups','loss'];
 const TEA_TYPES = ['대용차','홍차','호지차','백차','우롱차','보이차'];
 const CATEGORY_OPTIONS = ['대용차','홍차','호지차','백차','우롱차','보이차','녹차','말차','기타'];
+document.getElementById('compareFilterCat').innerHTML = '<option value="">전체 구분</option>' +
+  CATEGORY_OPTIONS.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
 
 function $(id){ return document.getElementById(id); }
 function fmt(n, digits){
@@ -1003,7 +1042,7 @@ function wireTabGroup(barId, storageKey){
         }
       });
       window.scrollTo({top:0, behavior:'smooth'});
-      if(storageKey){ try{ window.storage.set(storageKey, btn.getAttribute('data-page')); }catch(e){} }
+      if(storageKey){ try{ window.storage.set(storageKey, JSON.stringify(btn.getAttribute('data-page'))).catch(function(){}); }catch(e){} }
     });
   });
   return btns;
@@ -1016,7 +1055,8 @@ async function restoreActiveTab(barId, storageKey){
   try{
     const t = await window.storage.get(storageKey);
     if(t && t.value){
-      const target = document.querySelector('#'+barId+' .tab[data-page="'+t.value+'"]');
+      const page = JSON.parse(t.value);
+      const target = document.querySelector('#'+barId+' .tab[data-page="'+page+'"]');
       if(target) target.click();
     }
   }catch(e){}
@@ -1092,6 +1132,7 @@ function renderCompareTable(){
   tbody.innerHTML = '';
   compareRows.forEach((row, idx)=>{
     const tr = document.createElement('tr');
+    tr.setAttribute('data-idx', idx);
     if(idx % 2 === 1) tr.className = 'row-alt';
     const price = parseFloat(row.pricePerKg) || 0;
     const rating = parseInt(row.rating) || 0;
@@ -1239,7 +1280,28 @@ function renderCompareTable(){
       }
     }
   }
+  applyCompareFilter();
 }
+
+// 구매처 비교표 — "구분"(차종) 필터. 행을 지우지 않고 display만 숨겨서(찾기 네비와
+// 달리 상태를 따로 안 들고 다님) 필터를 끄면 바로 전부 돌아옴.
+let compareFilterCat = '';
+function applyCompareFilter(){
+  const tbody = $('compareTableBody');
+  tbody.querySelectorAll('tr[data-idx]:not(.note-row)').forEach(tr=>{
+    const idx = parseInt(tr.getAttribute('data-idx'));
+    const row = compareRows[idx];
+    const show = !compareFilterCat || (row && row.category === compareFilterCat);
+    tr.style.display = show ? '' : 'none';
+    const noteTr = tbody.querySelector('tr.note-row[data-idx="'+idx+'"]');
+    if(noteTr && !show) noteTr.style.display = 'none';
+  });
+}
+$('compareFilterCat').addEventListener('change', (e)=>{
+  compareFilterCat = e.target.value;
+  applyCompareFilter();
+  if(compareFinder) compareFinder.refresh();
+});
 
 $('addRowBtn').addEventListener('click', ()=>{
   compareRows.push({id:newRowId(), name:'', category:'기타', vendor:'', pricePerKg:0, note:''});
@@ -1635,6 +1697,230 @@ async function loadSnackSets(){
   renderSnackSets();
 }
 
+// ---- 메뉴단가(2026-10-08): 티 믹솔로지 등 메뉴마다 재료를 조합해서 원가를 뽑는 탭 ----
+// 재료표는 다과 단가표와 똑같은 모양(상품명·구매처·판매단가·판매용량 → 단위당 단가)이라
+// packPrice/packQty 필드명·packUnitPrice()를 그대로 재사용함 — 다른 건 "단위"(unit, ml/g 등
+// 자유 텍스트)가 하나 더 있다는 것뿐. 메뉴 쪽도 다과 상 구성과 같은 "품목+수량→합계" 구조.
+let menuIngRows = [];
+let menuItems = [];
+
+function renderMenuIngTable(){
+  const tbody = $('menuIngTableBody');
+  tbody.innerHTML = menuIngRows.map((row, idx)=>
+    '<tr'+(idx%2===1?' class="row-alt"':'')+'>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="name" value="'+escapeHtml(row.name)+'"></td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="vendor" value="'+escapeHtml(row.vendor)+'"></td>' +
+      '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="packPrice" value="'+(parseFloat(row.packPrice)||0)+'" min="0" step="100"></td>' +
+      '<td class="numcell"><input type="number" data-idx="'+idx+'" data-field="packQty" value="'+(parseFloat(row.packQty)||0)+'" min="0" step="1"></td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="unit" value="'+escapeHtml(row.unit||'')+'" placeholder="ml/g/개"></td>' +
+      '<td class="readonly-cell cell-unitprice">'+fmt(packUnitPrice(row),2)+'원/'+escapeHtml(row.unit||'단위')+'</td>' +
+      '<td><input type="text" data-idx="'+idx+'" data-field="note" value="'+escapeHtml(row.note||'')+'"></td>' +
+      '<td><button class="del-btn" data-idx="'+idx+'">삭제</button></td>' +
+    '</tr>'
+  ).join('');
+
+  tbody.querySelectorAll('input').forEach(el=>{
+    el.addEventListener('input', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const field = e.target.getAttribute('data-field');
+      menuIngRows[idx][field] = e.target.value;
+      if(field === 'packPrice' || field === 'packQty' || field === 'unit'){
+        const tr = e.target.closest('tr');
+        tr.querySelector('.cell-unitprice').textContent = fmt(packUnitPrice(menuIngRows[idx]),2)+'원/'+(menuIngRows[idx].unit||'단위');
+      }
+      renderMenuItems();
+      scheduleMenuIngSave();
+    });
+    el.addEventListener('change', ()=>{ clearTimeout(menuIngSaveTimer); saveMenuIngRows(); });
+  });
+
+  tbody.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      menuIngRows.splice(idx, 1);
+      renderMenuIngTable();
+      renderMenuItems();
+      scheduleMenuIngSave();
+    });
+  });
+}
+
+$('addMenuIngRowBtn').addEventListener('click', ()=>{
+  menuIngRows.push({id:newRowId('mi'), name:'', vendor:'', packPrice:0, packQty:0, unit:'ml', note:''});
+  renderMenuIngTable();
+  scheduleMenuIngSave();
+});
+
+let menuIngSaveTimer = null;
+let menuIngDirty = false;
+async function saveMenuIngRows(){
+  try{ await window.storage.set('jamwon-tea-menu-ingredients-v1', JSON.stringify(menuIngRows)); menuIngDirty = false; markSaved(); }
+  catch(e){ markSaveFailed(); }
+}
+function scheduleMenuIngSave(){
+  clearTimeout(menuIngSaveTimer);
+  menuIngDirty = true;
+  markSaving();
+  menuIngSaveTimer = setTimeout(saveMenuIngRows, 500);
+}
+async function loadMenuIngRows(){
+  try{
+    const result = await window.storage.get('jamwon-tea-menu-ingredients-v1');
+    if(result && result.value){
+      const parsed = JSON.parse(result.value);
+      if(Array.isArray(parsed)){ menuIngRows = parsed; }
+    }
+  }catch(e){}
+  let backfilled = false;
+  menuIngRows.forEach(r=>{ if(!r.id){ r.id = newRowId('mi'); backfilled = true; } });
+  if(backfilled) scheduleMenuIngSave();
+  renderMenuIngTable();
+}
+
+// 메뉴 하나의 원가 — 다과 상(computeSetCost)과 같은 방식(재료별 단위당 단가 × 사용량의 합)
+function computeMenuCost(menu){
+  return (menu.items||[]).reduce((sum,it)=>{
+    const ing = menuIngRows.find(r=>r.id===it.ingId);
+    const unit = ing ? packUnitPrice(ing) : 0;
+    return sum + unit * (parseFloat(it.qty)||0);
+  }, 0);
+}
+
+function updateMenuItemCard(box, mi){
+  const card = box.querySelector('.snackset-card[data-set-card="'+mi+'"]');
+  if(!card) return;
+  const menu = menuItems[mi];
+  card.querySelectorAll('tbody tr').forEach((tr, ii)=>{
+    const it = (menu.items||[])[ii]; if(!it) return;
+    const ing = menuIngRows.find(r=>r.id===it.ingId);
+    const unit = ing ? packUnitPrice(ing) : 0;
+    const subtotal = unit * (parseFloat(it.qty)||0);
+    const cell = tr.querySelector('.readonly-cell');
+    if(cell) cell.textContent = fmt(subtotal,0)+'원';
+  });
+  const costWrap = card.querySelector('.menu-cost-wrap');
+  if(costWrap) costWrap.innerHTML = menuCostHtml(menu);
+}
+
+function menuCostHtml(menu){
+  const cost = computeMenuCost(menu);
+  const sp = parseFloat(menu.sellingPrice) || 0;
+  let marginHtml = '';
+  if(sp > 0){
+    const margin = sp - cost;
+    const marginRate = margin / sp * 100;
+    marginHtml = ' · 마진 <b style="color:'+(margin>=0?'var(--green-tea)':'var(--warn)')+'">'+fmt(margin,0)+'원 ('+fmt(marginRate,1)+'%)</b>';
+  }
+  return '원가 <b>'+fmt(cost,0)+'원</b>'+marginHtml;
+}
+
+function renderMenuItems(){
+  const box = $('menuItemsBody');
+  const ingOptions = menuIngRows.map(r=>({id:r.id, label:r.name+' · '+r.vendor+' ('+fmt(packUnitPrice(r),2)+'원/'+(r.unit||'단위')+')'}));
+
+  box.innerHTML = menuItems.map((menu, mi)=>{
+    const rows = (menu.items||[]).map((it, ii)=>{
+      const opts = '<option value="">재료 선택</option>' +
+        ingOptions.map(o=>'<option value="'+o.id+'"'+(o.id===it.ingId?' selected':'')+'>'+escapeHtml(o.label)+'</option>').join('');
+      const ing = menuIngRows.find(r=>r.id===it.ingId);
+      const unit = ing ? packUnitPrice(ing) : 0;
+      const subtotal = unit * (parseFloat(it.qty)||0);
+      return '<tr>' +
+        '<td><select data-set="'+mi+'" data-item="'+ii+'" data-field="ingId">'+opts+'</select></td>' +
+        '<td class="numcell"><input type="number" data-set="'+mi+'" data-item="'+ii+'" data-field="qty" value="'+(parseFloat(it.qty)||0)+'" min="0" step="0.1" style="width:60px;"> <span style="font-size:11px;color:var(--ink-soft);">'+escapeHtml(ing?ing.unit||'':'')+'</span></td>' +
+        '<td class="readonly-cell">'+fmt(subtotal,0)+'원</td>' +
+        '<td><button class="del-btn" data-act="delitem" data-set="'+mi+'" data-item="'+ii+'">✕</button></td>' +
+      '</tr>';
+    }).join('');
+    return '<div class="snackset-card" data-set-card="'+mi+'">' +
+      '<div class="snackset-head">' +
+        '<input type="text" class="snackset-name" data-set="'+mi+'" data-field="name" value="'+escapeHtml(menu.name||'')+'" placeholder="메뉴 이름 (예: 복숭아 아이스티)">' +
+        '<span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-soft);white-space:nowrap;">판매가<input type="number" data-set="'+mi+'" data-field="sellingPrice" value="'+(parseFloat(menu.sellingPrice)||0)+'" min="0" step="500" style="width:72px;padding:4px 6px;border:1px solid var(--rule);border-radius:3px;"></span>' +
+        '<span class="snackset-cost menu-cost-wrap">'+menuCostHtml(menu)+'</span>' +
+        '<button class="del-btn" data-act="delset" data-set="'+mi+'">메뉴 삭제</button>' +
+      '</div>' +
+      '<div class="table-scroll"><table class="compare-table" style="min-width:0;">' +
+        '<thead><tr><th style="min-width:170px;">재료</th><th style="min-width:80px;">사용량</th><th style="min-width:80px;">소계</th><th style="width:34px;"></th></tr></thead>' +
+        '<tbody>'+rows+'</tbody>' +
+      '</table></div>' +
+      '<button class="add-row-btn" data-act="additem" data-set="'+mi+'" style="margin-top:8px;padding:6px 12px;font-size:11.5px;">+ 재료 추가</button>' +
+    '</div>';
+  }).join('') || '<p class="empty-hint">아직 만든 메뉴가 없어요. 아래 "+ 메뉴 추가"로 시작하세요.</p>';
+}
+
+$('menuItemsBody').addEventListener('input', (e)=>{
+  const el = e.target;
+  if(!el.matches('[data-field]')) return;
+  const box = $('menuItemsBody');
+  const mi = parseInt(el.getAttribute('data-set'));
+  const field = el.getAttribute('data-field');
+  if(field === 'name' || field === 'sellingPrice'){
+    menuItems[mi][field] = el.value;
+    if(field === 'sellingPrice') updateMenuItemCard(box, mi);
+  }else{
+    const ii = parseInt(el.getAttribute('data-item'));
+    menuItems[mi].items[ii][field] = el.value;
+    if(field === 'ingId') renderMenuItems(); else updateMenuItemCard(box, mi);
+  }
+  scheduleMenuItemSave();
+});
+$('menuItemsBody').addEventListener('change', (e)=>{
+  if(!e.target.matches('[data-field]')) return;
+  clearTimeout(menuItemSaveTimer);
+  saveMenuItems();
+});
+$('menuItemsBody').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-act]');
+  if(!btn) return;
+  const act = btn.getAttribute('data-act');
+  const mi = parseInt(btn.getAttribute('data-set'));
+  if(act === 'delset'){
+    menuItems.splice(mi,1);
+    renderMenuItems(); scheduleMenuItemSave();
+  }else if(act === 'additem'){
+    menuItems[mi].items = menuItems[mi].items || [];
+    menuItems[mi].items.push({ingId:'', qty:1});
+    renderMenuItems();
+  }else if(act === 'delitem'){
+    const ii = parseInt(btn.getAttribute('data-item'));
+    menuItems[mi].items.splice(ii,1);
+    renderMenuItems(); scheduleMenuItemSave();
+  }
+});
+$('addMenuItemBtn').addEventListener('click', ()=>{
+  menuItems.push({id:newRowId('mn'), name:'', sellingPrice:0, items:[]});
+  renderMenuItems();
+});
+
+let menuItemSaveTimer = null;
+let menuItemDirty = false;
+async function saveMenuItems(){
+  try{ await window.storage.set('jamwon-tea-menu-items-v1', JSON.stringify(menuItems)); menuItemDirty = false; markSaved(); }
+  catch(e){ markSaveFailed(); }
+}
+function scheduleMenuItemSave(){
+  clearTimeout(menuItemSaveTimer);
+  menuItemDirty = true;
+  markSaving();
+  menuItemSaveTimer = setTimeout(saveMenuItems, 500);
+}
+async function loadMenuItems(){
+  try{
+    const result = await window.storage.get('jamwon-tea-menu-items-v1');
+    if(result && result.value){
+      const parsed = JSON.parse(result.value);
+      if(Array.isArray(parsed)){ menuItems = parsed; }
+    }
+  }catch(e){}
+  let backfilled = false;
+  menuItems.forEach(m=>{
+    if(!m.id){ m.id = newRowId('mn'); backfilled = true; }
+    if(!Array.isArray(m.items)) m.items = [];
+  });
+  if(backfilled) scheduleMenuItemSave();
+  renderMenuItems();
+}
+
 // 한강점 전체 월간 예상 판매 잔 수 (차종 배합과 무관 — 방문객/주문비율/잔수 기준)
 function getTotalMonthlyCups(){
   const visitors = parseFloat($(s+'-visitors').value) || 0;
@@ -1929,6 +2215,8 @@ function flushAllSaves(){
   if(vendorDirty){ clearTimeout(vendorSaveTimer); saveVendorContacts(); }
   if(snackDirty){ clearTimeout(snackSaveTimer); saveSnackRows(); }
   if(snackSetDirty){ clearTimeout(snackSetSaveTimer); saveSnackSets(); }
+  if(menuIngDirty){ clearTimeout(menuIngSaveTimer); saveMenuIngRows(); }
+  if(menuItemDirty){ clearTimeout(menuItemSaveTimer); saveMenuItems(); }
   if(stateDirty){ clearTimeout(saveTimer); saveState(); }
 }
 window.addEventListener('pagehide', flushAllSaves);
@@ -1947,6 +2235,8 @@ async function saveEverythingNow(){
   clearTimeout(vendorSaveTimer); await saveVendorContacts();
   clearTimeout(snackSaveTimer); await saveSnackRows();
   clearTimeout(snackSetSaveTimer); await saveSnackSets();
+  clearTimeout(menuIngSaveTimer); await saveMenuIngRows();
+  clearTimeout(menuItemSaveTimer); await saveMenuItems();
   clearTimeout(saveTimer); await saveState();
 }
 const manualSaveBtn = $('manualSaveBtn');
@@ -2561,6 +2851,30 @@ $('csvSnackSetBtn').addEventListener('click', ()=>{
   downloadCSV('한강점_다과상구성.csv', [head].concat(rows));
 });
 
+$('csvMenuIngBtn').addEventListener('click', ()=>{
+  const head = ['상품명','구매처','판매단가(원)','판매용량','단위','단위당 단가(원)','비고'];
+  const rows = menuIngRows.map(r=>[r.name, r.vendor, parseFloat(r.packPrice)||0, parseFloat(r.packQty)||0, r.unit||'', Math.round(packUnitPrice(r)*100)/100, r.note||'']);
+  downloadCSV('한강점_메뉴재료.csv', [head].concat(rows));
+});
+
+$('csvMenuItemBtn').addEventListener('click', ()=>{
+  const head = ['메뉴','재료','사용량','단위','소계(원)','메뉴 원가(원)','판매가(원)'];
+  const rows = [];
+  menuItems.forEach(menu=>{
+    const cost = Math.round(computeMenuCost(menu));
+    const sp = parseFloat(menu.sellingPrice)||0;
+    const items = menu.items||[];
+    if(!items.length){ rows.push([menu.name||'', '-', '', '', '', cost, sp]); return; }
+    items.forEach(it=>{
+      const ing = menuIngRows.find(r=>r.id===it.ingId);
+      const unit = ing ? packUnitPrice(ing) : 0;
+      const qty = parseFloat(it.qty)||0;
+      rows.push([menu.name||'', ing?ing.name:'(삭제된 재료)', qty, ing?(ing.unit||''):'', Math.round(unit*qty), cost, sp]);
+    });
+  });
+  downloadCSV('한강점_메뉴단가.csv', [head].concat(rows));
+});
+
 $('csvBlendBtn').addEventListener('click', ()=>{
   const head = ['비율(%)','차종','구매처','잔당 찻잎량(g)','찻잎 원가(원)','합계 원가(다과포함,원)','판매가(원/잔)','마진율(%)','월 매출(원)','원가(원/kg)','월 물량(kg)','월 원가(원)','다과 상','다과 원가(원)'];
   const rows = blendRows.map(row=>{
@@ -2589,6 +2903,8 @@ const atlasFinder = makeFinder({
   await loadVendorContacts();
   await loadSnackRows();
   await loadSnackSets();
+  await loadMenuIngRows();
+  await loadMenuItems();
   await loadState();
   renderBlendTable();
   computeAll();
@@ -2597,6 +2913,7 @@ const atlasFinder = makeFinder({
   setupColResize($('snackTable'));
   setupColResize($('blendTable'));
   setupColResize($('brewRefTable'));
+  setupColResize($('menuIngTable'));
   renderChips();
   renderBrewList();
   initCalc();
