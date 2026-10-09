@@ -409,7 +409,12 @@
      showPicker()/click()을 대신 호출해주던 예전 방식이 실기기(폰·PC 둘 다)에서 캘린더가
      안 열리는 문제가 있었음. 네이티브 피커는 진짜 사용자 탭이 그 input에 직접 닿아야
      믿을 수 있게 열려서, 프록시 호출 대신 셀 전체를 input으로 덮는 쪽으로 바꿈). */
-  .dueip{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;cursor:pointer;font-size:16px}
+  /* 2026-10-09: "마감 눌리긴 하는데 특정부위만 눌림" 제보 — 네이티브 date input은
+     appearance:none을 안 주면 OS 기본 위젯 그림(mm/dd/yyyy 세그먼트)이 자기 내재 크기로
+     렌더링되는데, 실제 탭 가능 영역이 이 opacity:0로 숨긴 "그려지는 자리" 크기에 묶여버려서
+     width/height:100%로 늘려둔 CSS 박스 전체가 아니라 그 작은 자리만 눌리는 기종이 있음.
+     appearance:none으로 OS 기본 그림을 꺼서 CSS 박스 전체가 곧 탭 영역이 되게 함. */
+  .dueip{position:absolute;inset:0;display:block;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;cursor:pointer;font-size:16px;-webkit-appearance:none;-moz-appearance:none;appearance:none}
   .imp{color:var(--accent);font-size:9px;letter-spacing:2px;white-space:nowrap;cursor:pointer;user-select:none}
   .grp td{font-size:10.5px;color:var(--faint);font-weight:600;padding:9px 8px 4px;letter-spacing:.03em;border-bottom:1px solid var(--line)}
   .est{cursor:text;border-bottom:1px dashed transparent}tr:hover .est{border-bottom-color:var(--line-2)}.est:focus{outline:none;border-bottom-color:var(--accent)}
@@ -419,15 +424,15 @@
   .remindicon.has{opacity:1}
   tr:hover .remindicon{opacity:.75}tr:hover .remindicon.has{opacity:1}
   .remindrow .tri{padding:6px 0;align-items:center;gap:6px}
-  .remindrow input[type="time"]{font:inherit;font-size:12.5px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text);padding:3px 2px}
-  .remindrow input[type="time"]:focus{outline:none;border-bottom-color:var(--accent)}
+  .remindrow input[type="time"],.remindrow input[type="date"]{font:inherit;font-size:12.5px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text);padding:3px 2px}
+  .remindrow input[type="time"]:focus,.remindrow input[type="date"]:focus{outline:none;border-bottom-color:var(--accent)}
   /* 하위 항목 ⏰ 알림(2026-09-30) — .subitem이 <tr>이 아니라 <div>라서 부모용
      tr:hover 규칙을 못 타므로 따로 지정, 펼침 박스도 형제 <div>로 */
   .subitem:hover .remindicon{opacity:.75}
   .subremindrow{padding:2px 0 4px 22px}
   .subremindrow .tri{padding:0;justify-content:flex-start}
-  .subremindrow input[type="time"]{font:inherit;font-size:12px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text);padding:2px 2px}
-  .subremindrow input[type="time"]:focus{outline:none;border-bottom-color:var(--accent)}
+  .subremindrow input[type="time"],.subremindrow input[type="date"]{font:inherit;font-size:12px;border:0;border-bottom:1px solid var(--line-2);background:transparent;color:var(--text);padding:2px 2px}
+  .subremindrow input[type="time"]:focus,.subremindrow input[type="date"]:focus{outline:none;border-bottom-color:var(--accent)}
   .rowdel{color:var(--faint);cursor:pointer;font-size:12px;opacity:0;padding-left:6px}tr:hover .rowdel{opacity:1}
   .ck{width:16px;height:16px;border:1.5px solid var(--line-2);background:var(--panel);cursor:pointer;display:grid;place-items:center}
   .ck svg{width:9px;height:9px;opacity:0}
@@ -1669,6 +1674,7 @@
   // new Date('YYYY-MM-DDTHH:MM') 형식은 표준상 로컬 시간으로 파싱됨(datetime-local input과 동일 규칙).
   function localDateTimeToISO(dateStr,timeStr){return new Date(dateStr+'T'+timeStr+':00').toISOString();}
   function remindLocalTimeStr(iso){var d=new Date(iso);return pad(d.getHours())+':'+pad(d.getMinutes());}
+  function remindLocalDateStr(iso){var d=new Date(iso);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
   function remindIconHtml(t){
     if(!hasRemind)return '';
     var has=!!t.remindAt;
@@ -1677,9 +1683,10 @@
   function remindRowHtml(t,cols){
     if(!hasRemind||!remindOpen[t.id])return '';
     var val=t.remindAt?remindLocalTimeStr(t.remindAt):'';
-    var dayLabel=t.due?mmdd(t.due)+' ':'오늘 ';
+    var dateVal=t.remindAt?remindLocalDateStr(t.remindAt):(t.due||todayISO());
     return '<tr class="remindrow" data-id="'+t.id+'"><td colspan="'+cols+'"><div class="tri">'
-      +'<span style="color:var(--faint);font-size:12px">⏰ '+esc(dayLabel)+'</span>'
+      +'<span style="color:var(--faint);font-size:12px">⏰</span>'
+      +'<input type="date" class="reminddate" value="'+esc(dateVal)+'">'
       +'<input type="time" class="remindtime" value="'+esc(val)+'">'
       +'<button class="btn-s" data-act="remind-save">설정</button>'
       +(t.remindAt?'<button class="btn-s" data-act="remind-clear">알림 끄기</button>':'')
@@ -1698,9 +1705,11 @@
     var s=(t.subs||[])[i];
     if(!hasRemind||!s||!subRemindOpen[t.id+':'+i])return '';
     var val=s.remindAt?remindLocalTimeStr(s.remindAt):'';
-    var dueFor=s.due||t.due;var dayLabel=dueFor?mmdd(dueFor)+' ':'오늘 ';
+    var dueFor=s.due||t.due;
+    var dateVal=s.remindAt?remindLocalDateStr(s.remindAt):(dueFor||todayISO());
     return '<div class="subremindrow" data-i="'+i+'"><div class="tri">'
-      +'<span style="color:var(--faint);font-size:12px">⏰ '+esc(dayLabel)+'</span>'
+      +'<span style="color:var(--faint);font-size:12px">⏰</span>'
+      +'<input type="date" class="reminddate" value="'+esc(dateVal)+'">'
       +'<input type="time" class="remindtime" value="'+esc(val)+'">'
       +'<button class="btn-s" data-act="remind-save-sub" data-i="'+i+'">설정</button>'
       +(s.remindAt?'<button class="btn-s" data-act="remind-clear-sub" data-i="'+i+'">알림 끄기</button>':'')
@@ -3080,9 +3089,9 @@
       remindOpen[t.id]=!remindOpen[t.id];renderToday();renderProjects();
       if(remindOpen[t.id]){var rin=document.querySelector('tr.remindrow[data-id="'+t.id+'"] .remindtime');if(rin)rin.focus();}}
     else if(act==='remind-save'&&t){
-      var rt=el.closest('tr').querySelector('.remindtime'),tv=rt&&rt.value;
+      var rtr=el.closest('tr'),rt=rtr.querySelector('.remindtime'),tv=rt&&rt.value;
+      var rdin=rtr.querySelector('.reminddate'),rDate=(rdin&&rdin.value)||t.due||todayISO();
       if(!tv){showToast('시간을 입력해주세요');return;}
-      var rDate=t.due||todayISO();
       t.remindAt=localDateTimeToISO(rDate,tv);t.reminded=false;putTodo(t);
       remindOpen[t.id]=false;renderToday();renderProjects();
       showToast('⏰ '+mmdd(rDate)+' '+tv+'에 알림을 보낼게요(하루앱 홈 화면 설치 + 알림 켜기 필요)');}
@@ -3095,9 +3104,9 @@
       if(subRemindOpen[rsk]){var rsin=document.querySelector('tr.subrow[data-id="'+t.id+'"] .subremindrow[data-i="'+rsi+'"] .remindtime');if(rsin)rsin.focus();}}
     else if(act==='remind-save-sub'&&t){
       var rsi2=+el.dataset.i,rs2=(t.subs||[])[rsi2];if(!rs2)return;
-      var rt2=el.closest('.subremindrow').querySelector('.remindtime'),tv2=rt2&&rt2.value;
+      var subBox=el.closest('.subremindrow'),rt2=subBox.querySelector('.remindtime'),tv2=rt2&&rt2.value;
+      var rdin2=subBox.querySelector('.reminddate'),rDate2=(rdin2&&rdin2.value)||rs2.due||t.due||todayISO();
       if(!tv2){showToast('시간을 입력해주세요');return;}
-      var rDate2=rs2.due||t.due||todayISO();
       rs2.remindAt=localDateTimeToISO(rDate2,tv2);rs2.reminded=false;putTodo(t);
       delete subRemindOpen[t.id+':'+rsi2];renderToday();renderProjects();
       showToast('⏰ '+mmdd(rDate2)+' '+tv2+'에 알림을 보낼게요(하루앱 홈 화면 설치 + 알림 켜기 필요)');}
