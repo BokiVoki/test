@@ -85,6 +85,12 @@
   .daynav{display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:8px 10px;flex-wrap:wrap}
   .daynav button{font-family:var(--pixel);background:var(--panel);border:1.5px solid var(--line);border-radius:999px;color:var(--text);cursor:pointer;padding:5px 13px}
   .daynav h2{margin:0;font-family:var(--pixel);font-size:15px;flex:1;text-align:center}
+  /* 2026-10-11: "캘린더 이동이 잘 안눌리는데, 날짜 누르면 뜨게 변경 + 누르는 부위 넓게" —
+     작은 📅 아이콘 대신 날짜 제목(h2) 자체를 큰 탭 영역으로 만듦(가운데 정렬+flex:1이라
+     원래도 가로로 넓은 자리를 차지하고 있어서, 세로 패딩만 넉넉히 줘도 탭 영역이
+     충분히 커짐 — 기존 .iconbtn 16px 정사각형과 비교해 훨씬 큼). */
+  #dayTitle{cursor:pointer;padding:9px 6px;border-radius:10px;}
+  #dayTitle:hover,#dayTitle:active{background:var(--sunk);color:var(--accent-2)}
   .daynav .today{font-family:var(--pixel);font-size:11px;color:var(--accent-2);border-bottom:1px dashed var(--accent-2);cursor:pointer}
   .daynavicons{display:flex;align-items:center;gap:4px}
   .iconbtn{font-size:16px;line-height:1;cursor:pointer;padding:4px 6px;color:var(--muted)}
@@ -237,7 +243,6 @@
       <h2 id="dayTitle"></h2>
       <button id="dayNext">›</button>
       <span class="daynavicons">
-        <span class="iconbtn" id="calBtn" title="날짜로 이동">📅</span>
         <span class="iconbtn" id="searchToggleBtn" title="캡션 검색" aria-pressed="false">🔍</span>
       </span>
       <span class="today hidden" id="dayToday">오늘로</span>
@@ -406,9 +411,11 @@
     });
   });
 
-  // ===== 날짜로 바로 이동(캘린더) =====
+  // ===== 날짜로 바로 이동(캘린더) — 날짜 제목(dayTitle) 자체를 누르면 열림(2026-10-11) =====
   var dayPickerEl=document.getElementById('dayPicker');
-  document.getElementById('calBtn').addEventListener('click',function(){
+  var dayTitleEl=document.getElementById('dayTitle');
+  dayTitleEl.title='탭해서 날짜 선택';
+  dayTitleEl.addEventListener('click',function(){
     if(dayPickerEl.showPicker){try{dayPickerEl.showPicker();return;}catch(e){}}
     dayPickerEl.focus();dayPickerEl.click();
   });
