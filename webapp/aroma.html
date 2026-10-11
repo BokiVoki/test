@@ -78,11 +78,20 @@
   .btn.ghost{background:none;border:1px solid var(--line);color:var(--muted);}
   .btn.danger{background:none;border:1px solid var(--line);color:var(--accent-2);}
 
-  .cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
-  .ncard{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
-  .ncard-head{padding:14px 16px;cursor:pointer;display:flex;align-items:flex-start;gap:10px;}
-  .ncard-head .meta{flex:1;min-width:0;}
-  .ncard-name{font-family:var(--serif);font-size:15.5px;font-weight:600;}
+  /* 카드를 누를 때마다 그리드 전체가 들쭉날쭉 늘어나던 아코디언 방식을 버리고(2026-10-11,
+     "카드를 누르면 옆에 수정할 수 있게 칸이 나오는" 요청), 목록은 항상 같은 높이의 압축
+     카드만 보여주고, 수정은 오른쪽(모바일은 전체화면) 디테일 패널에서만 함 — 목록 레이아웃이
+     편집 중에 흔들리지 않음. */
+  .db-layout{display:flex;gap:18px;align-items:flex-start;}
+  .db-list{flex:1;min-width:0;}
+  .db-detail{flex:0 0 380px;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 18px;}
+  .db-detail-back{display:none;}
+  .detail-empty{font-size:12.5px;color:var(--faint);text-align:center;padding:50px 14px;}
+  .cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;align-content:start;}
+  .ncard-compact{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:13px 15px;cursor:pointer;}
+  .ncard-compact:hover{border-color:var(--accent);}
+  .ncard-compact.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}
+  .ncard-name{font-family:var(--serif);font-size:15px;font-weight:600;}
   .ncard-name:empty::before{content:'이름 없는 노트';color:var(--faint);font-weight:400;}
   .ncard-notetype{display:inline-block;margin-left:7px;font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;color:#fff;background:var(--ntc,var(--faint));padding:2px 7px;border-radius:10px;vertical-align:middle;}
   .ncard-sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
@@ -90,10 +99,6 @@
   .ncard-desc{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.55;max-height:3.2em;overflow:hidden;}
   .ncard-desc:empty{display:none;}
   .ncard-logcount{font-size:10.5px;color:var(--faint);margin-top:8px;font-family:var(--mono);}
-  .ncard-caret{color:var(--faint);font-size:12px;margin-top:3px;transition:transform .15s;}
-  .ncard.open .ncard-caret{transform:rotate(90deg);}
-  .ncard-body{display:none;border-top:1px solid var(--line);padding:14px 16px 16px;}
-  .ncard.open .ncard-body{display:block;}
   .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px;}
   .field-grid .full{grid-column:1/-1;}
   .field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:3px;font-family:var(--mono);letter-spacing:.03em;}
@@ -169,11 +174,23 @@
   .ency-card .sub{font-size:11px;color:var(--faint);margin-bottom:7px;}
   .ency-card p{font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 6px;}
   .ency-card .ex{font-size:11px;color:var(--text);background:var(--sunk);border-radius:4px;padding:5px 8px;line-height:1.55;}
+  .ency-linked-wrap{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);}
+  .ency-linked-wrap h5{font-size:9.5px;color:var(--faint);margin:0 0 6px;font-family:var(--mono);letter-spacing:.04em;text-transform:uppercase;}
+  .ency-linked{display:flex;flex-wrap:wrap;gap:6px;}
+  .ency-notelink{background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:11px;color:var(--text);cursor:pointer;}
+  .ency-notelink:hover{border-color:var(--accent);color:var(--accent-2);}
+  .ency-linked-empty{font-size:11px;color:var(--faint);margin:0;}
 
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:12.5px;display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:all .18s;z-index:90;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
   .toast button{background:none;border:0;color:var(--accent-2);cursor:pointer;font-size:12.5px;}
 
+  @media (max-width:860px){
+    .db-layout{display:block;}
+    .db-detail{position:fixed;inset:0;z-index:50;max-height:none;border-radius:0;border:0;padding:16px 16px 50px;display:none;}
+    .db-detail.open{display:block;}
+    .db-detail-back{display:inline-block;margin-bottom:10px;background:none;border:0;color:var(--accent-2);font-size:13px;cursor:pointer;padding:6px 2px;}
+  }
   @media (max-width:640px){
     .wrap{padding:22px 14px 70px;}
     .field-grid{grid-template-columns:1fr;}
@@ -220,7 +237,10 @@
         <span class="count" id="dbSearchCount"></span>
       </div>
       <div class="addbar"><button class="btn" type="button" id="addNoteBtn">+ 새 노트</button></div>
-      <div class="cardgrid" id="noteGrid"></div>
+      <div class="db-layout">
+        <div class="cardgrid db-list" id="noteGrid"></div>
+        <aside class="db-detail" id="noteDetail"></aside>
+      </div>
       <p class="empty-note hidden" id="noteEmptyMsg">아직 노트가 없어요. "+ 새 노트"로 시작해보세요.</p>
     </div>
 
@@ -258,7 +278,7 @@
   // 검색: 띄어쓰기·대소문자 다 무시
   function norm(s){return (s||'').toString().toLowerCase().replace(/\s+/g,'');}
 
-  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], openNotes:{}, openRecipes:{}, dbQ:'', recipeQ:''};
+  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], activeNoteId:null, dbQ:'', recipeQ:''};
   var undoHist=[];
 
   var toast=$('toast'),toastMsg=$('toastMsg'),toastUndo=$('toastUndo'),tHide;
@@ -336,11 +356,21 @@
   // 미들까지 끌고 가는 경우) 경계 구간(탑-미들/미들-베이스)까지 포함한 5단계로 세분화.
   var NOTE_TYPES=[
     {v:'', label:'미지정', color:null},
-    {v:'top', label:'탑', color:'#0E76AC'},
-    {v:'top-mid', label:'탑-미들', color:'#4F8FA6'},
-    {v:'mid', label:'미들', color:'#7A2743'},
-    {v:'mid-base', label:'미들-베이스', color:'#8A5A4A'},
-    {v:'base', label:'베이스', color:'#5B4A2F'}
+    {v:'top', label:'탑', color:'#0E76AC', sub:'Top Note · 휘발 가장 빠름',
+      desc:'바른 직후 가장 먼저 코에 닿는 향. 보통 5~15분 안에 날아가며, 첫인상을 결정함.',
+      ex:'시트러스(베르가못·레몬), 허브(라벤더·로즈메리), 가벼운 과일향'},
+    {v:'top-mid', label:'탑-미들', color:'#4F8FA6', sub:'Top-Middle · 경계 구간',
+      desc:'탑처럼 바로 느껴지면서도 미들까지 끌고 가는 노트. 탑 노트만으로는 금방 비어 보일 때 이 구간을 섞으면 이어짐이 좋아짐.',
+      ex:'핑크페퍼, 일부 시트러스(만다린), 그린 노트'},
+    {v:'mid', label:'미들', color:'#7A2743', sub:'Middle Note · Heart Note',
+      desc:'탑 노트가 날아간 뒤 등장해 몇 시간 지속. 향의 본체이자 성격을 좌우하는 핵심부.',
+      ex:'플로럴(장미·자스민), 스파이스(시나몬·정향), 과일(복숭아·베리)'},
+    {v:'mid-base', label:'미들-베이스', color:'#8A5A4A', sub:'Middle-Base · 경계 구간',
+      desc:'미들에서 시작해 베이스까지 오래 끌고 가는 노트. 미들과 베이스 사이를 자연스럽게 이어줌.',
+      ex:'일부 스파이스(시나몬), 가벼운 우디, 발삼류'},
+    {v:'base', label:'베이스', color:'#5B4A2F', sub:'Base Note · 휘발 가장 느림',
+      desc:'가장 무겁고 오래 남는 향. 미들 노트를 받쳐주고, 향 전체의 지속력을 좌우함.',
+      ex:'우디(샌달우드·시더우드), 머스크, 앰버, 바닐라, 레진(벤조인·미르)'}
   ];
   function noteTypeInfo(v){ return NOTE_TYPES.find(function(t){return t.v===(v||'');}) || NOTE_TYPES[0]; }
   function noteTypeOptionsHtml(selV){
@@ -359,7 +389,9 @@
     }).join('');
   }
 
-  function renderNotes(){
+  function renderNotes(){ renderNoteList(); renderNoteDetail(); }
+
+  function renderNoteList(){
     var q=norm(state.dbQ);
     var list=state.notes.filter(function(n){return noteMatches(n,q);});
     $('noteEmptyMsg').classList.toggle('hidden', state.notes.length>0);
@@ -367,60 +399,74 @@
     $('noteGrid').innerHTML = list.map(function(n){
       var logs=logsForNote(n.id);
       var links=n.links||[];
-      var open=!!state.openNotes[n.id];
-      return '<div class="ncard'+(open?' open':'')+'" data-id="'+esc(n.id)+'">' +
-        '<div class="ncard-head" data-act="toggle">' +
-          '<div class="meta">' +
-            '<div class="ncard-name-row"><span class="ncard-name">'+esc(n.name)+'</span>'+noteTypeBadgeHtml(n.note_type)+'</div>' +
-            '<div class="ncard-sub">'+(n.origin?esc(n.origin):'')+(n.origin&&n.latin_name?' · ':'')+(n.latin_name?'<span class="latin">'+esc(n.latin_name)+'</span>':'')+'</div>' +
-            '<div class="ncard-desc">'+esc(n.description)+'</div>' +
-            '<div class="ncard-logcount">메모 '+logs.length+'개'+(links.length?' · 링크 '+links.length+'개':'')+'</div>' +
-          '</div>' +
-          '<div class="ncard-caret">▸</div>' +
-        '</div>' +
-        '<div class="ncard-body">' +
-          '<div class="field-grid">' +
-            '<div class="field"><label>이름</label><input type="text" data-field="name" value="'+esc(n.name)+'"></div>' +
-            '<div class="field"><label>원산지</label><input type="text" data-field="origin" value="'+esc(n.origin)+'"></div>' +
-            '<div class="field"><label>학명</label><input type="text" class="latin" data-field="latin_name" value="'+esc(n.latin_name)+'"></div>' +
-            '<div class="field"><label>노트 종류</label><select data-field="note_type">'+noteTypeOptionsHtml(n.note_type)+'</select></div>' +
-            '<div class="field full"><label>설명</label><textarea data-field="description" rows="2">'+esc(n.description)+'</textarea></div>' +
-          '</div>' +
-          '<div class="links-sec">' +
-            '<h4>링크</h4>' +
-            (links.length ? links.map(function(l,i){
-              var url=l.url||'';
-              return '<div class="linkrow" data-li="'+i+'">' +
-                '<input type="text" class="linklabel" data-field="link-label" placeholder="이름(선택)" value="'+esc(l.label)+'">' +
-                '<input type="url" class="linkurl" data-field="link-url" placeholder="https://…" value="'+esc(url)+'">' +
-                (url ? '<a class="linkopen" href="'+esc(url)+'" target="_blank" rel="noopener">↗</a>' : '<span class="linkopen linkopen-disabled">↗</span>') +
-                '<button class="ldel" type="button" data-act="dellink">✕</button>' +
-              '</div>';
-            }).join('') : '<p class="empty-note" style="padding:6px 0;">아직 링크가 없어요.</p>') +
-            '<button class="ing-add" type="button" data-act="addlink">+ 링크 추가</button>' +
-          '</div>' +
-          '<div class="ncard-foot"><button class="btn danger" type="button" data-act="delnote">삭제</button></div>' +
-          '<div class="logs-sec">' +
-            '<h4>일자별 메모</h4>' +
-            (logs.length ? logs.map(function(l){
-              return '<div class="logrow" data-log-id="'+esc(l.id)+'"><div class="ldate">'+esc(l.date)+'</div><div class="ltext">'+esc(l.text)+'</div><button class="ldel" type="button" data-act="dellog">✕</button></div>';
-            }).join('') : '<p class="empty-note" style="padding:10px 0;">아직 메모가 없어요.</p>') +
-            '<div class="logadd">' +
-              '<input type="date" class="newlogdate" value="'+todayISO()+'">' +
-              '<textarea class="newlogtext" placeholder="오늘의 메모…"></textarea>' +
-              '<button type="button" data-act="addlog">추가</button>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
+      var active=state.activeNoteId===n.id;
+      return '<div class="ncard-compact'+(active?' active':'')+'" data-id="'+esc(n.id)+'">' +
+        '<div class="ncard-name-row"><span class="ncard-name">'+esc(n.name)+'</span>'+noteTypeBadgeHtml(n.note_type)+'</div>' +
+        '<div class="ncard-sub">'+(n.origin?esc(n.origin):'')+(n.origin&&n.latin_name?' · ':'')+(n.latin_name?'<span class="latin">'+esc(n.latin_name)+'</span>':'')+'</div>' +
+        '<div class="ncard-desc">'+esc(n.description)+'</div>' +
+        '<div class="ncard-logcount">메모 '+logs.length+'개'+(links.length?' · 링크 '+links.length+'개':'')+'</div>' +
       '</div>';
     }).join('');
+    renderEncy();
+  }
+
+  function renderNoteDetail(){
+    var el=$('noteDetail');
+    var n=state.activeNoteId && state.notes.find(function(x){return x.id===state.activeNoteId;});
+    if(!n){
+      el.innerHTML='<p class="detail-empty">노트를 선택하면 여기서 수정할 수 있어요.</p>';
+      el.classList.remove('open');
+      return;
+    }
+    var logs=logsForNote(n.id);
+    var links=n.links||[];
+    el.innerHTML =
+      '<button type="button" class="db-detail-back" data-act="closedetail">‹ 목록</button>' +
+      '<div class="field-grid">' +
+        '<div class="field"><label>이름</label><input type="text" data-field="name" value="'+esc(n.name)+'"></div>' +
+        '<div class="field"><label>원산지</label><input type="text" data-field="origin" value="'+esc(n.origin)+'"></div>' +
+        '<div class="field"><label>학명</label><input type="text" class="latin" data-field="latin_name" value="'+esc(n.latin_name)+'"></div>' +
+        '<div class="field"><label>노트 종류</label><select data-field="note_type">'+noteTypeOptionsHtml(n.note_type)+'</select></div>' +
+        '<div class="field full"><label>설명</label><textarea data-field="description" rows="2">'+esc(n.description)+'</textarea></div>' +
+      '</div>' +
+      '<div class="links-sec">' +
+        '<h4>링크</h4>' +
+        (links.length ? links.map(function(l,i){
+          var url=l.url||'';
+          return '<div class="linkrow" data-li="'+i+'">' +
+            '<input type="text" class="linklabel" data-field="link-label" placeholder="이름(선택)" value="'+esc(l.label)+'">' +
+            '<input type="url" class="linkurl" data-field="link-url" placeholder="https://…" value="'+esc(url)+'">' +
+            (url ? '<a class="linkopen" href="'+esc(url)+'" target="_blank" rel="noopener">↗</a>' : '<span class="linkopen linkopen-disabled">↗</span>') +
+            '<button class="ldel" type="button" data-act="dellink">✕</button>' +
+          '</div>';
+        }).join('') : '<p class="empty-note" style="padding:6px 0;">아직 링크가 없어요.</p>') +
+        '<button class="ing-add" type="button" data-act="addlink">+ 링크 추가</button>' +
+      '</div>' +
+      '<div class="ncard-foot"><button class="btn danger" type="button" data-act="delnote">삭제</button></div>' +
+      '<div class="logs-sec">' +
+        '<h4>일자별 메모</h4>' +
+        (logs.length ? logs.map(function(l){
+          return '<div class="logrow" data-log-id="'+esc(l.id)+'"><div class="ldate">'+esc(l.date)+'</div><div class="ltext">'+esc(l.text)+'</div><button class="ldel" type="button" data-act="dellog">✕</button></div>';
+        }).join('') : '<p class="empty-note" style="padding:10px 0;">아직 메모가 없어요.</p>') +
+        '<div class="logadd">' +
+          '<input type="date" class="newlogdate" value="'+todayISO()+'">' +
+          '<textarea class="newlogtext" placeholder="오늘의 메모…"></textarea>' +
+          '<button type="button" data-act="addlog">추가</button>' +
+        '</div>' +
+      '</div>';
+    el.classList.add('open');
+  }
+
+  function selectNote(id){
+    state.activeNoteId=id;
+    renderNoteList();
+    renderNoteDetail();
   }
 
   $('addNoteBtn').addEventListener('click',function(){
     var row={id:uid('an'),owner:state.uid,name:'',origin:'',latin_name:'',description:'',note_type:'',links:[],created:new Date().toISOString(),updated:new Date().toISOString()};
     state.notes.unshift(row);
-    state.openNotes[row.id]=true;
-    renderNotes();
+    selectNote(row.id);
     sb.from('aroma_notes').upsert(row).then(function(){});
   });
 
@@ -431,20 +477,33 @@
     sb.from('aroma_notes').upsert(n).then(function(){});
   }
 
+  // 목록 카드는 선택만 함(수정은 전부 오른쪽 디테일 패널에서) — 목록 자체는 편집 중에도
+  // 높이가 안 바뀌니 다른 카드 위치가 흔들리지 않음.
   $('noteGrid').addEventListener('click',function(e){
-    var card=e.target.closest('.ncard'); if(!card)return;
-    var id=card.getAttribute('data-id');
-    var act=e.target.getAttribute('data-act');
-    if(e.target.closest('[data-act="toggle"]') && !act){
-      state.openNotes[id]=!state.openNotes[id];
-      renderNotes();
-      return;
+    var card=e.target.closest('.ncard-compact'); if(!card)return;
+    selectNote(card.getAttribute('data-id'));
+    if(window.matchMedia('(max-width:860px)').matches){
+      var detail=$('noteDetail');
+      if(detail)detail.scrollIntoView({behavior:'smooth',block:'start'});
     }
+  });
+
+  function closeDetail(){
+    state.activeNoteId=null;
+    renderNoteList();
+    renderNoteDetail();
+  }
+
+  $('noteDetail').addEventListener('click',function(e){
+    var id=state.activeNoteId; if(!id)return;
+    var act=e.target.getAttribute('data-act');
+    if(act==='closedetail'){ closeDetail(); return; }
     if(act==='delnote'){
       var idx=state.notes.findIndex(function(x){return x.id===id;});
       var removed=state.notes[idx], removedLogs=logsForNote(id);
       state.notes.splice(idx,1);
       state.noteLogs=state.noteLogs.filter(function(l){return l.note_id!==id;});
+      state.activeNoteId=null;
       renderNotes();
       sb.from('aroma_notes').delete().eq('id',id).then(function(){});
       showToast('노트를 지웠어요',function(){
@@ -459,7 +518,8 @@
     if(act==='addlink'){
       var n2=state.notes.find(function(x){return x.id===id;});
       n2.links=(n2.links||[]).concat([{label:'',url:''}]);
-      renderNotes();
+      renderNoteDetail();
+      renderNoteList();
       saveNote(id);
     }
     if(act==='dellink'){
@@ -468,21 +528,24 @@
       var li=parseInt(linkRow.getAttribute('data-li'));
       var removedLink=n3.links[li];
       n3.links.splice(li,1);
-      renderNotes();
+      renderNoteDetail();
+      renderNoteList();
       saveNote(id);
       showToast('링크를 지웠어요',function(){
         n3.links.splice(li,0,removedLink);
-        renderNotes();
+        renderNoteDetail();
+        renderNoteList();
         saveNote(id);
       });
     }
     if(act==='addlog'){
-      var dateIn=card.querySelector('.newlogdate'), textIn=card.querySelector('.newlogtext');
+      var dateIn=$('noteDetail').querySelector('.newlogdate'), textIn=$('noteDetail').querySelector('.newlogtext');
       var text=(textIn.value||'').trim();
       if(!text)return;
       var log={id:uid('anl'),owner:state.uid,note_id:id,date:dateIn.value||todayISO(),text:text,created:new Date().toISOString()};
       state.noteLogs.unshift(log);
-      renderNotes();
+      renderNoteDetail();
+      renderNoteList();
       sb.from('aroma_note_logs').upsert(log).then(function(){});
     }
     if(act==='dellog'){
@@ -491,11 +554,13 @@
       var lidx=state.noteLogs.findIndex(function(l){return l.id===logId;});
       var removedLog=state.noteLogs[lidx];
       state.noteLogs.splice(lidx,1);
-      renderNotes();
+      renderNoteDetail();
+      renderNoteList();
       sb.from('aroma_note_logs').delete().eq('id',logId).then(function(){});
       showToast('메모를 지웠어요',function(){
         state.noteLogs.splice(lidx,0,removedLog);
-        renderNotes();
+        renderNoteDetail();
+        renderNoteList();
         sb.from('aroma_note_logs').upsert(removedLog).then(function(){});
       });
     }
@@ -503,9 +568,9 @@
 
   // 입력칸 자체를 다시 그리면(innerHTML 재생성) 블러→포커스 전환이 진행 중인 브라우저의
   // 내부 DOM 변경과 충돌해(" node to be removed is no longer a child" 오류) 깨지므로,
-  // 카드 헤더의 요약 텍스트만 직접 patch하고 입력칸 자체는 건드리지 않음.
-  function patchNoteCardHeader(id){
-    var card=$('noteGrid').querySelector('.ncard[data-id="'+id+'"]');
+  // 목록 카드의 요약 텍스트만 직접 patch하고 디테일 패널의 입력칸 자체는 건드리지 않음.
+  function patchNoteListItem(id){
+    var card=$('noteGrid').querySelector('.ncard-compact[data-id="'+id+'"]');
     var n=state.notes.find(function(x){return x.id===id;});
     if(!card||!n)return;
     var nameEl=card.querySelector('.ncard-name'); if(nameEl)nameEl.textContent=n.name;
@@ -518,6 +583,11 @@
     var subEl=card.querySelector('.ncard-sub');
     if(subEl)subEl.innerHTML=(n.origin?esc(n.origin):'')+(n.origin&&n.latin_name?' · ':'')+(n.latin_name?'<span class="latin">'+esc(n.latin_name)+'</span>':'');
     var descEl=card.querySelector('.ncard-desc'); if(descEl)descEl.textContent=n.description;
+    var cntEl=card.querySelector('.ncard-logcount');
+    if(cntEl){
+      var logs=logsForNote(n.id), links=n.links||[];
+      cntEl.textContent='메모 '+logs.length+'개'+(links.length?' · 링크 '+links.length+'개':'');
+    }
   }
 
   // 링크 행의 열기(↗) 버튼만 patch — 전체 재렌더와 같은 이유로 입력칸은 안 건드림
@@ -532,11 +602,10 @@
     }
   }
 
-  $('noteGrid').addEventListener('change',function(e){
+  $('noteDetail').addEventListener('change',function(e){
     var field=e.target.getAttribute('data-field');
     if(!field)return;
-    var card=e.target.closest('.ncard');
-    var id=card.getAttribute('data-id');
+    var id=state.activeNoteId;
     var n=state.notes.find(function(x){return x.id===id;});
     if(!n)return;
     if(field==='link-label'||field==='link-url'){
@@ -550,10 +619,11 @@
     }
     n[field]=e.target.value;
     saveNote(id);
-    patchNoteCardHeader(id);
+    patchNoteListItem(id);
+    renderEncy();
   });
 
-  $('dbSearch').addEventListener('input',function(e){state.dbQ=e.target.value;renderNotes();});
+  $('dbSearch').addEventListener('input',function(e){state.dbQ=e.target.value;renderNoteList();});
 
   // ===== 레시피 탭 =====
   function recipeTotalRatio(items){return (items||[]).reduce(function(s,it){return s+(parseFloat(it.ratio)||0);},0);}
@@ -717,17 +787,6 @@
   $('recipeSearch').addEventListener('input',function(e){state.recipeQ=e.target.value;renderRecipes();});
 
   // ===== 백과 탭 =====
-  var NOTE_CLASSES=[
-    {name:'탑 노트', sub:'Top Note · 휘발 가장 빠름', color:'#0E76AC',
-      desc:'바른 직후 가장 먼저 코에 닿는 향. 보통 5~15분 안에 날아가며, 첫인상을 결정함.',
-      ex:'시트러스(베르가못·레몬), 허브(라벤더·로즈메리), 가벼운 과일향'},
-    {name:'미들 노트', sub:'Middle Note · Heart Note', color:'#7A2743',
-      desc:'탑 노트가 날아간 뒤 등장해 몇 시간 지속. 향의 본체이자 성격을 좌우하는 핵심부.',
-      ex:'플로럴(장미·자스민), 스파이스(시나몬·정향), 과일(복숭아·베리)'},
-    {name:'베이스 노트', sub:'Base Note · 휘발 가장 느림', color:'#5B4A2F',
-      desc:'가장 무겁고 오래 남는 향. 미들 노트를 받쳐주고, 향 전체의 지속력을 좌우함.',
-      ex:'우디(샌달우드·시더우드), 머스크, 앰버, 바닐라, 레진(벤조인·미르)'}
-  ];
   var FAMILIES=[
     {name:'시트러스', color:'#E0A930', desc:'상큼하고 청량한 감귤류 향. 대부분 탑 노트로만 쓰이고 휘발이 빠름.', ex:'베르가못, 레몬, 오렌지, 자몽, 라임'},
     {name:'플로럴', color:'#C9779E', desc:'꽃에서 나는 향 전체를 아우름. 향수의 가장 큰 계열.', ex:'장미, 자스민, 일랑일랑, 튜베로즈, 제비꽃'},
@@ -769,11 +828,48 @@
     }).join('') + '</div>';
   }
 
+  // "노트의 구조" 카드는 dropdown(NOTE_TYPES)과 같은 데이터를 공유해서, DB 노트의
+  // note_type과 정확히 1:1로 매칭되는 내 노트 목록을 카드마다 보여줌(2026-10-11,
+  // "향료백과에도 향료 노트들 연결해서 보여줄 수 있나" 요청). 향료 계열·추출법은
+  // 아직 노트에 그 분류를 저장하는 칸이 따로 없어서(계열 태그·추출법 필드 미보유)
+  // 지금은 연결 안 함 — 필요하면 노트에 그 필드부터 추가하면 됨.
+  function notesOfType(v){ return state.notes.filter(function(n){return (n.note_type||'')===v;}); }
+  function linkedNotesHtml(notes){
+    if(!notes.length)return '<p class="ency-linked-empty">아직 연결된 내 노트가 없어요.</p>';
+    return '<div class="ency-linked">' + notes.map(function(n){
+      return '<button type="button" class="ency-notelink" data-note-id="'+esc(n.id)+'">'+esc(n.name||'(이름 없음)')+'</button>';
+    }).join('') + '</div>';
+  }
+  function renderNoteTypeGrid(){
+    return '<div class="ency-grid">' + NOTE_TYPES.filter(function(t){return t.v;}).map(function(t){
+      return '<div class="ency-card" style="--pc:'+t.color+';"><b>'+esc(t.label)+'</b>' +
+        '<div class="sub">'+esc(t.sub)+'</div>' +
+        '<p>'+esc(t.desc)+'</p>' +
+        '<div class="ex">'+esc(t.ex)+'</div>' +
+        '<div class="ency-linked-wrap"><h5>내 DB 노트</h5>'+linkedNotesHtml(notesOfType(t.v))+'</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function goToNoteInDB(id){
+    var dbTabBtn=document.querySelector('#mainTabs .tab[data-page="page-db"]');
+    if(dbTabBtn)dbTabBtn.click();
+    selectNote(id);
+    setTimeout(function(){
+      var detail=$('noteDetail');
+      if(detail)detail.scrollIntoView({behavior:'smooth',block:'start'});
+    },50);
+  }
+  $('encyBody').addEventListener('click',function(e){
+    var btn=e.target.closest('.ency-notelink'); if(!btn)return;
+    goToNoteInDB(btn.getAttribute('data-note-id'));
+  });
+
   function renderEncy(){
     $('encyBody').innerHTML =
       '<section class="ency-sec"><h2>노트의 구조 — 탑 · 미들 · 베이스</h2>' +
-      '<p class="lede">향수 한 방울 안에서도 휘발 속도가 다른 세 층이 시간차를 두고 펼쳐집니다. 블렌딩할 때 세 층을 고루 섞어야 시간이 지나도 향이 비어 보이지 않습니다.</p>' +
-      renderEncyGrid(NOTE_CLASSES) + '</section>' +
+      '<p class="lede">향수 한 방울 안에서도 휘발 속도가 다른 층이 시간차를 두고 펼쳐집니다. 블렌딩할 때 세 층을 고루 섞어야 시간이 지나도 향이 비어 보이지 않습니다. 카드 안의 노트를 누르면 DB에서 바로 열려요.</p>' +
+      renderNoteTypeGrid() + '</section>' +
       '<section class="ency-sec"><h2>향료 계열(패밀리)</h2>' +
       '<p class="lede">향수 업계에서 통용되는 분류 기준입니다. 레시피를 짤 때 계열을 섞는 비율로 전체 인상이 크게 갈립니다.</p>' +
       renderEncyGrid(FAMILIES) + '</section>' +
