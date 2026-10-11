@@ -368,6 +368,26 @@
   .spectrum-cap{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#C9BFA4;}
   .spectrum-note{margin-top:14px;font-size:12px;color:#C9BFA4;line-height:1.7;}
 
+  /* ---- 육대다류 제다방법 인포그래픽 ---- */
+  .process-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:18px 0 30px;}
+  .process-card{border:1px solid var(--rule-faint);border-radius:4px;padding:16px 17px;border-top:4px solid var(--pc);background:var(--paper-deep);}
+  .process-head{display:flex;align-items:baseline;gap:7px;margin-bottom:6px;}
+  .process-name{font-family:'Noto Serif KR',serif;font-size:16px;font-weight:700;}
+  .process-head .han{font-size:12px;color:var(--ink-soft);}
+  .process-ferment{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.04em;color:var(--paper);background:var(--pc);padding:3px 8px;border-radius:10px;white-space:nowrap;}
+  .process-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin:0 0 13px;}
+  .process-flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;}
+  .process-step{flex:1 1 128px;background:rgba(255,255,255,0.4);border-radius:4px;padding:9px 10px;min-width:0;}
+  .process-step b{display:block;font-family:'Noto Serif KR',serif;font-size:13px;margin-bottom:3px;}
+  .process-step span{display:block;font-size:11px;color:var(--ink-soft);line-height:1.55;}
+  .process-arrow{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:22px;color:var(--pc);font-weight:700;}
+  .process-note{margin-top:10px;font-size:11.5px;color:var(--ink-soft);line-height:1.6;border-top:1px solid var(--rule-faint);padding-top:8px;}
+  @media (max-width:860px){
+    .process-grid{grid-template-columns:1fr;}
+    .process-flow{flex-direction:column;}
+    .process-arrow{width:auto;height:16px;transform:rotate(90deg);}
+  }
+
   @media (max-width:640px){
     body{padding:26px 14px 60px;}
     h1{font-size:26px;}
@@ -697,11 +717,8 @@
       <button type="button" class="find-nav" id="atlasFindPrev" title="이전 결과 (Shift+Enter)">‹</button>
       <button type="button" class="find-nav" id="atlasFindNext" title="다음 결과 (Enter)">›</button>
     </div>
-    <div class="atlas-nav" id="atlasNav"></div>
-    <div id="atlasBody"></div>
-
     <div class="spectrum">
-      <h3>발효도 한 눈에 보기</h3>
+      <h3>발효도 한 눈에 보기 — 육대다류</h3>
       <div class="spectrum-bar">
         <div style="background:#A8C08A;">녹차</div>
         <div style="background:#CBD3A3;">백차</div>
@@ -713,6 +730,11 @@
       <div class="spectrum-cap"><span>무발효</span><span>완전발효 · 후발효</span></div>
       <p class="spectrum-note">흑차는 이 축의 끝이라기보다 별개 축입니다. 만든 뒤에도 미생물이 계속 관여하는 후발효차라서, 시간이 갈수록 계속 변합니다. 어느 나라 차든 이 스펙트럼 위 어디쯤인지만 짚으면 우림 온도와 시간이 대략 잡힙니다.</p>
     </div>
+
+    <div class="process-grid" id="teaProcessBody"></div>
+
+    <div class="atlas-nav" id="atlasNav"></div>
+    <div id="atlasBody"></div>
   </div><!-- /sub-atlas -->
 
   <!-- ---- 우림 가이드 ---- -->
@@ -2742,6 +2764,81 @@ const ATLAS = [
   }
 ];
 
+// 육대다류 제다방법 인포그래픽 — 발효도 순서(무발효→후발효)로 공정 단계를 나열
+const TEA_PROCESS = [
+  {id:'green', name:'녹차', han:'綠茶', ferment:'무발효', color:'#A8C08A',
+    desc:'딴 직후 열을 가해 산화효소를 바로 죽이는 게 전부입니다. 그래서 풋풋한 잎 그대로의 색과 향이 남습니다.',
+    steps:[
+      {t:'채엽', d:'어린 싹·잎을 이른 아침에 수확, 바로 가공 들어가야 함'},
+      {t:'살청(殺靑)', d:'솥에서 덖거나(초청) 증기로 쪄서(증청) 산화효소를 즉시 비활성화 — 녹차 공정의 핵심'},
+      {t:'유념(揀捻)', d:'잎을 비비거나 말아 형태를 잡고, 세포벽을 살짝 터뜨려 우러나기 쉽게 함'},
+      {t:'건조', d:'홍건·초건으로 수분을 낮춰 보존성 확보'}
+    ]},
+  {id:'white', name:'백차', han:'白茶', ferment:'약발효', color:'#CBD3A3',
+    desc:'육대다류 중 손이 가장 덜 갑니다. 덖지도 비비지도 않고, 그냥 시들려 말리기만 해서 약하게 산화됩니다.',
+    steps:[
+      {t:'채엽', d:'백호은침은 싹만, 백모단은 싹+잎 1~2매 — 여릴수록 등급이 높음'},
+      {t:'위조(萎凋)', d:'실내·실외에 2~3일 넓게 펴 널어 천천히 시들림 — 이 동안 약하게 자연 산화가 일어남(살청 없음)'},
+      {t:'건조', d:'약한 불이나 햇볕으로 마무리 건조. 유념 공정 자체가 없어 잎 형태가 거의 그대로 남음'}
+    ],
+    note:'살청·유념이 둘 다 없는 유일한 차류라 "가장 덜 만든 차"로 불립니다. 그만큼 원료(싹)의 질이 맛을 거의 그대로 결정합니다.'},
+  {id:'yellow', name:'황차', han:'黃茶', ferment:'경발효', color:'#DDCB84',
+    desc:'공정은 녹차와 거의 같은데, 중간에 뜸을 들이는 단계 하나가 더 있어서 녹차의 풋내가 빠지고 더 부드러워집니다.',
+    steps:[
+      {t:'채엽·살청', d:'녹차와 동일하게 수확 후 바로 살청으로 산화효소를 죽임'},
+      {t:'유념', d:'녹차와 같은 방식으로 비비거나 말아 형태를 잡음'},
+      {t:'민황(悶黃)', d:'아직 뜨겁고 수분이 남은 잎을 종이·천으로 싸서 쌓아두고 습열 상태로 뜸들임(수 시간~며칠) — 황차만의 핵심 공정, 이때 약한 비효소적 발효가 일어나 누런빛과 부드러운 맛이 생김'},
+      {t:'건조', d:'마무리 건조로 수분 제거'}
+    ],
+    note:'생산량이 가장 적은 차류 — 민황 공정이 까다롭고 시간이 걸려서 상업적으로 잘 안 만들어집니다.'},
+  {id:'oolong', name:'청차(우롱)', han:'靑茶', ferment:'부분산화 10~80%', color:'#C99A54',
+    desc:'산화를 중간에서 멈추는 기술이 핵심이라, 같은 "우롱"이어도 산화도에 따라 녹차에 가까운 맛부터 홍차에 가까운 맛까지 폭이 가장 넓습니다.',
+    steps:[
+      {t:'채엽', d:'싹보다 다 자란 잎(開面葉) 위주로 수확 — 녹차보다 성숙한 잎을 씀'},
+      {t:'위조', d:'햇볕이나 실내에서 시들려 수분을 날리고 산화를 준비'},
+      {t:'요청(搖靑)', d:'대광주리에 넣고 흔들거나 비벼 잎 가장자리에 상처를 내 산화를 촉진 — 정지(靜置, 쉬기)와 번갈아 반복하며 원하는 산화도까지 끌어올림'},
+      {t:'살청', d:'원하는 산화도(문산포종 10%대~동방미인 70%대)에 도달하면 열을 가해 산화를 그 자리에서 멈춤'},
+      {t:'유념(포유)', d:'비비거나(조형) 둥글게 싸서 압착(포유)해 형태를 잡음 — 구슬형 철관음은 포유 공정이 특히 중요'},
+      {t:'건조·배화', d:'건조 후 기호에 따라 숯불·전기로 추가로 볶는 배화(焙火) 공정을 더해 불향·단맛을 얹음(청향형은 생략, 농향형은 깊게)'}
+    ]},
+  {id:'black_t', name:'홍차', han:'紅茶', ferment:'완전산화', color:'#A9522F', textLight:true,
+    desc:'세포를 적극적으로 터뜨려 산화효소가 공기와 최대한 많이 만나게 하는 차. 그래서 색이 붉어지고 단맛·바디가 가장 묵직합니다.',
+    steps:[
+      {t:'채엽', d:'대엽종(아쌈·전홍)은 두 잎+싹, 소엽종(기문·정산소종)은 더 여린 잎 위주'},
+      {t:'위조', d:'장시간(8~18시간) 시들려 수분을 날리고 잎을 유연하게 만듦'},
+      {t:'유념', d:'강하게 비비거나 CTC 기계로 잘라 세포벽을 적극적으로 파괴 — 산화효소가 터져나와 공기와 바로 반응하게 함'},
+      {t:'발효(산화)', d:'습도·온도를 맞춘 방에서 1~3시간 그대로 두어 완전히 산화 — 잎이 구릿빛~검은빛으로 변함, "발효"라 부르지만 실제로는 효소에 의한 산화'},
+      {t:'건조', d:'고온으로 빠르게 건조해 산화를 완전히 정지, 향을 고정'}
+    ]},
+  {id:'dark', name:'흑차', han:'黑茶', ferment:'후발효', color:'#5C3722', textLight:true,
+    desc:'완성된 뒤에도 미생물이 계속 작용하는 유일한 차류. 만드는 순간의 발효가 아니라 "시간이 만드는 발효"가 핵심입니다.',
+    steps:[
+      {t:'채엽·살청·유념', d:'녹차와 같은 순서로 1차 가공(모차毛茶를 만듦) — 아직은 녹차에 가까운 상태'},
+      {t:'악퇴(渥堆) 또는 자연후발효', d:'보이 숙차는 찻잎을 쌓고 물을 뿌려 미생물(곰팡이·효모)이 번식하게 두는 악퇴(40~60일, 1973년 개발된 인공 발효) · 보이 생차는 악퇴 없이 압착해서 수년~수십 년에 걸쳐 자연적으로 천천히 후발효됨'},
+      {t:'긴압(選壓)', d:'병차·전차·타차 등 덩어리 형태로 눌러 압축 — 공기 접촉을 줄여 발효 속도를 조절하고 보관·운송을 쉽게 함(흩잎散茶으로도 유통)'},
+      {t:'건조·숙성', d:'건조 후 통풍이 되는 창고에서 오래 숙성 — 흑차는 이 단계가 끝나는 시점이 따로 없음'}
+    ],
+    note:'복전차처럼 일부러 금화(황금 곰팡이, 유익균)를 피우는 경우도 있습니다 — 흑차에서만 "곰팡이=고급 표시"가 되는 역전이 일어남.'}
+];
+
+function renderTeaProcess(){
+  $('teaProcessBody').innerHTML = TEA_PROCESS.map(function(tp){
+    const steps = tp.steps.map(function(s,i){
+      const arrow = i>0 ? '<div class="process-arrow">→</div>' : '';
+      return arrow + '<div class="process-step"><b>'+escapeHtml(s.t)+'</b><span>'+escapeHtml(s.d)+'</span></div>';
+    }).join('');
+    const note = tp.note ? '<p class="process-note">'+escapeHtml(tp.note)+'</p>' : '';
+    const badgeColor = tp.textLight ? '#E7DFCB' : '#2A241C';
+    return '<div class="process-card" style="--pc:'+tp.color+';">' +
+      '<div class="process-head"><span class="process-name">'+escapeHtml(tp.name)+'</span>' +
+      '<span class="han">'+escapeHtml(tp.han)+'</span>' +
+      '<span class="process-ferment" style="color:'+badgeColor+';">'+escapeHtml(tp.ferment)+'</span></div>' +
+      '<p class="process-desc">'+escapeHtml(tp.desc)+'</p>' +
+      '<div class="process-flow">'+steps+'</div>' + note +
+    '</div>';
+  }).join('');
+}
+
 function renderAtlas(){
   $('atlasNav').innerHTML = ATLAS.map(sec=>
     '<button class="chip" data-goto="atlas-'+sec.id+'">'+sec.title+'</button>'
@@ -2935,6 +3032,7 @@ const atlasFinder = makeFinder({
   renderChips();
   renderBrewList();
   initCalc();
+  renderTeaProcess();
   renderAtlas();
   renderGlossary();
   await restoreActiveTab('mainTabs', 'jamwon-active-tab-v1');
