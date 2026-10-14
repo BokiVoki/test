@@ -102,7 +102,8 @@
   .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px;}
   .field-grid .full{grid-column:1/-1;}
   .field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:3px;font-family:var(--mono);letter-spacing:.03em;}
-  .field input,.field textarea,.field select{width:100%;border:0;border-bottom:1px solid var(--line);background:none;padding:6px 2px;font-size:13.5px;color:var(--text);resize:vertical;}
+  .field input,.field textarea,.field select{width:100%;border:0;border-bottom:1px solid var(--line);background:none;padding:7px 2px;font-size:13.5px;color:var(--text);resize:vertical;}
+  .field textarea{min-height:92px;line-height:1.6;}
   .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-bottom-color:var(--accent);}
   .field input.latin{font-style:italic;}
   .ncard-foot{display:flex;justify-content:flex-end;margin-top:4px;}
@@ -116,7 +117,7 @@
   .logrow .ldel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;padding:2px 4px;}
   .logadd{display:flex;gap:7px;margin-top:10px;align-items:flex-start;}
   .logadd input[type="date"]{border:1px solid var(--line);border-radius:4px;padding:6px 7px;font-size:11.5px;background:var(--sunk);color:var(--text);}
-  .logadd textarea{flex:1;border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:12.5px;background:var(--sunk);color:var(--text);min-height:34px;resize:vertical;}
+  .logadd textarea{flex:1;border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:12.5px;line-height:1.6;background:var(--sunk);color:var(--text);min-height:70px;resize:vertical;}
   .logadd button{background:var(--accent);color:var(--on-accent);border:0;border-radius:4px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap;}
   .links-sec{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);}
   .links-sec h4{font-size:11px;color:var(--muted);margin:0 0 9px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
@@ -137,7 +138,7 @@
   .rcard-title{flex:1;font-family:var(--serif);font-size:16px;font-weight:600;border:0;background:none;color:var(--text);width:100%;border-bottom:1px solid transparent;padding:2px 0;}
   .rcard-title:empty::before{content:'제목 없는 레시피';color:var(--faint);font-weight:400;}
   .rcard-title:focus{outline:none;border-bottom-color:var(--accent);}
-  .rcard-purpose{font-size:12.5px;color:var(--muted);border:0;border-bottom:1px solid var(--line);background:none;width:100%;padding:6px 2px;margin-bottom:12px;resize:vertical;min-height:30px;}
+  .rcard-purpose{font-size:12.5px;color:var(--muted);line-height:1.6;border:0;border-bottom:1px solid var(--line);background:none;width:100%;padding:7px 2px;margin-bottom:12px;resize:vertical;min-height:58px;}
   .rcard-purpose:focus{outline:none;border-bottom-color:var(--accent);}
   .rcard-purpose:empty::before{content:'이 블렌딩의 목적성(언제·어떤 느낌을 위한 것인지)';color:var(--faint);}
   .ingtbl{width:100%;border-collapse:collapse;margin-bottom:8px;}
@@ -161,7 +162,7 @@
   .expadd{background:var(--panel);border:1px dashed var(--line);border-radius:6px;padding:10px 12px;}
   .expadd-row{display:flex;gap:8px;margin-bottom:7px;align-items:center;}
   .expadd-row input[type="date"]{border:1px solid var(--line);border-radius:4px;padding:6px 7px;font-size:11.5px;background:var(--sunk);color:var(--text);}
-  .expadd textarea{width:100%;border:1px solid var(--line);border-radius:4px;padding:7px 9px;font-size:12.5px;background:var(--sunk);color:var(--text);min-height:50px;resize:vertical;margin-bottom:7px;}
+  .expadd textarea{width:100%;border:1px solid var(--line);border-radius:4px;padding:9px 11px;font-size:12.5px;line-height:1.6;background:var(--sunk);color:var(--text);min-height:90px;resize:vertical;margin-bottom:7px;}
   .expadd button{background:var(--accent);color:var(--on-accent);border:0;border-radius:4px;padding:6px 13px;font-size:12px;cursor:pointer;}
 
   /* ---- 백과 ---- */
@@ -181,6 +182,34 @@
   .ency-notelink:hover{border-color:var(--accent);color:var(--accent-2);}
   .ency-linked-empty{font-size:11px;color:var(--faint);margin:0;}
 
+  /* ---- 저널 ---- */
+  /* 노트/레시피 안의 일자별 메모·실험기록과는 별개로, 특정 원료·레시피에 안 묶인
+     자유 기록(그날의 조향 전반에 대한 생각 등)을 쌓는 탭. 날짜 목록은 수동으로
+     만드는 게 아니라 하루앱 저널과 같은 원리로 자동 수집함(본문이 있는 저널 날짜 +
+     그날 쓴 노트/레시피 메모 날짜 + 오늘). */
+  .j-layout{display:flex;gap:20px;align-items:flex-start;}
+  .j-dates-wrap{flex:0 0 200px;}
+  .jdate-jump{margin-bottom:10px;}
+  .jdate-jump input{width:100%;border:1px solid var(--line);border-radius:5px;padding:7px 8px;font-size:12px;background:var(--sunk);color:var(--text);}
+  .j-dates{max-height:calc(100vh - 220px);overflow-y:auto;border-right:1px solid var(--line);padding-right:12px;}
+  .jdate-item{padding:9px 8px;border-radius:5px;cursor:pointer;margin-bottom:2px;}
+  .jdate-item:hover{background:var(--sunk);}
+  .jdate-item.active{background:var(--accent-wash);}
+  .jdate-item .jd-date{font-family:var(--mono);font-size:11.5px;color:var(--text);}
+  .jdate-item.active .jd-date{color:var(--accent-2);font-weight:600;}
+  .jdate-item .jd-dots{font-size:10px;color:var(--faint);margin-top:2px;}
+  .j-body{flex:1;min-width:0;}
+  .jbody-head{margin-bottom:10px;}
+  .jbody-date{font-family:var(--serif);font-size:16px;color:var(--accent-2);}
+  .jauto-sec{margin-bottom:16px;padding:12px 14px;background:var(--sunk);border-radius:8px;}
+  .jauto-sec h4{font-size:11px;color:var(--muted);margin:0 0 8px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
+  .jauto-row{font-size:12.5px;line-height:1.7;margin-bottom:4px;}
+  .jauto-tag{font-family:var(--mono);font-size:10px;color:var(--faint);border:1px solid var(--line);border-radius:3px;padding:1px 5px;margin-right:4px;}
+  .jauto-link{cursor:pointer;color:var(--accent-2);}
+  .jauto-link:hover{text-decoration:underline;}
+  .jbody-ta{width:100%;min-height:280px;border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--panel);font-size:13.5px;line-height:1.8;resize:vertical;color:var(--text);}
+  .jbody-ta:focus{outline:none;border-color:var(--accent);}
+
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:12.5px;display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:all .18s;z-index:90;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
   .toast button{background:none;border:0;color:var(--accent-2);cursor:pointer;font-size:12.5px;}
@@ -190,6 +219,9 @@
     .db-detail{position:fixed;inset:0;z-index:50;max-height:none;border-radius:0;border:0;padding:16px 16px 50px;display:none;}
     .db-detail.open{display:block;}
     .db-detail-back{display:inline-block;margin-bottom:10px;background:none;border:0;color:var(--accent-2);font-size:13px;cursor:pointer;padding:6px 2px;}
+    .j-layout{display:block;}
+    .j-dates-wrap{margin-bottom:14px;}
+    .j-dates{max-height:180px;border-right:0;border-bottom:1px solid var(--line);padding-right:0;padding-bottom:10px;}
   }
   @media (max-width:640px){
     .wrap{padding:22px 14px 70px;}
@@ -227,6 +259,7 @@
     <div class="tabs" role="tablist" id="mainTabs">
       <button class="tab" role="tab" aria-selected="true" data-page="page-db">DB</button>
       <button class="tab" role="tab" aria-selected="false" data-page="page-recipe">레시피</button>
+      <button class="tab" role="tab" aria-selected="false" data-page="page-journal">저널</button>
       <button class="tab" role="tab" aria-selected="false" data-page="page-ency">백과</button>
     </div>
 
@@ -255,6 +288,17 @@
       <p class="empty-note hidden" id="recipeEmptyMsg">아직 레시피가 없어요. "+ 새 레시피"로 블렌딩을 시작해보세요.</p>
     </div>
 
+    <!-- ================= 저널 ================= -->
+    <div class="page hidden" id="page-journal">
+      <div class="j-layout">
+        <div class="j-dates-wrap">
+          <div class="jdate-jump"><input type="date" id="journalJumpDate" title="다른 날짜로 이동"></div>
+          <div class="j-dates" id="journalDates"></div>
+        </div>
+        <div class="j-body" id="journalBody"></div>
+      </div>
+    </div>
+
     <!-- ================= 백과 ================= -->
     <div class="page hidden" id="page-ency">
       <div id="encyBody"></div>
@@ -278,7 +322,7 @@
   // 검색: 띄어쓰기·대소문자 다 무시
   function norm(s){return (s||'').toString().toLowerCase().replace(/\s+/g,'');}
 
-  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], activeNoteId:null, dbQ:'', recipeQ:''};
+  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], journal:[], activeNoteId:null, dbQ:'', recipeQ:'', curJDate:null};
   var undoHist=[];
 
   var toast=$('toast'),toastMsg=$('toastMsg'),toastUndo=$('toastUndo'),tHide;
@@ -324,14 +368,17 @@
       sb.from('aroma_notes').select('*').order('created',{ascending:true}),
       sb.from('aroma_note_logs').select('*').order('date',{ascending:false}),
       sb.from('aroma_recipes').select('*').order('created',{ascending:true}),
-      sb.from('aroma_recipe_logs').select('*').order('date',{ascending:false})
+      sb.from('aroma_recipe_logs').select('*').order('date',{ascending:false}),
+      sb.from('aroma_journal').select('*')
     ]).then(function(r){
       state.notes=r[0].data||[];
       state.noteLogs=r[1].data||[];
       state.recipes=r[2].data||[];
       state.recipeLogs=r[3].data||[];
+      state.journal=r[4].data||[];
       renderNotes();
       renderRecipes();
+      renderJournal();
     });
   }
 
@@ -427,7 +474,7 @@
         '<div class="field"><label>원산지</label><input type="text" data-field="origin" value="'+esc(n.origin)+'"></div>' +
         '<div class="field"><label>학명</label><input type="text" class="latin" data-field="latin_name" value="'+esc(n.latin_name)+'"></div>' +
         '<div class="field"><label>노트 종류</label><select data-field="note_type">'+noteTypeOptionsHtml(n.note_type)+'</select></div>' +
-        '<div class="field full"><label>설명</label><textarea data-field="description" rows="2">'+esc(n.description)+'</textarea></div>' +
+        '<div class="field full"><label>설명</label><textarea data-field="description" rows="5">'+esc(n.description)+'</textarea></div>' +
       '</div>' +
       '<div class="links-sec">' +
         '<h4>링크</h4>' +
@@ -505,11 +552,13 @@
       state.noteLogs=state.noteLogs.filter(function(l){return l.note_id!==id;});
       state.activeNoteId=null;
       renderNotes();
+      renderJournal();
       sb.from('aroma_notes').delete().eq('id',id).then(function(){});
       showToast('노트를 지웠어요',function(){
         state.notes.splice(idx,0,removed);
         state.noteLogs=state.noteLogs.concat(removedLogs);
         renderNotes();
+        renderJournal();
         sb.from('aroma_notes').upsert(removed).then(function(){
           return Promise.all(removedLogs.map(function(l){return sb.from('aroma_note_logs').upsert(l);}));
         });
@@ -546,6 +595,7 @@
       state.noteLogs.unshift(log);
       renderNoteDetail();
       renderNoteList();
+      renderJournal();
       sb.from('aroma_note_logs').upsert(log).then(function(){});
     }
     if(act==='dellog'){
@@ -556,11 +606,13 @@
       state.noteLogs.splice(lidx,1);
       renderNoteDetail();
       renderNoteList();
+      renderJournal();
       sb.from('aroma_note_logs').delete().eq('id',logId).then(function(){});
       showToast('메모를 지웠어요',function(){
         state.noteLogs.splice(lidx,0,removedLog);
         renderNoteDetail();
         renderNoteList();
+        renderJournal();
         sb.from('aroma_note_logs').upsert(removedLog).then(function(){});
       });
     }
@@ -709,11 +761,13 @@
       state.recipes.splice(idx,1);
       state.recipeLogs=state.recipeLogs.filter(function(l){return l.recipe_id!==id;});
       renderRecipes();
+      renderJournal();
       sb.from('aroma_recipes').delete().eq('id',id).then(function(){});
       showToast('레시피를 지웠어요',function(){
         state.recipes.splice(idx,0,removed);
         state.recipeLogs=state.recipeLogs.concat(removedLogs);
         renderRecipes();
+        renderJournal();
         sb.from('aroma_recipes').upsert(removed).then(function(){
           return Promise.all(removedLogs.map(function(l){return sb.from('aroma_recipe_logs').upsert(l);}));
         });
@@ -726,6 +780,7 @@
       var log={id:uid('arl'),owner:state.uid,recipe_id:id,date:dateIn.value||todayISO(),text:text,items:JSON.parse(JSON.stringify(r.items||[])),created:new Date().toISOString()};
       state.recipeLogs.unshift(log);
       renderRecipes();
+      renderJournal();
       sb.from('aroma_recipe_logs').upsert(log).then(function(){});
     }
     if(act==='delexp'){
@@ -735,10 +790,12 @@
       var removedLog=state.recipeLogs[lidx];
       state.recipeLogs.splice(lidx,1);
       renderRecipes();
+      renderJournal();
       sb.from('aroma_recipe_logs').delete().eq('id',logId).then(function(){});
       showToast('기록을 지웠어요',function(){
         state.recipeLogs.splice(lidx,0,removedLog);
         renderRecipes();
+        renderJournal();
         sb.from('aroma_recipe_logs').upsert(removedLog).then(function(){});
       });
     }
@@ -785,6 +842,117 @@
   },true);
 
   $('recipeSearch').addEventListener('input',function(e){state.recipeQ=e.target.value;renderRecipes();});
+
+  // ===== 저널 탭 =====
+  // 노트/레시피에 묶인 일자별 메모·실험기록과는 별개로, 어느 원료·레시피에도 안 묶인
+  // 자유 기록(그날의 조향에 대한 생각 등)을 쌓는 곳. 날짜는 수동으로 만드는 게 아니라
+  // 하루앱 저널과 같은 원리로 자동 수집함(본문 쓴 날 + 그날 노트/레시피 메모 쓴 날 + 오늘).
+  var jSaveTimer=null;
+  function jId(date){ return 'aj'+date.replace(/[^0-9]/g,''); }
+  function journalEntry(date){ return state.journal.find(function(j){return j.date===date;}); }
+  function journalBodyOf(date){ var j=journalEntry(date); return j?(j.body||''):''; }
+  function noteName(id){ var n=state.notes.find(function(x){return x.id===id;}); return n?(n.name||'이름 없는 노트'):'(지워진 노트)'; }
+  function recipeTitleOf(id){ var r=state.recipes.find(function(x){return x.id===id;}); return r?(r.title||'제목 없는 레시피'):'(지워진 레시피)'; }
+
+  function saveJournalBody(date,body){
+    var j=journalEntry(date);
+    if(!j){ j={id:jId(date),owner:state.uid,date:date,body:body,updated:new Date().toISOString()}; state.journal.push(j); }
+    else { j.body=body; j.updated=new Date().toISOString(); }
+    sb.from('aroma_journal').upsert(j).then(function(){});
+  }
+
+  function allJournalDates(){
+    var set={};
+    state.journal.forEach(function(j){ if((j.body||'').trim())set[j.date]=true; });
+    state.noteLogs.forEach(function(l){ set[l.date]=true; });
+    state.recipeLogs.forEach(function(l){ set[l.date]=true; });
+    set[todayISO()]=true;
+    if(state.curJDate)set[state.curJDate]=true;
+    return Object.keys(set).sort().reverse();
+  }
+
+  function flushJournalEditor(){
+    var ta=$('journalTa');
+    if(ta){ clearTimeout(jSaveTimer); saveJournalBody(state.curJDate,ta.value); }
+  }
+
+  function renderJournal(){
+    if(!state.curJDate)state.curJDate=todayISO();
+    var dates=allJournalDates();
+    if(dates.indexOf(state.curJDate)<0)state.curJDate=dates[0]||todayISO();
+    $('journalDates').innerHTML = dates.map(function(d){
+      var nlogs=state.noteLogs.filter(function(l){return l.date===d;}).length;
+      var rlogs=state.recipeLogs.filter(function(l){return l.date===d;}).length;
+      var dots=[]; if(nlogs)dots.push('노트 '+nlogs); if(rlogs)dots.push('레시피 '+rlogs);
+      return '<div class="jdate-item'+(d===state.curJDate?' active':'')+'" data-date="'+esc(d)+'">' +
+        '<div class="jd-date">'+esc(d)+(d===todayISO()?' · 오늘':'')+'</div>' +
+        (dots.length?'<div class="jd-dots">'+dots.join(' · ')+'</div>':'') +
+      '</div>';
+    }).join('');
+    renderJournalBody();
+  }
+
+  function renderJournalBody(){
+    var d=state.curJDate;
+    var nlogs=state.noteLogs.filter(function(l){return l.date===d;});
+    var rlogs=state.recipeLogs.filter(function(l){return l.date===d;});
+    var auto='';
+    if(nlogs.length||rlogs.length){
+      auto='<div class="jauto-sec"><h4>이 날의 메모·실험기록</h4>' +
+        nlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">노트</span><b class="jauto-link" data-note-id="'+esc(l.note_id)+'">'+esc(noteName(l.note_id))+'</b> — '+esc(l.text)+'</div>';}).join('') +
+        rlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">레시피</span><b class="jauto-link" data-recipe-id="'+esc(l.recipe_id)+'">'+esc(recipeTitleOf(l.recipe_id))+'</b> — '+esc(l.text)+'</div>';}).join('') +
+      '</div>';
+    }
+    $('journalBody').innerHTML =
+      '<div class="jbody-head"><span class="jbody-date">'+esc(d)+(d===todayISO()?' · 오늘':'')+'</span></div>' +
+      auto +
+      '<textarea class="jbody-ta" id="journalTa" placeholder="그날의 조향 일지… (어떤 노트·레시피에도 안 묶인 자유 기록)">'+esc(journalBodyOf(d))+'</textarea>';
+  }
+
+  $('journalDates').addEventListener('click',function(e){
+    var item=e.target.closest('.jdate-item'); if(!item)return;
+    flushJournalEditor();
+    state.curJDate=item.getAttribute('data-date');
+    renderJournal();
+  });
+
+  $('journalJumpDate').addEventListener('change',function(e){
+    var v=e.target.value; if(!v)return;
+    flushJournalEditor();
+    state.curJDate=v;
+    renderJournal();
+    e.target.value='';
+  });
+
+  $('journalBody').addEventListener('click',function(e){
+    var noteBtn=e.target.closest('[data-note-id]');
+    if(noteBtn){ goToNoteInDB(noteBtn.getAttribute('data-note-id')); return; }
+    var rBtn=e.target.closest('[data-recipe-id]');
+    if(rBtn){
+      var rid=rBtn.getAttribute('data-recipe-id');
+      var recipeTabBtn=document.querySelector('#mainTabs .tab[data-page="page-recipe"]');
+      if(recipeTabBtn)recipeTabBtn.click();
+      setTimeout(function(){
+        var card=document.querySelector('.rcard[data-id="'+rid+'"]');
+        if(card)card.scrollIntoView({behavior:'smooth',block:'start'});
+      },50);
+    }
+  });
+
+  $('journalBody').addEventListener('input',function(e){
+    if(e.target.id!=='journalTa')return;
+    clearTimeout(jSaveTimer);
+    jSaveTimer=setTimeout(function(){ saveJournalBody(state.curJDate,e.target.value); },600);
+  });
+  $('journalBody').addEventListener('focusout',function(e){
+    if(e.target.id!=='journalTa')return;
+    clearTimeout(jSaveTimer);
+    saveJournalBody(state.curJDate,e.target.value);
+  });
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='hidden')flushJournalEditor();
+  });
+  window.addEventListener('pagehide',flushJournalEditor);
 
   // ===== 백과 탭 =====
   var FAMILIES=[
