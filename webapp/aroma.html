@@ -1080,7 +1080,9 @@
       });
     }
     if(act==='addexp'){
-      var log={id:uid('arl'),owner:state.uid,recipe_id:id,date:todayISO(),text:'',items:[],created:new Date().toISOString()};
+      var prevLogs=logsForRecipe(id);
+      var copiedItems=prevLogs.length?prevLogs[0].items.map(function(it){return {ratio:it.ratio,noteId:it.noteId};}):[];
+      var log={id:uid('arl'),owner:state.uid,recipe_id:id,date:todayISO(),text:'',items:copiedItems,created:new Date().toISOString()};
       state.recipeLogs.unshift(log);
       renderRecipes();
       renderJournal();
