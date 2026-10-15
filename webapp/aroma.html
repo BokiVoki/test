@@ -73,7 +73,11 @@
   .searchbar input:focus{outline:none;border-bottom-color:var(--accent);}
   .searchbar .count{font-size:11.5px;color:var(--faint);white-space:nowrap;}
 
-  .addbar{margin-bottom:16px;}
+  .addbar{margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .kindchips{display:flex;gap:6px;}
+  .kchip{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12px;color:var(--muted);cursor:pointer;}
+  .kchip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+  .ncard-kind{display:inline-block;margin-left:6px;font-size:12px;vertical-align:middle;}
   .btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:6px;padding:9px 16px;font-size:13px;cursor:pointer;}
   .btn.ghost{background:none;border:1px solid var(--line);color:var(--muted);}
   .btn.danger{background:none;border:1px solid var(--line);color:var(--accent-2);}
@@ -210,6 +214,81 @@
   .jbody-ta{width:100%;min-height:280px;border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--panel);font-size:13.5px;line-height:1.8;resize:vertical;color:var(--text);}
   .jbody-ta:focus{outline:none;border-color:var(--accent);}
 
+  /* ---- 차백과 (/cha의 차 백과 탭을 그대로 이전, 2026-10-15) ---- */
+  .teapanel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin-bottom:18px;}
+  .teapanel h2{font-family:var(--serif);font-size:16px;margin:0 0 4px;}
+  .teapanel .hint-top{font-size:12px;color:var(--muted);margin:0 0 14px;}
+  .table-scroll{overflow-x:auto;}
+  .atlas-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:480px;}
+  .atlas-table th{text-align:left;font-family:var(--mono);font-size:10.5px;color:var(--muted);padding:6px 9px;border-bottom:1px solid var(--line);letter-spacing:.02em;}
+  .atlas-table td{padding:8px 9px;border-bottom:1px solid var(--line);line-height:1.55;vertical-align:top;}
+  .atlas-table td:first-child{font-family:var(--serif);font-weight:600;white-space:nowrap;}
+
+  .spectrum{background:var(--sunk);border-radius:8px;padding:16px 18px;margin-bottom:18px;}
+  .spectrum h3{font-family:var(--serif);font-size:15px;margin:0 0 12px;}
+  .spectrum-bar{display:flex;height:34px;border-radius:4px;overflow:hidden;margin-bottom:8px;}
+  .spectrum-bar div{flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#2A241C;}
+  .spectrum-cap{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint);}
+  .spectrum-note{margin-top:14px;font-size:12px;color:var(--muted);line-height:1.7;}
+
+  .process-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:0 0 20px;}
+  .process-card{border:1px solid var(--line);border-radius:6px;padding:15px 16px;border-top:4px solid var(--pc);background:var(--panel);}
+  .process-head{display:flex;align-items:baseline;gap:7px;margin-bottom:6px;flex-wrap:wrap;}
+  .process-name{font-family:var(--serif);font-size:15px;font-weight:700;}
+  .process-head .han{font-size:11px;color:var(--faint);}
+  .process-ferment{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;color:#fff;background:var(--pc);padding:3px 8px;border-radius:10px;white-space:nowrap;}
+  .process-desc{font-size:12px;color:var(--muted);line-height:1.65;margin:0 0 12px;}
+  .process-flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;}
+  .process-step{flex:1 1 118px;background:var(--sunk);border-radius:4px;padding:8px 9px;min-width:0;}
+  .process-step b{display:block;font-family:var(--serif);font-size:12.5px;margin-bottom:3px;}
+  .process-step span{display:block;font-size:10.5px;color:var(--muted);line-height:1.5;}
+  .process-arrow{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:20px;color:var(--pc);font-weight:700;}
+  .process-note{margin-top:9px;font-size:11px;color:var(--muted);line-height:1.6;border-top:1px dashed var(--line);padding-top:8px;}
+
+  .atlas-nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
+  .atlas-sec{margin-bottom:30px;scroll-margin-top:16px;}
+  .atlas-sec>h2{font-family:var(--serif);font-size:18px;margin:0 0 4px;padding-bottom:6px;border-bottom:2px solid var(--accent-2);}
+  .atlas-sec>.lede{font-size:12.5px;color:var(--muted);margin:9px 0 16px;line-height:1.7;}
+  .atlas-sub{font-family:var(--serif);font-size:14.5px;margin:20px 0 8px;color:var(--text);}
+  .atlas-sub .han{font-size:11px;color:var(--faint);font-weight:400;margin-left:5px;}
+
+  .guide-controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .guide-search{flex:1;min-width:180px;border:1px solid var(--line);border-radius:6px;padding:8px 11px;font-size:13px;background:var(--panel);color:var(--text);}
+  .guide-search:focus{outline:none;border-color:var(--accent);}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;}
+  .chip{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12px;color:var(--muted);cursor:pointer;}
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+
+  .calc-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;align-items:end;margin-bottom:6px;}
+  .calc-out{background:var(--sunk);border-radius:6px;padding:12px 14px;font-size:12.5px;line-height:1.6;color:var(--text);}
+  .calc-line{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);padding-left:50px;text-indent:-50px;}
+  .calc-line:first-child{margin-top:0;padding-top:0;border-top:none;}
+  .calc-line .calc-dim,.calc-line .calc-sub{text-indent:0;}
+  .calc-line b{font-family:var(--mono);color:var(--accent-2);}
+  .calc-tag{display:inline-block;font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:1px 6px;margin-right:4px;min-width:40px;text-align:center;}
+  .calc-sub{margin:4px 0 0 50px;font-size:12px;color:var(--muted);}
+  .calc-dim{color:var(--faint);font-size:11.5px;margin-top:3px;}
+
+  .brew-card{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent-2);border-radius:6px;padding:15px 17px;margin-bottom:12px;}
+  .brew-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .brew-name{font-family:var(--serif);font-weight:700;font-size:15.5px;}
+  .brew-cat{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.04em;}
+  .brew-note{font-size:12px;color:var(--muted);margin:6px 0 11px;line-height:1.6;}
+  .brew-specs{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:9px;padding-top:10px;border-top:1px dashed var(--line);}
+  .spec-label{font-size:10px;color:var(--faint);margin-bottom:3px;}
+  .spec-value{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text);}
+  .spec-value .unit{font-size:10px;font-weight:400;color:var(--muted);margin-left:1px;}
+  .cold-line{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);font-size:11.5px;color:var(--muted);line-height:1.55;}
+  .cold-line b{color:var(--text);font-family:var(--mono);font-weight:600;}
+  .cold-no{opacity:.75;}
+  .no-result{text-align:center;color:var(--faint);font-size:13px;padding:30px 0;}
+
+  @media (max-width:760px){
+    .process-grid{grid-template-columns:1fr;}
+    .process-flow{flex-direction:column;}
+    .process-arrow{width:auto;height:14px;transform:rotate(90deg);}
+  }
+
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:12.5px;display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:all .18s;z-index:90;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
   .toast button{background:none;border:0;color:var(--accent-2);cursor:pointer;font-size:12.5px;}
@@ -260,7 +339,8 @@
       <button class="tab" role="tab" aria-selected="true" data-page="page-db">DB</button>
       <button class="tab" role="tab" aria-selected="false" data-page="page-recipe">레시피</button>
       <button class="tab" role="tab" aria-selected="false" data-page="page-journal">저널</button>
-      <button class="tab" role="tab" aria-selected="false" data-page="page-ency">백과</button>
+      <button class="tab" role="tab" aria-selected="false" data-page="page-ency">향료백과</button>
+      <button class="tab" role="tab" aria-selected="false" data-page="page-tea">차백과</button>
     </div>
 
     <!-- ================= DB ================= -->
@@ -269,7 +349,14 @@
         <input type="text" id="dbSearch" placeholder="🔍 이름·원산지·학명·설명·메모로 검색 (띄어쓰기·대소문자 무시)">
         <span class="count" id="dbSearchCount"></span>
       </div>
-      <div class="addbar"><button class="btn" type="button" id="addNoteBtn">+ 새 노트</button></div>
+      <div class="addbar">
+        <button class="btn" type="button" id="addNoteBtn">+ 새 노트</button>
+        <div class="kindchips" id="kindFilter">
+          <button type="button" class="kchip" data-kind="" aria-pressed="true">전체</button>
+          <button type="button" class="kchip" data-kind="scent" aria-pressed="false">향료</button>
+          <button type="button" class="kchip" data-kind="tea" aria-pressed="false">차</button>
+        </div>
+      </div>
       <div class="db-layout">
         <div class="cardgrid db-list" id="noteGrid"></div>
         <aside class="db-detail" id="noteDetail"></aside>
@@ -303,6 +390,99 @@
     <div class="page hidden" id="page-ency">
       <div id="encyBody"></div>
     </div>
+
+    <!-- ================= 차백과 (백과/우림가이드/향미사전, /cha에서 이전) ================= -->
+    <div class="page hidden" id="page-tea">
+      <div class="tabs" role="tablist" id="teaSubtabs">
+        <button class="tab" role="tab" aria-selected="true" data-page="tea-atlas">백과</button>
+        <button class="tab" role="tab" aria-selected="false" data-page="tea-brew">우림가이드</button>
+        <button class="tab" role="tab" aria-selected="false" data-page="tea-glossary">향미사전</button>
+      </div>
+
+      <div class="teasub" id="tea-atlas">
+        <div class="spectrum">
+          <h3>발효도 한 눈에 보기 — 육대다류</h3>
+          <div class="spectrum-bar">
+            <div style="background:#A8C08A;">녹차</div>
+            <div style="background:#CBD3A3;">백차</div>
+            <div style="background:#DDCB84;">황차</div>
+            <div style="background:#C99A54;">청차</div>
+            <div style="background:#A9522F;">홍차</div>
+            <div style="background:#5C3722;color:#E7DFCB;">흑차</div>
+          </div>
+          <div class="spectrum-cap"><span>무발효</span><span>완전발효 · 후발효</span></div>
+          <p class="spectrum-note">흑차는 이 축의 끝이라기보다 별개 축입니다. 만든 뒤에도 미생물이 계속 관여하는 후발효차라서, 시간이 갈수록 계속 변합니다. 어느 나라 차든 이 스펙트럼 위 어디쯤인지만 짚으면 우림 온도와 시간이 대략 잡힙니다.</p>
+        </div>
+        <div class="process-grid" id="teaProcessBody"></div>
+        <div class="atlas-nav" id="atlasNav"></div>
+        <div id="atlasBody"></div>
+      </div>
+
+      <div class="teasub hidden" id="tea-brew">
+        <div class="teapanel">
+          <h2>개완 · 냉침 · 대용량 계산기</h2>
+          <p class="hint-top">차를 고르면 개완 한 잔부터 큰 포트·냉침까지 필요한 찻잎량이 한 번에 나와요. 농도는 세 단계로 조절할 수 있어요.</p>
+          <div class="calc-row">
+            <div class="field"><label>차 선택</label><select class="field-select" id="calcTea"></select></div>
+            <div class="field"><label>개완 크기 (ml)</label><input type="number" id="calcGw" value="110" min="0" step="10"></div>
+            <div class="field"><label>포트 · 냉침 물 양 (ml)</label><input type="number" id="calcMl" value="750" min="0" step="50"></div>
+            <div class="field"><label>농도</label>
+              <select class="field-select" id="calcStrength">
+                <option value="0.8">연하게</option>
+                <option value="1" selected>기본</option>
+                <option value="1.3">진하게</option>
+              </select>
+            </div>
+          </div>
+          <div class="calc-out" id="calcOut">-</div>
+        </div>
+
+        <div class="guide-controls"><input type="text" class="guide-search" id="brewSearch" placeholder="차 이름으로 찾기 (예: 밀향, 세작, 육계)"></div>
+        <div class="chips" id="brewChips"></div>
+        <div id="brewList"></div>
+
+        <div class="teapanel" style="margin-top:20px;">
+          <h2>자주 쓰는 기준</h2>
+          <p class="hint-top" style="margin-bottom:0;line-height:1.8;">
+            · 포트 기본 비율은 <b>물 100ml당 3g</b>, 냉침은 <b>물 1L당 6~10g</b>이에요.<br>
+            · <b>개완·다관은 100ml당 3~4.5g</b>(110ml 개완이면 3~5g)이 기준이고, 첫 탕을 짧게 끊은 뒤 탕마다 5~10초씩 늘려요. 정통 공부식은 우롱·보이차를 100ml당 7~8g까지 올리는데 그건 10초씩 12탕 마시는 방식이라, 그 농도가 필요하면 위 계산기에서 <b>진하게</b>를 쓰면 돼요.<br>
+            · <b>다관은 재질만 보정</b>하면 돼요 — 백자·청자는 개완과 같고, <b>자사호·도기는 열을 머금어 첫 탕을 20~30% 짧게</b>. 바닥에 물이 남으면 계속 우러나니 끝까지 따라 버려요.<br>
+            · 향이 주인공인 차(봉황단총·청향 철관음·백차·녹차)는 향을 안 먹는 <b>자기(개완·백자)</b>, 바디가 주인공인 차(보이차·암차·홍차)는 <b>자사호</b>가 유리해요. 자사호는 향이 배니 보이차용·암차용을 따로 두는 게 좋아요.<br>
+            · 보이차·암차·봉황단총은 <b>세차</b>(5~10초 우려 버리기)를 먼저 하고, 구슬형 우롱은 한 번 헹궈 잎을 깨우면 첫 탕부터 제 맛이 나요.<br>
+            · 냉침은 8~12시간 뒤 <b>반드시 잎을 빼세요.</b> 잎을 뺀 뒤 냉장 2~3일, 담가두면 반나절부터 떫어져요.<br>
+            · 무이암차·봉황단총은 다른 우롱보다 훨씬 진하게(개완 100ml에 6~8g) 넣어야 특징이 살아나요.<br>
+            · 잎이 부푸는 차(우롱·백차)는 저울 없이 눈대중하면 편차가 커서, 1인분 소분을 미리 만들어두는 편이 빨라요.
+          </p>
+        </div>
+      </div>
+
+      <div class="teasub hidden" id="tea-glossary">
+        <div class="teapanel">
+          <h2>향 계열 표현</h2>
+          <p class="hint-top">테이스팅 메모 쓸 때 참고하는 향 어휘예요. 딱 맞는 표현이 안 떠오르면 같은 계열 안에서 가까운 걸 골라 쓰면 돼요.</p>
+          <div class="table-scroll"><table class="atlas-table">
+            <thead><tr><th style="min-width:80px;">계열</th><th style="min-width:280px;">세부 표현</th><th style="min-width:160px;">주로 나는 차</th></tr></thead>
+            <tbody id="aromaTableBody"></tbody>
+          </table></div>
+        </div>
+        <div class="teapanel">
+          <h2>다도 용어</h2>
+          <p class="hint-top">향이 아니라 맛·질감·여운을 가리키는 말들이에요. 산지 설명이나 다른 사람 후기에 자주 나와서 알아두면 편해요.</p>
+          <div class="table-scroll"><table class="atlas-table">
+            <thead><tr><th style="min-width:70px;">용어</th><th style="min-width:60px;">한자</th><th style="min-width:220px;">뜻</th></tr></thead>
+            <tbody id="termTableBody"></tbody>
+          </table></div>
+        </div>
+        <div class="teapanel">
+          <h2>봉황단총 향형</h2>
+          <p class="hint-top">봉황단총은 품종(모수) 자체를 향으로 구분해서 이름을 붙여요 — 그래서 차 이름을 알면 어떤 향인지 바로 짐작이 돼요. 흔히 "십대 향형"이라고 부르는 10가지가 기본이고, 압시향은 그 밖에 최근 가장 널리 퍼진 품종이에요.</p>
+          <div class="table-scroll"><table class="atlas-table">
+            <thead><tr><th style="min-width:80px;">향형</th><th style="min-width:60px;">한자</th><th style="min-width:220px;">향 특징</th></tr></thead>
+            <tbody id="danCongTableBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -322,7 +502,7 @@
   // 검색: 띄어쓰기·대소문자 다 무시
   function norm(s){return (s||'').toString().toLowerCase().replace(/\s+/g,'');}
 
-  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], journal:[], activeNoteId:null, dbQ:'', recipeQ:'', curJDate:null};
+  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], journal:[], activeNoteId:null, dbQ:'', dbKind:'', recipeQ:'', curJDate:null};
   var undoHist=[];
 
   var toast=$('toast'),toastMsg=$('toastMsg'),toastUndo=$('toastUndo'),tHide;
@@ -389,7 +569,7 @@
   function noteMatches(n,q){
     if(!q)return true;
     var linkText=(n.links||[]).map(function(l){return (l.label||'')+' '+(l.url||'');}).join(' ');
-    var hay=norm(n.name+' '+n.origin+' '+n.latin_name+' '+n.description+' '+noteTypeInfo(n.note_type).label+' '+linkText+' '+logsForNote(n.id).map(function(l){return l.text;}).join(' '));
+    var hay=norm(n.name+' '+n.origin+' '+n.latin_name+' '+n.description+' '+noteTypeInfo(n.note_type).label+' '+kindInfo(n.kind).label+' '+linkText+' '+logsForNote(n.id).map(function(l){return l.text;}).join(' '));
     return hay.indexOf(q)>=0;
   }
   function recipeMatches(r,q){
@@ -436,19 +616,41 @@
     }).join('');
   }
 
+  // 차랑 향료를 한 DB에 같이 담고 싶다는 요청(2026-10-15)으로 추가 — 저장 구조(이름·원산지·
+  // 학명·설명·일자별 메모·링크)가 거의 같아서 새 테이블을 또 만들지 않고 aroma_notes에
+  // kind 칸(기본 'scent', 기존 행도 전부 이 값)만 얹어 향료/차 노트를 구분함. 노트 종류
+  // (탑/미들/베이스)는 향료 전용 개념이라 kind==='tea'면 그 드롭다운 자체를 숨김.
+  var KINDS=[
+    {v:'scent', label:'향료', emoji:'🌿'},
+    {v:'tea', label:'차', emoji:'🍵'}
+  ];
+  function kindInfo(v){ return KINDS.find(function(k){return k.v===v;}) || KINDS[0]; }
+  function kindOptionsHtml(selV){
+    return KINDS.map(function(k){
+      return '<option value="'+esc(k.v)+'"'+(k.v===(selV||'scent')?' selected':'')+'>'+esc(k.label)+'</option>';
+    }).join('');
+  }
+  function kindBadgeHtml(v){
+    if(v!=='tea')return '';
+    return '<span class="ncard-kind" title="차">🍵</span>';
+  }
+
   function renderNotes(){ renderNoteList(); renderNoteDetail(); }
 
   function renderNoteList(){
     var q=norm(state.dbQ);
-    var list=state.notes.filter(function(n){return noteMatches(n,q);});
+    var list=state.notes.filter(function(n){
+      if(state.dbKind && (n.kind||'scent')!==state.dbKind)return false;
+      return noteMatches(n,q);
+    });
     $('noteEmptyMsg').classList.toggle('hidden', state.notes.length>0);
-    $('dbSearchCount').textContent = state.dbQ ? (list.length+'/'+state.notes.length) : '';
+    $('dbSearchCount').textContent = (state.dbQ||state.dbKind) ? (list.length+'/'+state.notes.length) : '';
     $('noteGrid').innerHTML = list.map(function(n){
       var logs=logsForNote(n.id);
       var links=n.links||[];
       var active=state.activeNoteId===n.id;
       return '<div class="ncard-compact'+(active?' active':'')+'" data-id="'+esc(n.id)+'">' +
-        '<div class="ncard-name-row"><span class="ncard-name">'+esc(n.name)+'</span>'+noteTypeBadgeHtml(n.note_type)+'</div>' +
+        '<div class="ncard-name-row"><span class="ncard-name">'+esc(n.name)+'</span>'+kindBadgeHtml(n.kind)+noteTypeBadgeHtml(n.note_type)+'</div>' +
         '<div class="ncard-sub">'+(n.origin?esc(n.origin):'')+(n.origin&&n.latin_name?' · ':'')+(n.latin_name?'<span class="latin">'+esc(n.latin_name)+'</span>':'')+'</div>' +
         '<div class="ncard-desc">'+esc(n.description)+'</div>' +
         '<div class="ncard-logcount">메모 '+logs.length+'개'+(links.length?' · 링크 '+links.length+'개':'')+'</div>' +
@@ -456,6 +658,13 @@
     }).join('');
     renderEncy();
   }
+
+  $('kindFilter').addEventListener('click',function(e){
+    var btn=e.target.closest('.kchip'); if(!btn)return;
+    state.dbKind=btn.getAttribute('data-kind');
+    $('kindFilter').querySelectorAll('.kchip').forEach(function(b){b.setAttribute('aria-pressed', b===btn?'true':'false');});
+    renderNoteList();
+  });
 
   function renderNoteDetail(){
     var el=$('noteDetail');
@@ -467,13 +676,15 @@
     }
     var logs=logsForNote(n.id);
     var links=n.links||[];
+    var isTea=n.kind==='tea';
     el.innerHTML =
       '<button type="button" class="db-detail-back" data-act="closedetail">‹ 목록</button>' +
       '<div class="field-grid">' +
         '<div class="field"><label>이름</label><input type="text" data-field="name" value="'+esc(n.name)+'"></div>' +
+        '<div class="field"><label>분류</label><select data-field="kind">'+kindOptionsHtml(n.kind)+'</select></div>' +
         '<div class="field"><label>원산지</label><input type="text" data-field="origin" value="'+esc(n.origin)+'"></div>' +
-        '<div class="field"><label>학명</label><input type="text" class="latin" data-field="latin_name" value="'+esc(n.latin_name)+'"></div>' +
-        '<div class="field"><label>노트 종류</label><select data-field="note_type">'+noteTypeOptionsHtml(n.note_type)+'</select></div>' +
+        '<div class="field"><label>학명'+(isTea?'(품종)':'')+'</label><input type="text" class="latin" data-field="latin_name" value="'+esc(n.latin_name)+'"></div>' +
+        (isTea?'':'<div class="field"><label>노트 종류</label><select data-field="note_type">'+noteTypeOptionsHtml(n.note_type)+'</select></div>') +
         '<div class="field full"><label>설명</label><textarea data-field="description" rows="5">'+esc(n.description)+'</textarea></div>' +
       '</div>' +
       '<div class="links-sec">' +
@@ -511,7 +722,7 @@
   }
 
   $('addNoteBtn').addEventListener('click',function(){
-    var row={id:uid('an'),owner:state.uid,name:'',origin:'',latin_name:'',description:'',note_type:'',links:[],created:new Date().toISOString(),updated:new Date().toISOString()};
+    var row={id:uid('an'),owner:state.uid,name:'',origin:'',latin_name:'',description:'',note_type:'',kind:state.dbKind||'scent',links:[],created:new Date().toISOString(),updated:new Date().toISOString()};
     state.notes.unshift(row);
     selectNote(row.id);
     sb.from('aroma_notes').upsert(row).then(function(){});
@@ -628,7 +839,10 @@
     var nameEl=card.querySelector('.ncard-name'); if(nameEl)nameEl.textContent=n.name;
     var nameRowEl=card.querySelector('.ncard-name-row');
     if(nameRowEl){
+      var oldKindBadge=nameRowEl.querySelector('.ncard-kind'); if(oldKindBadge)oldKindBadge.remove();
       var oldBadge=nameRowEl.querySelector('.ncard-notetype'); if(oldBadge)oldBadge.remove();
+      var kindHtml=kindBadgeHtml(n.kind);
+      if(kindHtml)nameRowEl.insertAdjacentHTML('beforeend',kindHtml);
       var badgeHtml=noteTypeBadgeHtml(n.note_type);
       if(badgeHtml)nameRowEl.insertAdjacentHTML('beforeend',badgeHtml);
     }
@@ -671,6 +885,12 @@
     }
     n[field]=e.target.value;
     saveNote(id);
+    if(field==='kind'){
+      // 분류를 바꾸면 노트종류(탑/미들/베이스) 칸 자체가 생기거나 없어져야 해서
+      // patch로는 부족함 — select change는 텍스트 입력 중 blur 충돌이 없어 전체
+      // 재렌더가 안전함(위 patch들이 피하는 문제는 타이핑 중 blur 레이스뿐).
+      renderNoteDetail();
+    }
     patchNoteListItem(id);
     renderEncy();
   });
@@ -1046,6 +1266,541 @@
       renderEncyGrid(EXTRACT) + '</section>';
   }
   renderEncy();
+
+  // ===== 차백과 (/cha "차 백과" 탭을 그대로 이전, 2026-10-15 — "차 백과도 거기로 옮겨줘") =====
+  // cha.html의 ATLAS/BREW_DATA/AROMA_WHEEL 등 데이터와 렌더 로직을 그대로 가져옴(내용 변경 없음),
+  // 디자인만 향료 노트의 토큰(--accent/--line 등)에 맞춰 새로 입힘. /cha 쪽은 그대로 두고 안 건드림.
+  function fmt(n,digits){ if(!isFinite(n))return '-'; return n.toLocaleString('ko-KR',{maximumFractionDigits:digits===undefined?1:digits}); }
+
+  // ---- 차백과 서브탭(백과/우림가이드/향미사전) 전환 — 메인 탭의 .page 전역 셀렉터와
+  // 안 섞이게 .teasub라는 별도 클래스로 스코프를 좁힘(캘린더 탭 루틴/투두 서브탭과 같은 원칙) ----
+  document.querySelectorAll('#teaSubtabs .tab').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('#teaSubtabs .tab').forEach(function(b){b.setAttribute('aria-selected', b===btn?'true':'false');});
+      document.querySelectorAll('#page-tea .teasub').forEach(function(pg){pg.classList.toggle('hidden', pg.id!==btn.getAttribute('data-page'));});
+    });
+  });
+
+  /* ---- 우림 가이드 데이터 ----
+     g100 = 물 100ml 기준 찻잎(g) · temp = 물 온도 · first = 첫 탕(초) · add = 이후 탕 추가(초)
+     times = 우릴 수 있는 횟수 · coldG = 물 1L 기준 냉침 찻잎(g), null이면 냉침 비권장 */
+  var BREW_DATA=[
+    {name:'쑥차', cat:'대용차', g100:1, temp:'90~100℃', first:240, add:90, times:'3', coldG:7, coldHr:'10~12시간',
+     note:'잎이 두꺼워 열탕도 냉침도 오래 걸립니다. 잎량을 줄인 만큼 시간을 늘렸어요 — 1g에 4분이 기준이고, 진하게 원하면 시간을 먼저 늘리세요.'},
+    {name:'유자알갱이차', cat:'대용차', g100:5, temp:'90℃', first:120, add:0, times:'1', coldG:null, coldHr:'',
+     note:'과육형이라 재우림이 어렵습니다. 뜨겁게 한 번, 또는 찬물에 풀어 에이드로 쓰는 편이 낫습니다.'},
+    {name:'루이보스', cat:'대용차', g100:3, temp:'100℃', first:300, add:120, times:'2', coldG:8, coldHr:'8~12시간',
+     note:'카페인이 없고 탄닌이 낮아 오래 우려도 떫어지지 않습니다. 저녁 시간대·임산부 손님용 옵션으로 하나쯤 두면 좋습니다.'},
+    {name:'세작녹차', cat:'녹차', g100:2.5, temp:'75~80℃', first:25, add:10, times:'3', coldG:10, coldHr:'6~8시간',
+     note:'뜨거우면 바로 떫어집니다. 온도를 낮추는 게 시간 조절보다 중요합니다. 냉침 궁합은 전 차종 중 최상.'},
+    {name:'우전 (첫물차)', cat:'녹차', g100:2.5, temp:'70~75℃', first:30, add:10, times:'3', coldG:9, coldHr:'6~8시간',
+     note:'세작보다 더 여립니다. 온도를 5℃ 더 낮추고 손님께 낼 때도 잔을 미리 데우지 마세요.'},
+    {name:'말차', cat:'말차', g100:2, temp:'70~80℃', first:0, add:0, times:'1', coldG:null, coldHr:'',
+     note:'우리는 차가 아니라 푸는 차입니다. 70ml 물에 2g, 차선으로 W자로 15~20초. 온도가 높으면 쓴맛이 확 올라옵니다.'},
+    {name:'백호은침', cat:'백차', g100:2.5, temp:'85~90℃', first:40, add:15, times:'5', coldG:8, coldHr:'8~12시간',
+     note:'싹만 쓴 최고급 백차. 뜨거우면 솜털향이 날아갑니다. 유리잔에 우려 싹이 서는 모습을 보여주는 연출이 잘 먹힙니다.'},
+    {name:'백모단', cat:'백차', g100:3, temp:'90℃', first:30, add:10, times:'6', coldG:9, coldHr:'8~12시간',
+     note:'은침보다 잎이 섞여 맛이 진합니다. 스탠다드 백차로 은침보다 다루기 편합니다.'},
+    {name:'수미 · 공미', cat:'백차', g100:4, temp:'95~100℃', first:20, add:10, times:'8', coldG:10, coldHr:'8~12시간',
+     note:'성숙잎 위주라 뜨겁게 우려도 됩니다. 묵힐수록 대추향이 올라와 노백차로 가치가 붙는 등급.'},
+    {name:'중작홍차', cat:'홍차', g100:3, temp:'95~100℃', first:180, add:60, times:'2', coldG:9, coldHr:'8~12시간',
+     note:'국산 홍차는 수입 아쌈보다 탄닌이 부드럽습니다. 밀크티로 쓸 거면 잎을 1g 더 넣으세요.'},
+    {name:'금준미', cat:'홍차', g100:3, temp:'90~95℃', first:20, add:10, times:'6', coldG:8, coldHr:'8~12시간',
+     note:'새싹만 쓴 고급 홍차라 서양식으로 3분 우리면 아깝습니다. 개완에 짧게 여러 번 우리세요.'},
+    {name:'정산소종', cat:'홍차', g100:3, temp:'100℃', first:30, add:10, times:'5', coldG:8, coldHr:'8~12시간',
+     note:'훈연향이 강해 호불호가 갈립니다. 미리 향을 맡아보는 편이 좋습니다.'},
+    {name:'홍옥 (대차18호)', cat:'홍차', g100:3, temp:'95~100℃', first:180, add:60, times:'3', coldG:9, coldHr:'8~12시간',
+     note:'박하·계피향이 자연스럽게 납니다. 오래 우려도 잘 떫어지지 않는 편.'},
+    {name:'아쌈 · CTC', cat:'홍차', g100:3, temp:'100℃', first:180, add:0, times:'1', coldG:12, coldHr:'8~12시간',
+     note:'밀크티 베이스의 표준. 두유 냉침으로 만들 땐 잎을 넉넉히 넣고 8~12시간 뒤 눌러 짜세요.'},
+    {name:'호지차', cat:'호지차', g100:3, temp:'95~100℃', first:60, add:30, times:'3', coldG:10, coldHr:'6~8시간',
+     note:'이미 볶은 차라 빨리 우러납니다. 길게 우리면 탄맛이 도니 1분 안쪽에서 끊으세요. 카페인이 낮아 저녁 메뉴로 좋습니다.'},
+    {name:'겐마이차', cat:'호지차', g100:3, temp:'90~95℃', first:45, add:20, times:'3', coldG:10, coldHr:'6~8시간',
+     note:'현미 고소함이 주인공이라 짧게. 오래 우리면 녹차 쪽 떫음이 먼저 올라옵니다.'},
+    {name:'밀향오룡', cat:'우롱차', g100:4, temp:'95℃', first:25, add:10, times:'6', coldG:9, coldHr:'8~12시간',
+     note:'봉황단총 계열 밀란향. 꿀향이 주인공이라 첫 탕을 짧게 끊고 향을 먼저 보여주세요.'},
+    {name:'동방미인', cat:'우롱차', g100:3.5, temp:'90~95℃', first:15, add:8, times:'6', coldG:8, coldHr:'8~12시간',
+     note:'조형(부풀린 형태)이라 부피 대비 가볍습니다. 개완 90ml면 3~4g. 뚜껑 향을 꼭 맡아보세요.'},
+    {name:'문산포종', cat:'우롱차', g100:3, temp:'90~95℃', first:45, add:15, times:'5', coldG:8, coldHr:'10~14시간',
+     note:'우롱 중 녹차에 가장 가까운 청향. 냉침에서 꽃향이 아주 깨끗하게 나옵니다.'},
+    {name:'사계춘', cat:'우롱차', g100:3.5, temp:'90~95℃', first:25, add:10, times:'5', coldG:8, coldHr:'10~14시간',
+     note:'사계절 채엽이 가능해 단가가 합리적입니다. 가벼운 꽃향이라 입문·냉침 라인으로 적합.'},
+    {name:'고산우롱 (아리산·리산)', cat:'우롱차', g100:5, temp:'95℃', first:40, add:15, times:'7', coldG:9, coldHr:'10~14시간',
+     note:'구슬형이라 부풀면 개완을 가득 채웁니다. 첫 탕은 잎이 덜 펴져 연하니 두세 번째 탕이 정점.'},
+    {name:'철관음 (청향)', cat:'우롱차', g100:5, temp:'95℃', first:35, add:15, times:'7', coldG:9, coldHr:'10~14시간',
+     note:'청향형은 냉침도 잘 맞습니다. 농향형(배전 강한 것)은 냉침하면 불맛이 안 나오니 열탕 전용으로.'},
+    {name:'무이암차 — 수선', cat:'우롱차', g100:7, temp:'100℃', first:8, add:5, times:'9', coldG:null, coldHr:'',
+     note:'다른 우롱의 두 배로 넣고 아주 짧게. 난꽃향에 원목의 무게감. 배전차라 냉침은 맞지 않습니다.'},
+    {name:'무이암차 — 육계', cat:'우롱차', g100:7, temp:'100℃', first:6, add:5, times:'9', coldG:null, coldHr:'',
+     note:'계피향이 특징. 향이 세서 첫 탕을 5초 안쪽으로 끊지 않으면 뒤 탕이 밋밋해집니다.'},
+    {name:'봉황단총 (압시향 등)', cat:'우롱차', g100:6, temp:'95~100℃', first:10, add:5, times:'8', coldG:null, coldHr:'',
+     note:'세차 한 번은 필수. 잎이 크고 거칠어 향을 깨워야 합니다. 탕마다 향이 변하는 재미가 주무기.'},
+    {name:'GABA 우롱 (가엽용차)', cat:'우롱차', g100:4, temp:'90~95℃', first:30, add:10, times:'5', coldG:9, coldHr:'8~12시간',
+     note:'무산소 발효로 만든 대만 우롱. 살짝 신맛과 발효취가 나는 게 정상이에요.'},
+    {name:'보이 숙차', cat:'보이차', g100:5, temp:'100℃', first:15, add:5, times:'10', coldG:8, coldHr:'6~8시간 (냉장)',
+     note:'세차 필수(5~10초, 버림). 자극이 적어 입문·저녁 메뉴로 안전합니다. 냉침은 가능하지만 향이 밋밋해지니 열탕 권장.'},
+    {name:'보이 생차', cat:'보이차', g100:4.5, temp:'95~100℃', first:10, add:5, times:'10', coldG:null, coldHr:'',
+     note:'신차는 떫고 자극적입니다. 공복에 진하게 내면 어지럼이 올 수 있어 다과를 함께 내는 게 좋습니다.'},
+    {name:'노차두', cat:'보이차', g100:5, temp:'100℃', first:20, add:8, times:'12', coldG:8, coldHr:'6~8시간 (냉장)',
+     note:'덩어리가 단단해 잘 안 풀립니다. 세차를 조금 길게(10초) 주고, 뒤 탕으로 갈수록 단맛이 올라옵니다.'},
+    {name:'육보차', cat:'보이차', g100:5, temp:'100℃', first:15, add:5, times:'10', coldG:null, coldHr:'',
+     note:'광서성 흑차. 숙차보다 매끄럽고 퇴창미가 적은 편입니다.'}
+  ];
+
+  /* 개완·다관 기준 — 위 BREW_DATA에 이름으로 붙임. gw=100ml당 g, gwFirst/gwAdd/gwTimes=첫 탕·추가초·횟수,
+     gwDip=압차(눌린 차) 전용(덩어리가 풀리는 2탕을 오히려 짧게), gwRinse='must'/'opt', gw:null=나눠 우리기 안 맞는 차 */
+  var GAIWAN={
+    '쑥차':{gw:2,gwFirst:90,gwAdd:40,gwTimes:3},
+    '유자알갱이차':{gw:null,gwNote:'과육·시럽 형태라 여러 탕으로 나눠지지 않습니다'},
+    '루이보스':{gw:null,gwNote:'두 번째 탕부터 향이 거의 안 남아 한 번에 길게 우리는 편이 낫습니다'},
+    '세작녹차':{gw:3,gwFirst:20,gwAdd:8,gwTimes:4},
+    '우전 (첫물차)':{gw:3,gwFirst:25,gwAdd:8,gwTimes:3},
+    '말차':{gw:null,gwNote:'가루차라 우리지 않고 차선으로 풉니다',potNote:'우리는 차가 아닙니다 — 70ml에 2g, 70~80℃ 물을 붓고 차선으로 W자로 15~20초'},
+    '백호은침':{gw:3.5,gwFirst:35,gwAdd:10,gwTimes:5},
+    '백모단':{gw:4,gwFirst:30,gwAdd:8,gwTimes:6},
+    '수미 · 공미':{gw:4,gwFirst:20,gwAdd:8,gwTimes:7,gwRinse:'opt'},
+    '중작홍차':{gw:4,gwFirst:15,gwAdd:5,gwTimes:4},
+    '금준미':{gw:4,gwFirst:12,gwAdd:5,gwTimes:6},
+    '정산소종':{gw:4,gwFirst:12,gwAdd:5,gwTimes:5},
+    '홍옥 (대차18호)':{gw:4,gwFirst:15,gwAdd:5,gwTimes:5},
+    '아쌈 · CTC':{gw:null,gwNote:'잘게 부순 형태라 짧게 우려도 확 나와 탕을 나누기 어렵습니다'},
+    '호지차':{gw:4,gwFirst:20,gwAdd:10,gwTimes:4},
+    '겐마이차':{gw:4,gwFirst:20,gwAdd:10,gwTimes:3},
+    '밀향오룡':{gw:4.5,gwFirst:15,gwAdd:6,gwTimes:6,gwRinse:'opt'},
+    '동방미인':{gw:4,gwFirst:20,gwAdd:8,gwTimes:5},
+    '문산포종':{gw:4.5,gwFirst:35,gwAdd:10,gwTimes:5},
+    '사계춘':{gw:4.5,gwFirst:35,gwAdd:10,gwTimes:5,gwRinse:'opt'},
+    '고산우롱 (아리산·리산)':{gw:4.5,gwFirst:45,gwAdd:12,gwTimes:6,gwRinse:'opt',potHeavy:true},
+    '철관음 (청향)':{gw:4.5,gwFirst:40,gwAdd:12,gwTimes:6,gwRinse:'opt',potHeavy:true},
+    '무이암차 — 수선':{gw:4.5,gwFirst:15,gwAdd:5,gwTimes:7,gwRinse:'must',potHeavy:true},
+    '무이암차 — 육계':{gw:4.5,gwFirst:12,gwAdd:5,gwTimes:7,gwRinse:'must',potHeavy:true},
+    '봉황단총 (압시향 등)':{gw:4.5,gwFirst:10,gwAdd:5,gwTimes:7,gwRinse:'must',potHeavy:true},
+    'GABA 우롱 (가엽용차)':{gw:4.5,gwFirst:30,gwAdd:10,gwTimes:5},
+    '보이 숙차':{gw:4.5,gwFirst:15,gwDip:8,gwAdd:5,gwTimes:10,gwRinse:'must',potHeavy:true},
+    '보이 생차':{gw:4,gwFirst:12,gwDip:6,gwAdd:5,gwTimes:10,gwRinse:'must',potHeavy:true},
+    '노차두':{gw:4.5,gwFirst:20,gwDip:10,gwAdd:5,gwTimes:10,gwRinse:'must',potHeavy:true},
+    '육보차':{gw:4.5,gwFirst:15,gwDip:8,gwAdd:5,gwTimes:9,gwRinse:'must',potHeavy:true}
+  };
+  BREW_DATA.forEach(function(b){ Object.assign(b, GAIWAN[b.name] || {gw:null, gwNote:''}); });
+
+  var BREW_CATS=['전체','대용차','녹차','말차','백차','홍차','호지차','우롱차','보이차'];
+  var brewCat='전체';
+
+  function secText(sec){
+    if(!sec)return '—';
+    return sec>=60 ? (sec/60%1===0 ? (sec/60)+'분' : Math.floor(sec/60)+'분 '+(sec%60)+'초') : sec+'초';
+  }
+  function rinseText(r){
+    if(r==='must')return ' · 세차 필수(5~10초 버리기)';
+    if(r==='opt')return ' · 한 번 헹궈 깨우면 좋음';
+    return '';
+  }
+  // 첫 탕부터 탕마다 늘어나는 시간을 순서대로(최대 6탕까지만 적고 나머지는 총 횟수로).
+  // 압차(dip)는 덩어리가 풀리는 2탕이 가장 진해서 오히려 짧게 끊고, 3탕부터 다시 늘림.
+  function gwSchedule(b){
+    var total=parseInt(b.gwTimes)||1;
+    var show=Math.min(total,6);
+    var parts=[];
+    for(var i=0;i<show;i++){
+      if(i===0)parts.push(b.gwFirst);
+      else if(b.gwDip)parts.push(b.gwDip+b.gwAdd*(i-1));
+      else parts.push(b.gwFirst+b.gwAdd*i);
+    }
+    return parts.join(' → ')+'초'+(total>show?' … 총 '+total+'회':' (총 '+total+'회)');
+  }
+
+  function renderBrewChips(){
+    var box=$('brewChips');
+    box.innerHTML=BREW_CATS.map(function(c){
+      return '<button class="chip" data-cat="'+esc(c)+'" aria-pressed="'+(c===brewCat)+'">'+esc(c)+'</button>';
+    }).join('');
+    box.querySelectorAll('.chip').forEach(function(ch){
+      ch.addEventListener('click',function(){
+        brewCat=ch.getAttribute('data-cat');
+        renderBrewChips();
+        renderBrewList();
+      });
+    });
+  }
+
+  function renderBrewList(){
+    var q=($('brewSearch').value||'').trim().toLowerCase();
+    var list=BREW_DATA.filter(function(b){
+      var catOk=brewCat==='전체'||b.cat===brewCat;
+      var qOk=!q||b.name.toLowerCase().indexOf(q)>=0||b.note.toLowerCase().indexOf(q)>=0||b.cat.indexOf(q)>=0;
+      return catOk&&qOk;
+    });
+    var box=$('brewList');
+    if(!list.length){
+      box.innerHTML='<div class="no-result">해당하는 차가 없어요. 다른 이름이나 분류로 찾아보세요.</div>';
+      return;
+    }
+    box.innerHTML=list.map(function(b){
+      var cold=b.coldG
+        ? '냉침 — 물 1L당 <b>'+b.coldG+'g</b>, '+b.coldHr+' 뒤 잎 빼기'
+        : '<span class="cold-no">냉침 비권장 — 배전향·발효향이 찬물에서 잘 안 열려요</span>';
+      var gaiwan=b.gw
+        ? '개완 · 다관 — 100ml에 <b>'+b.gw+'g</b>'+rinseText(b.gwRinse)+'<br>첫 탕 '+gwSchedule(b)
+        : '<span class="cold-no">개완 · 다관 — '+esc(b.gwNote||'나눠 우리는 방식이 맞지 않아요')+'</span>';
+      return '<div class="brew-card">' +
+        '<div class="brew-head"><div class="brew-name">'+esc(b.name)+'</div><div class="brew-cat">'+esc(b.cat)+'</div></div>' +
+        '<div class="brew-note">'+esc(b.note)+'</div>' +
+        '<div class="brew-specs">' +
+          '<div><div class="spec-label">포트 100ml당</div><div class="spec-value">'+b.g100+'<span class="unit">g</span></div></div>' +
+          '<div><div class="spec-label">물 온도</div><div class="spec-value" style="font-size:12px;">'+esc(b.temp)+'</div></div>' +
+          '<div><div class="spec-label">첫 탕</div><div class="spec-value" style="font-size:12px;">'+secText(b.first)+'</div></div>' +
+          '<div><div class="spec-label">이후 탕</div><div class="spec-value" style="font-size:12px;">'+(b.add?'+'+b.add+'초':'—')+'</div></div>' +
+          '<div><div class="spec-label">우림 횟수</div><div class="spec-value">'+esc(b.times)+'<span class="unit">회</span></div></div>' +
+        '</div>' +
+        '<div class="cold-line">'+gaiwan+'</div>' +
+        '<div class="cold-line">'+cold+'</div>' +
+      '</div>';
+    }).join('');
+  }
+  $('brewSearch').addEventListener('input',renderBrewList);
+
+  function initCalc(){
+    var sel=$('calcTea');
+    sel.innerHTML=BREW_DATA.map(function(b,i){ return '<option value="'+i+'">'+esc(b.name)+' · '+esc(b.cat)+'</option>'; }).join('');
+    ['calcTea','calcGw','calcMl','calcStrength'].forEach(function(id){ $(id).addEventListener('input',runCalc); });
+    runCalc();
+  }
+  function runCalc(){
+    var b=BREW_DATA[parseInt($('calcTea').value)||0];
+    var ml=parseFloat($('calcMl').value)||0;
+    var gwMl=parseFloat($('calcGw').value)||0;
+    var k=parseFloat($('calcStrength').value)||1;
+    var out='';
+    if(b.gw){
+      var g=(b.gw*k)*(gwMl/100);
+      out+='<div class="calc-line"><span class="calc-tag">개완</span> '+fmt(gwMl,0)+'ml — <b>'+fmt(g,1)+'g</b> · '+esc(b.temp)+rinseText(b.gwRinse) +
+           '<div class="calc-sub">'+gwSchedule(b)+'</div>' +
+           (b.gwDip ? '<div class="calc-dim">덩어리가 풀리는 2탕이 가장 진해서 짧게 끊고, 3탕부터 다시 늘려요. 덩어리째 넣었으면 첫 탕을 20~30초로.</div>' : '') +
+           '</div>';
+    }else{
+      out+='<div class="calc-line"><span class="calc-tag">개완</span> <span class="calc-dim">'+esc(b.gwNote||'개완으로 나눠 우리는 방식이 맞지 않아요')+'</span></div>';
+    }
+    if(b.potNote){
+      out+='<div class="calc-line"><span class="calc-tag">포트</span> <span class="calc-dim">'+esc(b.potNote)+'</span></div>';
+    }else{
+      var hot=(b.g100*k)*(ml/100);
+      out+='<div class="calc-line"><span class="calc-tag">포트</span> '+fmt(ml,0)+'ml — <b>'+fmt(hot,1)+'g</b> · '+esc(b.temp)+' · 첫 탕 '+secText(b.first);
+      if(b.potHeavy)out+='<div class="calc-dim">※ 공부식 비율이라 큰 포트엔 100ml당 3~4g으로 낮춰 쓰세요</div>';
+      out+='</div>';
+    }
+    if(b.coldG){
+      var cold=(b.coldG*k)*(ml/1000);
+      out+='<div class="calc-line"><span class="calc-tag">냉침</span> '+fmt(ml,0)+'ml — <b>'+fmt(cold,1)+'g</b> · '+esc(b.coldHr)+' 뒤 잎 빼기</div>';
+    }else{
+      out+='<div class="calc-line"><span class="calc-tag">냉침</span> <span class="calc-dim">비권장 — 열탕으로 우린 뒤 급랭하세요</span></div>';
+    }
+    $('calcOut').innerHTML=out;
+  }
+
+  /* ---- 차 백과 데이터 ---- */
+  var ATLAS=[
+    {id:'china', title:'중국',
+      lede:'발효도를 기준으로 한 6대 차류가 표준입니다. 여기에 꽃으로 착향한 재가공차(화차)를 더하면 중국차의 지도가 거의 완성됩니다.',
+      groups:[
+        {sub:'녹차', han:'綠茶 · 무발효', head:['이름','산지','특징'], rows:[
+          ['서호용정','절강 항주','납작하게 눌린 형태, 볶은 밤향. 중국 녹차의 얼굴'],
+          ['벽라춘','강소 동정산','나선형으로 말린 잎, 과수원 사이에서 자라 과일향이 강함'],
+          ['황산모봉','안휘','여린 새싹, 난꽃향'],
+          ['육안과편','안휘','싹 없이 잎만 쓰는 독특한 제법'],
+          ['태평후괴','안휘','손바닥만 한 납작한 잎, 시각적 임팩트가 큼'],
+          ['신양모첨','하남','가늘고 곧은 형태, 깔끔한 맛']
+        ]},
+        {sub:'백차', han:'白茶 · 약발효', head:['이름','산지','특징'], rows:[
+          ['백호은침','복건 복정','새싹만 사용, 솜털이 가득한 최고 등급'],
+          ['백모단','복건','싹에 잎 1~2매, 은침보다 맛이 진함'],
+          ['수미 · 공미','복건','성숙한 잎 위주. 저렴하지만 묵히면 노백차로 값이 붙음']
+        ]},
+        {sub:'황차', han:'黃茶 · 경발효', head:['이름','산지','특징'], rows:[
+          ['군산은침','호남 동정호','유리잔에서 싹이 서는 연출로 유명'],
+          ['몽정황아','사천','민황 공정을 거쳐 녹차의 풋내가 빠진 부드러움']
+        ], note:'6대 차류 중 생산량이 가장 적어 시장에서 만나기 어렵습니다.'},
+        {sub:'청차 (우롱)', han:'靑茶 · 부분산화', head:['이름','산지','특징'], rows:[
+          ['대홍포','복건 무이산','무이암차의 정점. 모수 6그루 전설로 유명'],
+          ['수선','복건 무이산','난꽃향에 원목의 무게감. 노총수선이 프리미엄'],
+          ['육계','복건 무이산','계피향과 매운 여운. 무이암차 중 가장 개성이 강함'],
+          ['안계철관음','복건 안계','청향형은 맑고 꽃향, 농향형은 구수하고 묵직'],
+          ['봉황단총','광동 봉황산','밀란향·압시향 등 향형별로 세분. 우롱 중 향이 가장 화려함']
+        ]},
+        {sub:'홍차', han:'紅茶 · 완전발효', head:['이름','산지','특징'], rows:[
+          ['기문홍차','안휘','난꽃향과 과일향. 세계 3대 홍차'],
+          ['정산소종','복건 무이산','소나무 훈연향. 세계 최초의 홍차로 알려짐'],
+          ['전홍','운남','대엽종 몰트향, 진한 바디. 밀크티에도 강함'],
+          ['금준미','복건 무이산','정산소종 계열을 새싹만으로 만든 고급형']
+        ]},
+        {sub:'흑차', han:'黑茶 · 후발효', head:['이름','산지','특징'], rows:[
+          ['보이 생차','운남','자연 후발효. 수십 년에 걸쳐 익어감'],
+          ['보이 숙차','운남','1973년 개발된 악퇴 발효. 40~60일 만에 숙성된 맛'],
+          ['노차두','운남','악퇴 중 뭉친 덩어리. 등외품이었다가 재평가된 부위'],
+          ['육보차','광서','빈랑향, 매끄러움. 동남아 화교 수출로 성장'],
+          ['안화흑차 (천량차)','호남','대나무로 감싼 기둥형, 36kg급도 있음'],
+          ['복전차','섬서','금화(황금 곰팡이)를 일부러 피운 게 고급 표시']
+        ]},
+        {sub:'화차', han:'花茶 · 재가공', head:['이름','베이스','특징'], rows:[
+          ['자스민차','녹차 · 백차','복주가 원산. 꽃을 겹겹이 갈아 향만 옮김'],
+          ['계화차','우롱 · 홍차','오스만투스. 살구·꿀 같은 단향'],
+          ['공예차','녹차 · 백차','꽃을 실로 묶어 넣고 물에서 피어나게 만든 연출용']
+        ]}
+      ]},
+    {id:'taiwan', title:'대만',
+      lede:'청차(우롱)의 비중이 압도적입니다. 고산 지형과 안개 덕에 고산차 문화가 특히 발달했고, 품평회 등급이 곧 가격표가 되는 시장 구조를 가졌습니다.',
+      groups:[
+        {sub:'대표 우롱', han:'', head:['이름','산지','특징'], rows:[
+          ['동정우롱','남투 녹곡','대만 우롱의 원조. 중발효 중배전'],
+          ['고산우롱','아리산·리산·삼투산','해발 1000m 이상. 청향에 두터운 단맛'],
+          ['문산포종','신베이 핑린','저산화. 우롱 중 녹차에 가장 가까움'],
+          ['동방미인','신죽·먀오리','벌레가 물어야 완성되는 차. 꿀향, 샴페인우롱 별명'],
+          ['금훤 (대차12호)','남투 등','우유 같은 부드러운 향. 밀크티 베이스로도 좋음'],
+          ['사계춘','남투 등','사계절 채엽 가능. 가볍고 합리적인 입문 우롱'],
+          ['목책철관음','타이베이 목책','안계와 다른 대만식 중배전 철관음']
+        ]},
+        {sub:'홍차 · 특수차', han:'', head:['이름','산지','특징'], rows:[
+          ['홍옥 (대차18호)','일월담','버마 대엽종×대만 야생종. 박하·계피향'],
+          ['홍운 (대차21호)','일월담','과일향·용안향이 홍옥보다 강함'],
+          ['GABA 우롱 (가엽용차)','남투 명간','질소·이산화탄소 혐기 발효로 GABA를 높인 차'],
+          ['비새차','전 지역','산지가 아니라 품평회 등급 개념. 특등장·두등장 등']
+        ], note:'비새차 등급은 대체로 특등장 → 두등장 → 이등장 → 삼등장 → 삼타매 순이며, 지역에 따라 금장·은장·우량장 표기를 쓰기도 합니다.'}
+      ]},
+    {id:'japan', title:'일본',
+      lede:'거의 전부가 녹차이고, 대부분 덖지 않고 쪄서 만듭니다. 차광(햇빛 가리기)과 볶음(배전)이라는 두 변수로 이 많은 종류가 갈립니다.',
+      groups:[
+        {sub:'증제차', han:'蒸製茶 · 일본 녹차의 주류', head:['이름','특징'], rows:[
+          ['센차','일본 녹차 생산량의 80% 이상. 표준이자 기준점'],
+          ['교쿠로','20일 이상 차광 재배. 감칠맛이 극대화된 최고급'],
+          ['카부세차','단기 차광. 센차와 교쿠로의 중간'],
+          ['텐차','말차의 원료. 차광 재배 후 비비지 않고 건조'],
+          ['말차','텐차를 맷돌로 간 가루차. 우리지 않고 풀어서 마심'],
+          ['반차','여름~가을 늦게 딴 잎. 담백하고 카페인이 낮음'],
+          ['호지차','반차·센차를 강하게 볶음. 구수하고 카페인이 낮음'],
+          ['겐마이차','볶은 현미를 섞음. 고소함이 주인공'],
+          ['후카무시차','오래 찐 센차. 색이 진하고 입자가 고와 탁하게 우러남']
+        ]},
+        {sub:'그 외', han:'', head:['이름','특징'], rows:[
+          ['카마이리차','규슈의 덖음 녹차. 중국식 제법이 남은 소수 계열'],
+          ['와코차','일본산 홍차. 소량이지만 최근 품질이 빠르게 오름'],
+          ['구키차 · 카리가네','줄기 부위로 만든 차. 부드럽고 저렴']
+        ]}
+      ]},
+    {id:'korea', title:'한국',
+      lede:'조선의 숭유억불로 한 번 끊겼다가 조선 후기에 되살아난 역사를 가집니다. 그 공백을 대용차가 메운 것이 다른 나라와 가장 다른 지점입니다.',
+      groups:[
+        {sub:'녹차 등급', han:'채엽 시기 기준', head:['이름','시기','특징'], rows:[
+          ['우전','곡우 전','가장 여린 첫물. 감칠맛이 강하고 값이 높음'],
+          ['세작','곡우~입하','스탠다드로 가장 무난한 등급'],
+          ['중작','5월 중순 이후','잎이 자란 뒤. 맛이 진하고 가격이 합리적'],
+          ['대작','6월 이후','가장 성숙한 잎. 티백·대량 우림용']
+        ]},
+        {sub:'특별한 차', han:'', head:['이름','산지','특징'], rows:[
+          ['청태전','전남 장흥','엽전 모양 떡차. 고려 단차 문화가 남은 후발효차'],
+          ['잭살차','하동','감기 때 마시던 민간 발효차. 투박한 맛이 재평가되는 중'],
+          ['죽로차','전남 일대','대숲 반그늘에서 자란 잎. 아미노산이 높아 부드러움'],
+          ['황차','하동·보성','약하게 발효시킨 국산 차. 구수하고 순함'],
+          ['제주 백차·홍차','제주','현대식 대규모 다원. 국산 백차 수급처로 활용 가능']
+        ]},
+        {sub:'대용차', han:'찻잎이 들어가지 않는 차', head:['이름','특징'], rows:[
+          ['유자차 · 모과차','청으로 담가 물에 푸는 방식. 겨울 메뉴로 강함'],
+          ['생강차 · 대추차','달여서 마심. 카페인이 없어 저녁·임산부 옵션'],
+          ['쑥차','잎이 두꺼워 오래 우려야 함. 쌉쌀함에 꿀·대추가 잘 맞음'],
+          ['보리차 · 옥수수차','물처럼 마시는 문화. 한국 특유의 광의의 차']
+        ]}
+      ]},
+    {id:'sea', title:'동남아시아',
+      lede:'차나무 재배지이면서, 마시는 방식 자체가 독자적으로 발달한 지역입니다. 먹는 차와 연유 밀크티가 대표적입니다.',
+      groups:[
+        {sub:'베트남', han:'', head:['이름','특징'], rows:[
+          ['차선뚜옛','북부 고산의 야생 대엽종. 흰 솜털이 덮여 눈차라 불림'],
+          ['연꽃차','녹차를 연꽃 속에 넣어 착향. 하노이의 명물'],
+          ['자스민차','중국과 유사한 착향법. 저렴하고 대중적']
+        ]},
+        {sub:'미얀마', han:'', head:['이름','특징'], rows:[
+          ['라펫','발효 찻잎을 견과·향신료와 버무려 먹는 샐러드. 마시지 않고 씹는 차']
+        ]},
+        {sub:'태국', han:'', head:['이름','특징'], rows:[
+          ['차옌','홍차에 연유를 넣은 주황색 밀크티. 스트리트 음료의 상징'],
+          ['도이창 · 치앙라이 우롱','대만 이주민이 전파한 고산우롱 재배지']
+        ]},
+        {sub:'인도네시아 · 말레이시아', han:'', head:['이름','특징'], rows:[
+          ['자바 · 수마트라 홍차','대규모 플랜테이션. CTC 위주의 저가 대량 생산'],
+          ['테 타릭','말레이시아식 당겨 만드는 밀크티. 연유를 씀'],
+          ['말레이시아 노육보','수출된 육보차가 현지에서 오래 묵어 재수출되는 시장']
+        ]},
+        {sub:'인도 · 스리랑카', han:'남아시아 · 참고', head:['이름','특징'], rows:[
+          ['다즐링','머스캣향. 섬세해서 밀크티에는 맞지 않음'],
+          ['아쌈','몰트향과 강한 탄닌. 밀크티의 표준'],
+          ['닐기리','남인도. 산뜻하고 깔끔해 아이스티에 적합'],
+          ['실론 (우바·딤불라)','스리랑카. 고도별로 성격이 갈리며 우바는 멘톨향이 특징']
+        ]}
+      ]}
+  ];
+
+  // 육대다류 제다방법 인포그래픽 — 발효도 순서(무발효→후발효)로 공정 단계를 나열
+  var TEA_PROCESS=[
+    {id:'green', name:'녹차', han:'綠茶', ferment:'무발효', color:'#A8C08A',
+      desc:'딴 직후 열을 가해 산화효소를 바로 죽이는 게 전부입니다. 그래서 풋풋한 잎 그대로의 색과 향이 남습니다.',
+      steps:[
+        {t:'채엽', d:'어린 싹·잎을 이른 아침에 수확, 바로 가공 들어가야 함'},
+        {t:'살청(殺靑)', d:'솥에서 덖거나(초청) 증기로 쪄서(증청) 산화효소를 즉시 비활성화 — 녹차 공정의 핵심'},
+        {t:'유념(揀捻)', d:'잎을 비비거나 말아 형태를 잡고, 세포벽을 살짝 터뜨려 우러나기 쉽게 함'},
+        {t:'건조', d:'홍건·초건으로 수분을 낮춰 보존성 확보'}
+      ]},
+    {id:'white', name:'백차', han:'白茶', ferment:'약발효', color:'#CBD3A3',
+      desc:'육대다류 중 손이 가장 덜 갑니다. 덖지도 비비지도 않고, 그냥 시들려 말리기만 해서 약하게 산화됩니다.',
+      steps:[
+        {t:'채엽', d:'백호은침은 싹만, 백모단은 싹+잎 1~2매 — 여릴수록 등급이 높음'},
+        {t:'위조(萎凋)', d:'실내·실외에 2~3일 넓게 펴 널어 천천히 시들림 — 이 동안 약하게 자연 산화가 일어남(살청 없음)'},
+        {t:'건조', d:'약한 불이나 햇볕으로 마무리 건조. 유념 공정 자체가 없어 잎 형태가 거의 그대로 남음'}
+      ],
+      note:'살청·유념이 둘 다 없는 유일한 차류라 "가장 덜 만든 차"로 불립니다. 그만큼 원료(싹)의 질이 맛을 거의 그대로 결정합니다.'},
+    {id:'yellow', name:'황차', han:'黃茶', ferment:'경발효', color:'#DDCB84',
+      desc:'공정은 녹차와 거의 같은데, 중간에 뜸을 들이는 단계 하나가 더 있어서 녹차의 풋내가 빠지고 더 부드러워집니다.',
+      steps:[
+        {t:'채엽·살청', d:'녹차와 동일하게 수확 후 바로 살청으로 산화효소를 죽임'},
+        {t:'유념', d:'녹차와 같은 방식으로 비비거나 말아 형태를 잡음'},
+        {t:'민황(悶黃)', d:'아직 뜨겁고 수분이 남은 잎을 종이·천으로 싸서 쌓아두고 습열 상태로 뜸들임(수 시간~며칠) — 황차만의 핵심 공정, 이때 약한 비효소적 발효가 일어나 누런빛과 부드러운 맛이 생김'},
+        {t:'건조', d:'마무리 건조로 수분 제거'}
+      ],
+      note:'생산량이 가장 적은 차류 — 민황 공정이 까다롭고 시간이 걸려서 상업적으로 잘 안 만들어집니다.'},
+    {id:'oolong', name:'청차(우롱)', han:'靑茶', ferment:'부분산화 10~80%', color:'#C99A54',
+      desc:'산화를 중간에서 멈추는 기술이 핵심이라, 같은 "우롱"이어도 산화도에 따라 녹차에 가까운 맛부터 홍차에 가까운 맛까지 폭이 가장 넓습니다.',
+      steps:[
+        {t:'채엽', d:'싹보다 다 자란 잎(開面葉) 위주로 수확 — 녹차보다 성숙한 잎을 씀'},
+        {t:'위조', d:'햇볕이나 실내에서 시들려 수분을 날리고 산화를 준비'},
+        {t:'요청(搖靑)', d:'대광주리에 넣고 흔들거나 비벼 잎 가장자리에 상처를 내 산화를 촉진 — 정지(靜置, 쉬기)와 번갈아 반복하며 원하는 산화도까지 끌어올림'},
+        {t:'살청', d:'원하는 산화도(문산포종 10%대~동방미인 70%대)에 도달하면 열을 가해 산화를 그 자리에서 멈춤'},
+        {t:'유념(포유)', d:'비비거나(조형) 둥글게 싸서 압착(포유)해 형태를 잡음 — 구슬형 철관음은 포유 공정이 특히 중요'},
+        {t:'건조·배화', d:'건조 후 기호에 따라 숯불·전기로 추가로 볶는 배화(焙火) 공정을 더해 불향·단맛을 얹음(청향형은 생략, 농향형은 깊게)'}
+      ]},
+    {id:'black_t', name:'홍차', han:'紅茶', ferment:'완전산화', color:'#A9522F', textLight:true,
+      desc:'세포를 적극적으로 터뜨려 산화효소가 공기와 최대한 많이 만나게 하는 차. 그래서 색이 붉어지고 단맛·바디가 가장 묵직합니다.',
+      steps:[
+        {t:'채엽', d:'대엽종(아쌈·전홍)은 두 잎+싹, 소엽종(기문·정산소종)은 더 여린 잎 위주'},
+        {t:'위조', d:'장시간(8~18시간) 시들려 수분을 날리고 잎을 유연하게 만듦'},
+        {t:'유념', d:'강하게 비비거나 CTC 기계로 잘라 세포벽을 적극적으로 파괴 — 산화효소가 터져나와 공기와 바로 반응하게 함'},
+        {t:'발효(산화)', d:'습도·온도를 맞춘 방에서 1~3시간 그대로 두어 완전히 산화 — 잎이 구릿빛~검은빛으로 변함, "발효"라 부르지만 실제로는 효소에 의한 산화'},
+        {t:'건조', d:'고온으로 빠르게 건조해 산화를 완전히 정지, 향을 고정'}
+      ]},
+    {id:'dark', name:'흑차', han:'黑茶', ferment:'후발효', color:'#5C3722', textLight:true,
+      desc:'완성된 뒤에도 미생물이 계속 작용하는 유일한 차류. 만드는 순간의 발효가 아니라 "시간이 만드는 발효"가 핵심입니다.',
+      steps:[
+        {t:'채엽·살청·유념', d:'녹차와 같은 순서로 1차 가공(모차毛茶를 만듦) — 아직은 녹차에 가까운 상태'},
+        {t:'악퇴(渥堆) 또는 자연후발효', d:'보이 숙차는 찻잎을 쌓고 물을 뿌려 미생물(곰팡이·효모)이 번식하게 두는 악퇴(40~60일, 1973년 개발된 인공 발효) · 보이 생차는 악퇴 없이 압착해서 수년~수십 년에 걸쳐 자연적으로 천천히 후발효됨'},
+        {t:'긴압(選壓)', d:'병차·전차·타차 등 덩어리 형태로 눌러 압축 — 공기 접촉을 줄여 발효 속도를 조절하고 보관·운송을 쉽게 함(흩잎散茶으로도 유통)'},
+        {t:'건조·숙성', d:'건조 후 통풍이 되는 창고에서 오래 숙성 — 흑차는 이 단계가 끝나는 시점이 따로 없음'}
+      ],
+      note:'복전차처럼 일부러 금화(황금 곰팡이, 유익균)를 피우는 경우도 있습니다 — 흑차에서만 "곰팡이=고급 표시"가 되는 역전이 일어남.'}
+  ];
+
+  function renderTeaProcess(){
+    $('teaProcessBody').innerHTML=TEA_PROCESS.map(function(tp){
+      var steps=tp.steps.map(function(s,i){
+        var arrow=i>0 ? '<div class="process-arrow">→</div>' : '';
+        return arrow+'<div class="process-step"><b>'+esc(s.t)+'</b><span>'+esc(s.d)+'</span></div>';
+      }).join('');
+      var note=tp.note ? '<p class="process-note">'+esc(tp.note)+'</p>' : '';
+      var badgeColor=tp.textLight ? '#E7DFCB' : '#2A241C';
+      return '<div class="process-card" style="--pc:'+tp.color+';">' +
+        '<div class="process-head"><span class="process-name">'+esc(tp.name)+'</span>' +
+        '<span class="han">'+esc(tp.han)+'</span>' +
+        '<span class="process-ferment" style="color:'+badgeColor+';">'+esc(tp.ferment)+'</span></div>' +
+        '<p class="process-desc">'+esc(tp.desc)+'</p>' +
+        '<div class="process-flow">'+steps+'</div>'+note +
+      '</div>';
+    }).join('');
+  }
+
+  function renderAtlas(){
+    $('atlasNav').innerHTML=ATLAS.map(function(sec){
+      return '<button class="chip" data-goto="atlas-'+sec.id+'">'+esc(sec.title)+'</button>';
+    }).join('');
+    $('atlasNav').querySelectorAll('[data-goto]').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var el=$(btn.getAttribute('data-goto'));
+        if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+    });
+    $('atlasBody').innerHTML=ATLAS.map(function(sec){
+      var groups=sec.groups.map(function(g){
+        var head='<tr>'+g.head.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr>';
+        var body=g.rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>';}).join('')+'</tr>';}).join('');
+        var note=g.note ? '<p class="lede" style="margin:9px 0 0;">'+esc(g.note)+'</p>' : '';
+        return '<h3 class="atlas-sub">'+esc(g.sub)+(g.han?'<span class="han">'+esc(g.han)+'</span>':'')+'</h3>' +
+          '<div class="table-scroll"><table class="atlas-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>'+note;
+      }).join('');
+      return '<section class="atlas-sec" id="atlas-'+sec.id+'">' +
+        '<h2>'+esc(sec.title)+'</h2>' +
+        '<p class="lede">'+esc(sec.lede)+'</p>'+groups +
+      '</section>';
+    }).join('');
+  }
+
+  /* ---- 향미 사전 — 향 계열표(아로마 휠식) + 다도 용어 + 봉황단총 향형 ---- */
+  var AROMA_WHEEL=[
+    {cat:'풀향', notes:'건초, 밀짚, 대나무줄기, 미나리, 민트, 코리앤더, 로즈메리, 바질, 셀러리, 펜넬, 녹두', where:'녹차, 저발효 우롱'},
+    {cat:'해초향', notes:'해초류, 굴, 조개류', where:'녹차, 특히 일본 교쿠로·센차'},
+    {cat:'꽃향', notes:'재스민, 계화, 국화, 백합, 난꽃, 수선화, 은방울꽃, 라일락, 장미, 제비꽃, 목련', where:'백차, 경발효 우롱(문산포종·고산우롱)'},
+    {cat:'과일향', notes:'살구, 복숭아, 사과, 수박, 배, 머스캣포도, 신선한 무화과, 딸기, 레몬, 블랙베리, 오렌지, 밀감, 자몽, 리치, 용과, 망고, 파파야, 파인애플', where:'홍차, 고산우롱, 동방미인'},
+    {cat:'유제품향', notes:'버터, 크림, 우유, 젖향, 치즈향', where:'배전 우롱(철관음 농향형 등), 일부 홍차'},
+    {cat:'견과류향', notes:'호두, 헤이즐넛, 아몬드, 밤', where:'배전차, 보이 숙차'},
+    {cat:'나무향', notes:'삼나무, 참나무, 소나무, 유칼립투스, 이끼, 젖은 낙엽', where:'무이암차, 보이차(생차·숙차 모두)'},
+    {cat:'흙향', notes:'습기, 먼지, 젖은 암석, 감자, 뿌리', where:'흑차, 보이 생차(특히 신차)'},
+    {cat:'훈연향', notes:'재, 담배, 타르', where:'정산소종 등 훈연 가공한 홍차'}
+  ];
+  var TEA_TERMS=[
+    {term:'회감', hanja:'回甘', mean:'삼킨 뒤 목 안쪽에서 뒤늦게 올라오는 단맛. 홍차보다 우롱차·보이차에서 두드러짐'},
+    {term:'생진', hanja:'生津', mean:'차를 마신 뒤 입 안에 침이 고이는 듯한 감각. 회감과 같이 오는 경우가 많음'},
+    {term:'구감', hanja:'口感', mean:'맛이 아니라 입 안에서 느껴지는 질감 — 매끄러움·두께감·떫음 등을 통틀어 말함'},
+    {term:'활(활미)', hanja:'滑', mean:'구감의 한 종류. 매끄럽게 목으로 넘어가는 느낌. 고급 우롱·숙차에서 자주 쓰는 표현'},
+    {term:'순후', hanja:'醇厚', mean:'맛이 부드러우면서도 밀도가 있다는 뜻. 진하지만 거칠지 않은 상태'},
+    {term:'삽미', hanja:'澀味', mean:'떫은맛. 탄닌 때문에 생기며 적당하면 여운의 일부, 과하면 결점으로 봄'},
+    {term:'청량감', hanja:'—', mean:'시원하고 상쾌한 느낌. 멘톨 같은 향이 나는 무이암차 등에서 자주 언급됨'},
+    {term:'밀향', hanja:'蜜香', mean:'꿀 같은 달콤한 향. 동방미인처럼 벌레(부빙)가 잎을 문 뒤 나는 향이 대표적'},
+    {term:'화향', hanja:'花香', mean:'꽃향 전체를 아우르는 총칭. 위 향 계열표의 "꽃향" 항목이 세부 표현'},
+    {term:'과향', hanja:'果香', mean:'과일향 전체를 아우르는 총칭. 위 향 계열표의 "과일향" 항목이 세부 표현'},
+    {term:'배화향(불향)', hanja:'焙火香', mean:'배전(불로 볶는 공정) 때문에 생기는 향 — 견과류·카라멜·훈연 쪽에 가까움'},
+    {term:'진향', hanja:'陳香', mean:'오래 묵으면서 생기는 향. 보이차·노백차 등 후발효·숙성차에서 나타남'},
+    {term:'암운', hanja:'岩韻', mean:'무이암차 특유의 미네랄 같은 여운. 산지의 바위 토양에서 유래했다고 알려짐'},
+    {term:'산운', hanja:'山韻', mean:'고산 우롱 특유의 청량하고 깨끗한 여운. 고도가 높을수록 두드러진다고 함'},
+    {term:'다기', hanja:'茶氣', mean:'차를 마신 뒤 몸에서 느껴지는 열감·기운 등의 신체 감각. 사람마다 느끼는 정도가 다름'},
+    {term:'탕색', hanja:'湯色', mean:'우려낸 찻물의 색. 차 품질·발효도를 가늠하는 기준 중 하나'},
+    {term:'엽저', hanja:'葉底', mean:'다 우리고 남은 찻잎. 색·탄력·손상 여부로 원료 등급을 짐작함'}
+  ];
+  // 봉황단총 "십대 향형" — 품종(모수) 이름 자체가 곧 향 설명인 봉황단총 특유의 분류
+  var DANCONG_XIANGXING=[
+    {name:'황지향', hanja:'黃梔香', mean:'치자꽃처럼 진하고 단 꽃향'},
+    {name:'지란향', hanja:'芝蘭香', mean:'난초향. 은은하고 우아한 편'},
+    {name:'밀란향', hanja:'蜜蘭香', mean:'꿀+난향이 섞인 향. 향형 중 가장 대중적이고 물량도 많음'},
+    {name:'행인향', hanja:'杏仁香', mean:'아몬드처럼 고소하면서 살짝 쌉쌀한 향'},
+    {name:'육계향', hanja:'肉桂香', mean:'계피 같은 알싸하고 매운 향'},
+    {name:'강화향', hanja:'薑花香', mean:'생강꽃 향. 알싸하면서도 화사함'},
+    {name:'계화향', hanja:'桂花香', mean:'목서(계화)꽃 향. 달콤하고 진한 편'},
+    {name:'옥란향', hanja:'玉蘭香', mean:'백목련 향. 맑고 은은함'},
+    {name:'야래향', hanja:'夜來香', mean:'야래향(튜베로즈) 꽃향. 진하고 관능적'},
+    {name:'유화향', hanja:'柚花香', mean:'유자꽃 향. 상큼하고 시트러스에 가까움'},
+    {name:'압시향', hanja:'鴨屎香', mean:'이름과 달리 향은 좋은 편(꽃+과일 복합향) — 발견된 밭의 흙 이름("오리똥 흙")에서 따온 이름일 뿐, 십대 향형 밖의 품종인데 최근 가장 널리 퍼짐'}
+  ];
+
+  function renderTeaGlossary(){
+    $('aromaTableBody').innerHTML=AROMA_WHEEL.map(function(a){
+      return '<tr><td>'+esc(a.cat)+'</td><td>'+esc(a.notes)+'</td><td>'+esc(a.where)+'</td></tr>';
+    }).join('');
+    $('termTableBody').innerHTML=TEA_TERMS.map(function(t){
+      return '<tr><td>'+esc(t.term)+'</td><td>'+esc(t.hanja)+'</td><td>'+esc(t.mean)+'</td></tr>';
+    }).join('');
+    $('danCongTableBody').innerHTML=DANCONG_XIANGXING.map(function(d){
+      return '<tr><td>'+esc(d.name)+'</td><td>'+esc(d.hanja)+'</td><td>'+esc(d.mean)+'</td></tr>';
+    }).join('');
+  }
+
+  renderTeaProcess();
+  renderAtlas();
+  renderBrewChips();
+  renderBrewList();
+  initCalc();
+  renderTeaGlossary();
 
 })();
 </script>
