@@ -145,29 +145,40 @@
   .rcard-purpose{font-size:12.5px;color:var(--muted);line-height:1.6;border:0;border-bottom:1px solid var(--line);background:none;width:100%;padding:7px 2px;margin-bottom:12px;resize:vertical;min-height:58px;}
   .rcard-purpose:focus{outline:none;border-bottom-color:var(--accent);}
   .rcard-purpose:empty::before{content:'이 블렌딩의 목적성(언제·어떤 느낌을 위한 것인지)';color:var(--faint);}
-  .ingtbl{width:100%;border-collapse:collapse;margin-bottom:8px;}
+  .ingtbl{width:100%;border-collapse:collapse;margin-bottom:6px;}
   .ingtbl th{text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);padding:4px 6px;border-bottom:1px solid var(--line);letter-spacing:.03em;}
   .ingtbl td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:middle;}
-  .ingtbl select{width:100%;border:0;background:none;font-size:12.5px;color:var(--text);padding:5px 2px;}
   .ingtbl input[type="number"]{width:72px;border:0;border-bottom:1px solid var(--line);background:none;font-size:12.5px;padding:5px 2px;text-align:right;}
   .ingtbl input[type="number"]:focus{outline:none;border-bottom-color:var(--accent);}
   .ingtbl .pct{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;}
   .ingtbl .idel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;}
   .ing-add,.rcard-delbtn{background:none;border:1px solid var(--line);border-radius:4px;padding:5px 11px;font-size:11.5px;color:var(--muted);cursor:pointer;}
-  .rcard-tools{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+  .rcard-tools{display:flex;justify-content:flex-end;align-items:center;margin-top:4px;}
+
+  /* 재료 검색 콤보박스(2026-10-16) — <select>가 노트 개수가 늘수록 쓰기 힘들어져서
+     입력하며 걸러지는 작은 드롭다운으로 교체. 선택은 mousedown+preventDefault로 처리해서
+     (click이면 그 전에 input이 blur돼 팝업이 먼저 닫혀버리는 흔한 콤보박스 버그를 피함). */
+  .ingpick{position:relative;}
+  .ingpick-in{width:100%;border:0;border-bottom:1px solid var(--line);background:none;font-size:12.5px;color:var(--text);padding:5px 2px;}
+  .ingpick-in:focus{outline:none;border-bottom-color:var(--accent);}
+  .ingpick-pop{position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 16px var(--shadowc);max-height:220px;overflow-y:auto;margin-top:2px;}
+  .ingpick-pop.hidden{display:none;}
+  .ingpick-opt{padding:7px 10px;font-size:12.5px;cursor:pointer;}
+  .ingpick-opt:hover{background:var(--sunk);}
+  .ingpick-opt .ingpick-sub{color:var(--faint);font-size:11px;}
+  .ingpick-clear{color:var(--muted);font-style:italic;border-bottom:1px dashed var(--line);}
+  .ingpick-empty{padding:9px 10px;font-size:12px;color:var(--faint);}
 
   .explog-sec{margin-top:16px;padding-top:13px;border-top:1px dashed var(--line);}
-  .explog-sec h4{font-size:11px;color:var(--muted);margin:0 0 10px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
+  .explog-sec h4{font-size:11px;color:var(--muted);margin:0 0 4px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
+  .explog-hint{font-size:11.5px;color:var(--muted);margin:0 0 12px;}
   .expcard{background:var(--sunk);border-radius:6px;padding:10px 12px;margin-bottom:9px;}
-  .expcard-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .expcard-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
   .expcard-head .edate{font-family:var(--mono);font-size:11.5px;color:var(--accent-2);}
   .expcard-head .edel{margin-left:auto;background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;}
-  .expcard-text{font-size:12.5px;line-height:1.6;white-space:pre-wrap;}
-  .expadd{background:var(--panel);border:1px dashed var(--line);border-radius:6px;padding:10px 12px;}
-  .expadd-row{display:flex;gap:8px;margin-bottom:7px;align-items:center;}
-  .expadd-row input[type="date"]{border:1px solid var(--line);border-radius:4px;padding:6px 7px;font-size:11.5px;background:var(--sunk);color:var(--text);}
-  .expadd textarea{width:100%;border:1px solid var(--line);border-radius:4px;padding:9px 11px;font-size:12.5px;line-height:1.6;background:var(--sunk);color:var(--text);min-height:90px;resize:vertical;margin-bottom:7px;}
-  .expadd button{background:var(--accent);color:var(--on-accent);border:0;border-radius:4px;padding:6px 13px;font-size:12px;cursor:pointer;}
+  .ing-add-sm{background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;color:var(--muted);cursor:pointer;margin:2px 0 10px;}
+  .expcard-note{width:100%;border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:12.5px;line-height:1.6;background:var(--panel);color:var(--text);min-height:56px;resize:vertical;}
+  .expcard-note:focus{outline:none;border-color:var(--accent);}
 
   /* ---- 백과 ---- */
   .ency-sec{margin-bottom:30px;}
@@ -306,7 +317,6 @@
     .wrap{padding:22px 14px 70px;}
     .field-grid{grid-template-columns:1fr;}
     .cardgrid{grid-template-columns:1fr;}
-    .expadd-row{flex-wrap:wrap;}
   }
 </style>
 </head>
@@ -556,6 +566,7 @@
       state.recipes=r[2].data||[];
       state.recipeLogs=r[3].data||[];
       state.journal=r[4].data||[];
+      migrateLegacyRecipeItems();
       renderNotes();
       renderRecipes();
       renderJournal();
@@ -610,10 +621,40 @@
     if(!info.color)return '';
     return '<span class="ncard-notetype" style="--ntc:'+info.color+';">'+esc(info.label)+'</span>';
   }
-  function noteOptionsHtml(selId){
-    return '<option value="">재료 선택</option>' + state.notes.map(function(n){
-      return '<option value="'+esc(n.id)+'"'+(n.id===selId?' selected':'')+'>'+esc(n.name||'(이름 없음)')+'</option>';
+  // 재료 검색 콤보박스(2026-10-16) — 레시피 실험의 재료 칸에서 쓰는 작은 자동완성.
+  // 일반 <select>를 대체: 노트가 많아지면 select는 스크롤해서 찾아야 해서 느렸음.
+  function ingPickerHtml(selId){
+    var n=state.notes.find(function(x){return x.id===selId;});
+    var label=n?(n.name||'(이름 없음)'):'';
+    return '<div class="ingpick">' +
+      '<input type="text" class="ingpick-in" data-ingval="'+esc(selId||'')+'" value="'+esc(label)+'" placeholder="재료 검색…" autocomplete="off">' +
+      '<div class="ingpick-pop hidden"></div>' +
+    '</div>';
+  }
+  function ingPickerOptionsHtml(q, curId){
+    var qn=norm(q);
+    var list=state.notes.filter(function(n){
+      return !qn || norm(n.name).indexOf(qn)>=0 || norm(n.origin).indexOf(qn)>=0;
+    }).slice(0,8);
+    var html='';
+    if(curId)html+='<div class="ingpick-opt ingpick-clear" data-id="" data-name="">선택 해제</div>';
+    if(!list.length)html+='<div class="ingpick-empty">검색 결과 없음</div>';
+    html+=list.map(function(n){
+      return '<div class="ingpick-opt" data-id="'+esc(n.id)+'" data-name="'+esc(n.name||'(이름 없음)')+'">'+
+        esc(n.name||'(이름 없음)')+(n.origin?' <span class="ingpick-sub">'+esc(n.origin)+'</span>':'')+
+      '</div>';
     }).join('');
+    return html;
+  }
+  function openIngPop(input){
+    var pop=input.nextElementSibling;
+    if(!pop)return;
+    pop.innerHTML=ingPickerOptionsHtml(input.value, input.getAttribute('data-ingval'));
+    pop.classList.remove('hidden');
+  }
+  function closeIngPop(input){
+    var pop=input.nextElementSibling;
+    if(pop)pop.classList.add('hidden');
   }
 
   // 차랑 향료를 한 DB에 같이 담고 싶다는 요청(2026-10-15)으로 추가 — 저장 구조(이름·원산지·
@@ -898,7 +939,34 @@
   $('dbSearch').addEventListener('input',function(e){state.dbQ=e.target.value;renderNoteList();});
 
   // ===== 레시피 탭 =====
+  // 레시피 = 한 주제(목적성). 그 안에서 같은 재료·추가 재료를 비율만 바꿔가며 여러 번
+  // 시도하는 게 실제 쓰는 방식이라는 요청(2026-10-16)으로 재구조 — 예전엔 레시피 하나에
+  // "현재 비율" 표 하나 + 실험기록은 그 시점 비율을 읽기전용 텍스트로만 남겼는데(비율은
+  // 안 보이고 글만 보임), 이제는 **재료·비율 표 자체가 실험(aroma_recipe_logs) 하나하나에
+  // 딸려서 각자 따로 편집**됨 — "현재" 하나가 아니라 "N차 시도"가 여러 개 나란히 쌓이는 구조.
   function recipeTotalRatio(items){return (items||[]).reduce(function(s,it){return s+(parseFloat(it.ratio)||0);},0);}
+
+  function expItemRowHtml(logId,it,i,total){
+    var ratio=parseFloat(it.ratio)||0;
+    var pct=total>0 ? (ratio/total*100).toFixed(1)+'%' : '';
+    return '<tr data-i="'+i+'">' +
+      '<td>'+ingPickerHtml(it.noteId)+'</td>' +
+      '<td><input type="number" step="0.1" min="0" data-field="ratio" value="'+esc(it.ratio)+'"></td>' +
+      '<td class="pct">'+pct+'</td>' +
+      '<td><button class="idel" type="button" data-act="delingitem">✕</button></td>' +
+    '</tr>';
+  }
+  function expCardHtml(l){
+    var items=l.items||[];
+    var total=recipeTotalRatio(items);
+    var rows=items.map(function(it,i){return expItemRowHtml(l.id,it,i,total);}).join('');
+    return '<div class="expcard" data-log-id="'+esc(l.id)+'">' +
+      '<div class="expcard-head"><span class="edate">'+esc(l.date)+'</span><button class="edel" type="button" data-act="delexp">✕</button></div>' +
+      '<table class="ingtbl"><thead><tr><th>재료</th><th>비율</th><th></th><th></th></tr></thead><tbody>'+rows+'</tbody></table>' +
+      '<button class="ing-add-sm" type="button" data-act="addingitem">+ 재료 추가</button>' +
+      '<textarea class="expcard-note" data-field="text" placeholder="느낀 점·결과…">'+esc(l.text)+'</textarea>' +
+    '</div>';
+  }
 
   function renderRecipes(){
     var q=norm(state.recipeQ);
@@ -906,39 +974,18 @@
     $('recipeEmptyMsg').classList.toggle('hidden', state.recipes.length>0);
     $('recipeSearchCount').textContent = state.recipeQ ? (list.length+'/'+state.recipes.length) : '';
     $('recipeList').innerHTML = list.map(function(r){
-      var items=r.items||[];
-      var total=recipeTotalRatio(items);
       var logs=logsForRecipe(r.id);
-      var rows=items.map(function(it,i){
-        var ratio=parseFloat(it.ratio)||0;
-        var pct=total>0 ? (ratio/total*100).toFixed(1)+'%' : '';
-        return '<tr data-i="'+i+'">' +
-          '<td><select data-field="noteId">'+noteOptionsHtml(it.noteId)+'</select></td>' +
-          '<td><input type="number" step="0.1" min="0" data-field="ratio" value="'+esc(it.ratio)+'"></td>' +
-          '<td class="pct">'+pct+'</td>' +
-          '<td><button class="idel" type="button" data-act="delitem">✕</button></td>' +
-        '</tr>';
-      }).join('');
       return '<div class="rcard" data-id="'+esc(r.id)+'">' +
         '<div class="rcard-head">' +
           '<div class="rcard-title" contenteditable="true" data-field="title">'+esc(r.title)+'</div>' +
         '</div>' +
         '<div class="rcard-purpose" contenteditable="true" data-field="purpose">'+esc(r.purpose)+'</div>' +
-        '<table class="ingtbl"><thead><tr><th>재료</th><th>비율</th><th></th><th></th></tr></thead><tbody>'+rows+'</tbody></table>' +
-        '<div class="rcard-tools">' +
-          '<button class="ing-add" type="button" data-act="additem">+ 재료 추가</button>' +
-          '<button class="rcard-delbtn" type="button" data-act="delrecipe">레시피 삭제</button>' +
-        '</div>' +
+        '<div class="rcard-tools"><button class="rcard-delbtn" type="button" data-act="delrecipe">레시피 삭제</button></div>' +
         '<div class="explog-sec">' +
-          '<h4>일자별 블렌딩 실험기록</h4>' +
-          (logs.length ? logs.map(function(l){
-            return '<div class="expcard" data-log-id="'+esc(l.id)+'"><div class="expcard-head"><span class="edate">'+esc(l.date)+'</span><button class="edel" type="button" data-act="delexp">✕</button></div><div class="expcard-text">'+esc(l.text)+'</div></div>';
-          }).join('') : '') +
-          '<div class="expadd">' +
-            '<div class="expadd-row"><input type="date" class="newexpdate" value="'+todayISO()+'"></div>' +
-            '<textarea class="newexptext" placeholder="오늘 시도한 블렌딩 결과·느낀 점…"></textarea>' +
-            '<button type="button" data-act="addexp">기록 추가</button>' +
-          '</div>' +
+          '<h4>배합 실험</h4>' +
+          '<p class="explog-hint">같은 주제 안에서 재료·비율을 바꿔가며 시도한 배합을 하나씩 쌓아요(최신순).</p>' +
+          (logs.length ? logs.map(expCardHtml).join('') : '') +
+          '<button class="ing-add" type="button" data-act="addexp">+ 새 실험 추가</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -957,24 +1004,63 @@
     r.updated=new Date().toISOString();
     sb.from('aroma_recipes').upsert(r).then(function(){});
   }
+  function saveExpLog(logId){
+    var l=state.recipeLogs.find(function(x){return x.id===logId;});
+    if(!l)return;
+    sb.from('aroma_recipe_logs').upsert(l).then(function(){});
+  }
+
+  // 예전엔 레시피에 "현재 비율" 하나(r.items)만 있었는데, 이제 비율은 전부 실험
+  // (aroma_recipe_logs)에 딸리는 구조로 바뀌어서 — 그 전에 이미 r.items를 채워뒀던
+  // 레시피가 있으면(실험이 하나도 없는 경우만) 그 값을 그대로 첫 실험으로 옮기고
+  // r.items는 비움. 한 번 옮기면 다시 안 걸리는 멱등 동작(로드마다 안전하게 재실행).
+  function migrateLegacyRecipeItems(){
+    state.recipes.forEach(function(r){
+      if(r.items && r.items.length && logsForRecipe(r.id).length===0){
+        var log={id:uid('arl'),owner:state.uid,recipe_id:r.id,date:(r.created?r.created.slice(0,10):todayISO()),text:'',items:r.items,created:new Date().toISOString()};
+        state.recipeLogs.push(log);
+        sb.from('aroma_recipe_logs').upsert(log).then(function(){});
+        r.items=[];
+        saveRecipe(r.id);
+      }
+    });
+  }
+
+  // 재료 검색 콤보박스 선택은 mousedown에서 처리(click이 아니라) — click을 쓰면 그보다
+  // 먼저 일어나는 input의 blur가 팝업을 먼저 닫아버려서 옵션을 못 짚는 흔한 버그가 생김.
+  // preventDefault로 그 blur 자체를 막아서 포커스가 안 떠나게 함.
+  $('recipeList').addEventListener('mousedown',function(e){
+    var opt=e.target.closest('.ingpick-opt'); if(!opt)return;
+    e.preventDefault();
+    var pick=opt.closest('.ingpick');
+    var input=pick.querySelector('.ingpick-in');
+    var newId=opt.getAttribute('data-id')||'';
+    input.setAttribute('data-ingval',newId);
+    input.value=opt.getAttribute('data-name')||'';
+    closeIngPop(input);
+    var expEl=opt.closest('.expcard'); if(!expEl)return;
+    var logId=expEl.getAttribute('data-log-id');
+    var l=state.recipeLogs.find(function(x){return x.id===logId;});
+    var tr=opt.closest('tr');
+    var i=parseInt(tr.getAttribute('data-i'));
+    if(l && l.items[i]){
+      l.items[i].noteId=newId;
+      patchExpCardPct(logId);
+      saveExpLog(logId);
+    }
+  });
+
+  $('recipeList').addEventListener('focusin',function(e){
+    if(e.target.classList && e.target.classList.contains('ingpick-in'))openIngPop(e.target);
+  });
+  $('recipeList').addEventListener('input',function(e){
+    if(e.target.classList && e.target.classList.contains('ingpick-in'))openIngPop(e.target);
+  });
 
   $('recipeList').addEventListener('click',function(e){
     var card=e.target.closest('.rcard'); if(!card)return;
     var id=card.getAttribute('data-id');
-    var r=state.recipes.find(function(x){return x.id===id;});
     var act=e.target.getAttribute('data-act');
-    if(act==='additem'){
-      r.items=(r.items||[]).concat([{noteId:'',ratio:1}]);
-      renderRecipes();
-      saveRecipe(id);
-    }
-    if(act==='delitem'){
-      var tr=e.target.closest('tr');
-      var i=parseInt(tr.getAttribute('data-i'));
-      r.items.splice(i,1);
-      renderRecipes();
-      saveRecipe(id);
-    }
     if(act==='delrecipe'){
       var idx=state.recipes.findIndex(function(x){return x.id===id;});
       var removed=state.recipes[idx], removedLogs=logsForRecipe(id);
@@ -994,10 +1080,7 @@
       });
     }
     if(act==='addexp'){
-      var dateIn=card.querySelector('.newexpdate'), textIn=card.querySelector('.newexptext');
-      var text=(textIn.value||'').trim();
-      if(!text)return;
-      var log={id:uid('arl'),owner:state.uid,recipe_id:id,date:dateIn.value||todayISO(),text:text,items:JSON.parse(JSON.stringify(r.items||[])),created:new Date().toISOString()};
+      var log={id:uid('arl'),owner:state.uid,recipe_id:id,date:todayISO(),text:'',items:[],created:new Date().toISOString()};
       state.recipeLogs.unshift(log);
       renderRecipes();
       renderJournal();
@@ -1012,53 +1095,93 @@
       renderRecipes();
       renderJournal();
       sb.from('aroma_recipe_logs').delete().eq('id',logId).then(function(){});
-      showToast('기록을 지웠어요',function(){
+      showToast('실험을 지웠어요',function(){
         state.recipeLogs.splice(lidx,0,removedLog);
         renderRecipes();
         renderJournal();
         sb.from('aroma_recipe_logs').upsert(removedLog).then(function(){});
       });
     }
+    if(act==='addingitem'){
+      var expEl2=e.target.closest('.expcard');
+      var logId2=expEl2.getAttribute('data-log-id');
+      var l2=state.recipeLogs.find(function(x){return x.id===logId2;});
+      if(!l2)return;
+      l2.items=(l2.items||[]).concat([{noteId:'',ratio:1}]);
+      renderRecipes();
+      saveExpLog(logId2);
+    }
+    if(act==='delingitem'){
+      var expEl3=e.target.closest('.expcard');
+      var logId3=expEl3.getAttribute('data-log-id');
+      var l3=state.recipeLogs.find(function(x){return x.id===logId3;});
+      if(!l3)return;
+      var tr3=e.target.closest('tr');
+      var i3=parseInt(tr3.getAttribute('data-i'));
+      l3.items.splice(i3,1);
+      renderRecipes();
+      saveExpLog(logId3);
+    }
   });
 
-  // renderNotes와 같은 이유로, 입력 중이던 셀렉트/입력칸을 통째로 다시 그리면
-  // 블러→포커스 전환과 충돌하므로 퍼센트 표시만 patch하고 입력칸 자체는 안 건드림.
-  function patchRecipeCardPct(id){
-    var card=$('recipeList').querySelector('.rcard[data-id="'+id+'"]');
-    var r=state.recipes.find(function(x){return x.id===id;});
-    if(!card||!r)return;
-    var total=recipeTotalRatio(r.items);
+  // 실험 안 재료표의 퍼센트는 구조 변경(행 추가/삭제)이 아니면 전체 재렌더 없이
+  // patch만 함 — 노트/레시피 필드에서 이미 겪은 "blur 중 전체 재렌더 충돌"을 피하려고.
+  function patchExpCardPct(logId){
+    var card=$('recipeList').querySelector('.expcard[data-log-id="'+logId+'"]');
+    var l=state.recipeLogs.find(function(x){return x.id===logId;});
+    if(!card||!l)return;
+    var total=recipeTotalRatio(l.items);
     card.querySelectorAll('.ingtbl tr[data-i]').forEach(function(tr){
       var i=parseInt(tr.getAttribute('data-i'));
-      var ratio=parseFloat((r.items[i]||{}).ratio)||0;
+      var ratio=parseFloat((l.items[i]||{}).ratio)||0;
       var pctEl=tr.querySelector('.pct');
       if(pctEl)pctEl.textContent = total>0 ? (ratio/total*100).toFixed(1)+'%' : '';
     });
   }
 
   $('recipeList').addEventListener('change',function(e){
-    var card=e.target.closest('.rcard'); if(!card)return;
-    var id=card.getAttribute('data-id');
-    var r=state.recipes.find(function(x){return x.id===id;});
     var field=e.target.getAttribute('data-field');
-    if(field==='noteId'||field==='ratio'){
-      var tr=e.target.closest('tr');
-      var i=parseInt(tr.getAttribute('data-i'));
-      r.items[i][field]= field==='ratio' ? (parseFloat(e.target.value)||0) : e.target.value;
-      patchRecipeCardPct(id);
-      saveRecipe(id);
-    }
+    if(field!=='ratio')return;
+    var expEl=e.target.closest('.expcard'); if(!expEl)return;
+    var logId=expEl.getAttribute('data-log-id');
+    var l=state.recipeLogs.find(function(x){return x.id===logId;});
+    if(!l)return;
+    var tr=e.target.closest('tr');
+    var i=parseInt(tr.getAttribute('data-i'));
+    l.items[i].ratio=parseFloat(e.target.value)||0;
+    patchExpCardPct(logId);
+    saveExpLog(logId);
   });
-  // contenteditable 제목/목적성은 포커스 빠질 때 저장(다른 앱들과 같은 패턴)
+
+  // contenteditable 제목/목적성, 실험 메모, 재료 검색창은 전부 포커스 빠질 때 저장
+  // (다른 앱들과 같은 패턴) — 재료 검색창은 글자만 바꾸고 옵션을 안 고른 채 떠나면
+  // 실제 선택된 재료 이름으로 되돌림(선택은 위 mousedown에서만 확정됨).
   $('recipeList').addEventListener('focusout',function(e){
     var field=e.target.getAttribute && e.target.getAttribute('data-field');
-    if(field!=='title' && field!=='purpose')return;
-    var card=e.target.closest('.rcard');
-    var id=card.getAttribute('data-id');
-    var r=state.recipes.find(function(x){return x.id===id;});
-    if(!r)return;
-    r[field]=e.target.textContent;
-    saveRecipe(id);
+    if(field==='title' || field==='purpose'){
+      var card=e.target.closest('.rcard');
+      var id=card.getAttribute('data-id');
+      var r=state.recipes.find(function(x){return x.id===id;});
+      if(!r)return;
+      r[field]=e.target.textContent;
+      saveRecipe(id);
+      return;
+    }
+    if(field==='text'){
+      var expEl=e.target.closest('.expcard');
+      var logId=expEl.getAttribute('data-log-id');
+      var l=state.recipeLogs.find(function(x){return x.id===logId;});
+      if(!l)return;
+      l.text=e.target.value;
+      saveExpLog(logId);
+      return;
+    }
+    if(e.target.classList && e.target.classList.contains('ingpick-in')){
+      closeIngPop(e.target);
+      var selId=e.target.getAttribute('data-ingval')||'';
+      var n=state.notes.find(function(x){return x.id===selId;});
+      e.target.value=n?(n.name||'(이름 없음)'):'';
+    }
   },true);
 
   $('recipeSearch').addEventListener('input',function(e){state.recipeQ=e.target.value;renderRecipes();});
