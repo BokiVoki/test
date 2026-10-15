@@ -144,12 +144,9 @@
   .recipe-notes-sec h4{font-size:11px;color:var(--muted);margin:0 0 3px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
 
   /* ---- 레시피 카드 ---- */
-  /* #recipeList를 그리드로(2026-10-15) — 전에는 .rcard가 그냥 세로로만 쌓여서 레시피가
-     몇 개 안 될 때 화면이 한 줄짜리 카드로 벙벙해 보였음. .cardgrid(DB 탭 노트 카드)와
-     같은 auto-fill+minmax(220px) 패턴을 재사용 — .wrap(1180px) 기준 5칸까지 꽉 차고,
-     화면이 좁아지면 자동으로 줄어듦(640px 이하에서 1칸으로 고정하는 미디어쿼리는 아래). */
-  #recipeList{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;align-content:start;}
-  .rcard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent-2);border-radius:8px;padding:12px 13px;min-width:0;}
+  /* 레시피 카드(.rcard) 자체는 세로로 쌓임(한 레시피 = 한 주제, 폭 전체를 씀) — 5칸 그리드는
+     레시피가 아니라 그 안의 "배합 실험" 목록(.explist, 아래)에 적용됨. */
+  .rcard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent-2);border-radius:8px;padding:12px 13px;margin-bottom:12px;min-width:0;}
   .rcard-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:3px;}
   .rcard-title{flex:1;font-family:var(--serif);font-size:15px;font-weight:600;border:0;background:none;color:var(--text);width:100%;border-bottom:1px solid transparent;padding:2px 0;}
   .rcard-title:empty::before{content:'제목 없는 레시피';color:var(--faint);font-weight:400;}
@@ -184,7 +181,12 @@
   .explog-sec{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);}
   .explog-sec h4{font-size:11px;color:var(--muted);margin:0 0 3px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
   .explog-hint{font-size:11px;color:var(--muted);margin:0 0 8px;}
-  .expcard{background:var(--sunk);border-radius:6px;padding:8px 10px;margin-bottom:7px;}
+  /* 한 레시피(주제) 안의 배합 실험들을 나란히 비교하기 쉽게 그리드로(2026-10-15 재수정 —
+     "5칸은 레시피 목록이 아니라 레시피 안 배합 실험조합들 얘기였다"는 정정) — .rcard가
+     폭 전체(.wrap 1180px대)를 쓰므로 .cardgrid와 같은 minmax(220px) 패턴을 쓰면 여기서도
+     5칸까지 꽉 찬 뒤 화면이 좁아질수록 자동으로 줄어듦(640px 이하는 1칸, 아래 미디어쿼리). */
+  .explist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;align-content:start;}
+  .expcard{background:var(--sunk);border-radius:6px;padding:8px 10px;min-width:0;}
   .expcard-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
   .expcard-head .edate{font-family:var(--mono);font-size:11.5px;color:var(--accent-2);}
   .expcard-actions{margin-left:auto;display:flex;align-items:center;gap:4px;}
@@ -332,7 +334,7 @@
     .wrap{padding:22px 14px 70px;}
     .field-grid{grid-template-columns:1fr;}
     .cardgrid{grid-template-columns:1fr;}
-    #recipeList{grid-template-columns:1fr;}
+    .explist{grid-template-columns:1fr;}
   }
 </style>
 </head>
@@ -1013,7 +1015,7 @@
         '<div class="explog-sec">' +
           '<h4>배합 실험</h4>' +
           '<p class="explog-hint">같은 주제 안에서 재료·비율을 바꿔가며 시도한 배합을 하나씩 쌓아요(최신순).</p>' +
-          (logs.length ? logs.map(expCardHtml).join('') : '') +
+          (logs.length ? '<div class="explist">'+logs.map(expCardHtml).join('')+'</div>' : '') +
           '<button class="ing-add" type="button" data-act="addexp">+ 새 실험 추가</button>' +
         '</div>' +
       '</div>';
