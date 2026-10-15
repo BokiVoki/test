@@ -157,9 +157,9 @@
   .ingtbl{width:100%;border-collapse:collapse;margin-bottom:4px;}
   .ingtbl th{text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);padding:3px 5px;border-bottom:1px solid var(--line);letter-spacing:.03em;}
   .ingtbl td{padding:3px 5px;border-bottom:1px solid var(--line);vertical-align:middle;}
-  .ingtbl input[type="number"]{width:60px;border:0;border-bottom:1px solid var(--line);background:none;font-size:12.5px;padding:4px 2px;text-align:right;}
+  .ingtbl td:first-child{width:auto;}
+  .ingtbl input[type="number"]{width:46px;border:0;border-bottom:1px solid var(--line);background:none;font-size:12.5px;padding:4px 2px;text-align:right;}
   .ingtbl input[type="number"]:focus{outline:none;border-bottom-color:var(--accent);}
-  .ingtbl .pct{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;}
   .ingtbl .idel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;}
   .ing-add,.rcard-delbtn{background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11.5px;color:var(--muted);cursor:pointer;}
   .rcard-tools{display:flex;justify-content:flex-end;align-items:center;margin-top:3px;}
@@ -194,7 +194,7 @@
   .expcard-actions .ecopy:hover{border-color:var(--accent);color:var(--accent-2);}
   .expcard-actions .edel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;}
   .ing-add-sm{background:none;border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer;margin:2px 0 8px;}
-  .expcard-note{width:100%;border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:12.5px;line-height:1.55;background:var(--panel);color:var(--text);min-height:44px;resize:vertical;}
+  .expcard-note{width:100%;border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:12.5px;line-height:1.6;background:var(--panel);color:var(--text);min-height:92px;resize:vertical;}
   .expcard-note:focus{outline:none;border-color:var(--accent);}
 
   /* ---- 백과 ---- */
@@ -965,25 +965,19 @@
   // "현재 비율" 표 하나 + 실험기록은 그 시점 비율을 읽기전용 텍스트로만 남겼는데(비율은
   // 안 보이고 글만 보임), 이제는 **재료·비율 표 자체가 실험(aroma_recipe_logs) 하나하나에
   // 딸려서 각자 따로 편집**됨 — "현재" 하나가 아니라 "N차 시도"가 여러 개 나란히 쌓이는 구조.
-  function recipeTotalRatio(items){return (items||[]).reduce(function(s,it){return s+(parseFloat(it.ratio)||0);},0);}
-
-  function expItemRowHtml(logId,it,i,total){
-    var ratio=parseFloat(it.ratio)||0;
-    var pct=total>0 ? (ratio/total*100).toFixed(1)+'%' : '';
+  function expItemRowHtml(logId,it,i){
     return '<tr data-i="'+i+'">' +
       '<td>'+ingPickerHtml(it.noteId)+'</td>' +
       '<td><input type="number" step="0.1" min="0" data-field="ratio" value="'+esc(it.ratio)+'"></td>' +
-      '<td class="pct">'+pct+'</td>' +
       '<td><button class="idel" type="button" data-act="delingitem">✕</button></td>' +
     '</tr>';
   }
   function expCardHtml(l){
     var items=l.items||[];
-    var total=recipeTotalRatio(items);
-    var rows=items.map(function(it,i){return expItemRowHtml(l.id,it,i,total);}).join('');
+    var rows=items.map(function(it,i){return expItemRowHtml(l.id,it,i);}).join('');
     return '<div class="expcard" data-log-id="'+esc(l.id)+'">' +
       '<div class="expcard-head"><span class="edate">'+esc(l.date)+'</span><div class="expcard-actions"><button class="ecopy" type="button" data-act="copyexp">복사</button><button class="edel" type="button" data-act="delexp">✕</button></div></div>' +
-      '<table class="ingtbl"><thead><tr><th>재료</th><th>비율</th><th></th><th></th></tr></thead><tbody>'+rows+'</tbody></table>' +
+      '<table class="ingtbl"><thead><tr><th>재료</th><th>비율</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>' +
       '<button class="ing-add-sm" type="button" data-act="addingitem">+ 재료 추가</button>' +
       '<textarea class="expcard-note" data-field="text" placeholder="느낀 점·결과…">'+esc(l.text)+'</textarea>' +
     '</div>';
@@ -1084,7 +1078,6 @@
     var i=parseInt(tr.getAttribute('data-i'));
     if(l && l.items[i]){
       l.items[i].noteId=newId;
-      patchExpCardPct(logId);
       saveExpLog(logId);
     }
   });
@@ -1207,21 +1200,6 @@
     }
   });
 
-  // 실험 안 재료표의 퍼센트는 구조 변경(행 추가/삭제)이 아니면 전체 재렌더 없이
-  // patch만 함 — 노트/레시피 필드에서 이미 겪은 "blur 중 전체 재렌더 충돌"을 피하려고.
-  function patchExpCardPct(logId){
-    var card=$('recipeList').querySelector('.expcard[data-log-id="'+logId+'"]');
-    var l=state.recipeLogs.find(function(x){return x.id===logId;});
-    if(!card||!l)return;
-    var total=recipeTotalRatio(l.items);
-    card.querySelectorAll('.ingtbl tr[data-i]').forEach(function(tr){
-      var i=parseInt(tr.getAttribute('data-i'));
-      var ratio=parseFloat((l.items[i]||{}).ratio)||0;
-      var pctEl=tr.querySelector('.pct');
-      if(pctEl)pctEl.textContent = total>0 ? (ratio/total*100).toFixed(1)+'%' : '';
-    });
-  }
-
   $('recipeList').addEventListener('change',function(e){
     var field=e.target.getAttribute('data-field');
     if(field!=='ratio')return;
@@ -1232,7 +1210,6 @@
     var tr=e.target.closest('tr');
     var i=parseInt(tr.getAttribute('data-i'));
     l.items[i].ratio=parseFloat(e.target.value)||0;
-    patchExpCardPct(logId);
     saveExpLog(logId);
   });
 
