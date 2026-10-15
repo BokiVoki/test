@@ -136,12 +136,12 @@
 
   .empty-note{font-size:12.5px;color:var(--faint);padding:30px 0;text-align:center;}
 
-  /* 레시피 탭의 날짜별 기록 — 특정 레시피에 안 묶인 전반적인 생각을 간단히 쌓는 곳(2026-10-15,
-     "레시피의 날짜별 기록만 가능하게" 요청). 개별 레시피 카드 안의 "배합 실험"(재료·비율 포함,
-     더 무거운 기록)과는 완전히 별개 — DB 탭의 .logs-sec/.logrow/.logadd와 같은 클래스를
-     재사용해서(이 셀렉터들은 전역이라 어디서든 같은 모양) 새 CSS를 거의 안 늘림. */
-  .recipe-notes-sec{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:14px;}
-  .recipe-notes-sec h4{font-size:11px;color:var(--muted);margin:0 0 3px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
+  /* 레시피 안의 날짜별 기록 — 그 레시피에 대한 가벼운 생각을 날짜만 찍어 쌓는 곳(2026-10-15,
+     한 레시피(주제) 안에 속하되 "배합 실험"(재료·비율 포함, 더 무거운 기록)과는 별개 섹션).
+     DB 탭의 .logs-sec/.logrow/.logadd와 같은 클래스를 재사용해서(이 셀렉터들은 전역이라
+     어디서든 같은 모양) 새 CSS를 거의 안 늘림. */
+  .rnote-sec{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);}
+  .rnote-sec h4{font-size:11px;color:var(--muted);margin:0 0 3px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
 
   /* ---- 레시피 카드 ---- */
   /* 레시피 카드(.rcard) 자체는 세로로 쌓임(한 레시피 = 한 주제, 폭 전체를 씀) — 5칸 그리드는
@@ -399,16 +399,6 @@
         <span class="count" id="recipeSearchCount"></span>
       </div>
       <div class="addbar"><button class="btn" type="button" id="addRecipeBtn">+ 새 레시피</button></div>
-      <div class="recipe-notes-sec">
-        <h4>📅 날짜별 기록</h4>
-        <p class="explog-hint">특정 레시피에 안 묶인, 그날그날의 생각을 간단히 남겨요(최신순).</p>
-        <div id="recipeNotesList"></div>
-        <div class="logadd">
-          <input type="date" class="newrnotedate" value="">
-          <textarea class="newrnotetext" placeholder="오늘의 기록…"></textarea>
-          <button type="button" data-act="addrnote">추가</button>
-        </div>
-      </div>
       <div id="recipeList"></div>
       <p class="empty-note hidden" id="recipeEmptyMsg">아직 레시피가 없어요. "+ 새 레시피"로 블렌딩을 시작해보세요.</p>
     </div>
@@ -599,13 +589,13 @@
       migrateLegacyRecipeItems();
       renderNotes();
       renderRecipes();
-      renderRecipeNotes();
       renderJournal();
     });
   }
 
   function logsForNote(id){return state.noteLogs.filter(function(l){return l.note_id===id;});}
   function logsForRecipe(id){return state.recipeLogs.filter(function(l){return l.recipe_id===id;});}
+  function notesForRecipe(id){return state.recipeNotes.filter(function(l){return l.recipe_id===id;});}
 
   // ===== 검색 매칭 =====
   function noteMatches(n,q){
@@ -616,7 +606,7 @@
   }
   function recipeMatches(r,q){
     if(!q)return true;
-    var hay=norm(r.title+' '+r.purpose+' '+logsForRecipe(r.id).map(function(l){return l.text;}).join(' '));
+    var hay=norm(r.title+' '+r.purpose+' '+logsForRecipe(r.id).map(function(l){return l.text;}).join(' ')+' '+notesForRecipe(r.id).map(function(l){return l.text;}).join(' '));
     return hay.indexOf(q)>=0;
   }
 
@@ -999,6 +989,23 @@
     '</div>';
   }
 
+  // 레시피 안의 날짜별 기록 — 그 레시피에 대한 가벼운 생각을 날짜만 찍어 쌓는 곳(DB 탭
+  // "일자별 메모"와 같은 모양, recipe_id로 그 레시피에만 속함 — "배합 실험"과는 별개).
+  function rnoteSecHtml(r){
+    var notes=notesForRecipe(r.id);
+    return '<div class="rnote-sec">' +
+      '<h4>📅 날짜별 기록</h4>' +
+      (notes.length ? notes.map(function(l){
+        return '<div class="logrow" data-rn-id="'+esc(l.id)+'"><div class="ldate">'+esc(l.date)+'</div><div class="ltext">'+esc(l.text)+'</div><button class="ldel" type="button" data-act="delrnote">✕</button></div>';
+      }).join('') : '<p class="empty-note" style="padding:6px 0;">아직 기록이 없어요.</p>') +
+      '<div class="logadd">' +
+        '<input type="date" class="newrnotedate" value="'+todayISO()+'">' +
+        '<textarea class="newrnotetext" placeholder="이 레시피에 대한 오늘의 생각…"></textarea>' +
+        '<button type="button" data-act="addrnote">추가</button>' +
+      '</div>' +
+    '</div>';
+  }
+
   function renderRecipes(){
     var q=norm(state.recipeQ);
     var list=state.recipes.filter(function(r){return recipeMatches(r,q);});
@@ -1012,6 +1019,7 @@
         '</div>' +
         '<div class="rcard-purpose" contenteditable="true" data-field="purpose">'+esc(r.purpose)+'</div>' +
         '<div class="rcard-tools"><button class="rcard-delbtn" type="button" data-act="delrecipe">레시피 삭제</button></div>' +
+        rnoteSecHtml(r) +
         '<div class="explog-sec">' +
           '<h4>배합 실험</h4>' +
           '<p class="explog-hint">같은 주제 안에서 재료·비율을 바꿔가며 시도한 배합을 하나씩 쌓아요(최신순).</p>' +
@@ -1027,44 +1035,6 @@
     state.recipes.unshift(row);
     renderRecipes();
     sb.from('aroma_recipes').upsert(row).then(function(){});
-  });
-
-  // 레시피 탭의 날짜별 기록 — 특정 레시피에 안 묶인 전반적인 기록(DB 탭 "일자별 메모"와
-  // 같은 모양이지만 recipe_id 없이 owner당 flat하게 쌓임, aroma_recipe_notes 테이블).
-  function renderRecipeNotes(){
-    $('recipeNotesList').innerHTML = state.recipeNotes.length ? state.recipeNotes.map(function(l){
-      return '<div class="logrow" data-rn-id="'+esc(l.id)+'"><div class="ldate">'+esc(l.date)+'</div><div class="ltext">'+esc(l.text)+'</div><button class="ldel" type="button" data-act="delrnote">✕</button></div>';
-    }).join('') : '<p class="empty-note" style="padding:8px 0;">아직 기록이 없어요.</p>';
-    var dateIn=document.querySelector('.newrnotedate');
-    if(dateIn && !dateIn.value)dateIn.value=todayISO();
-  }
-  $('recipeNotesList').addEventListener('click',function(e){
-    if(e.target.getAttribute('data-act')!=='delrnote')return;
-    var row=e.target.closest('.logrow');
-    var rnId=row.getAttribute('data-rn-id');
-    var idx=state.recipeNotes.findIndex(function(l){return l.id===rnId;});
-    var removed=state.recipeNotes[idx];
-    state.recipeNotes.splice(idx,1);
-    renderRecipeNotes();
-    renderJournal();
-    sb.from('aroma_recipe_notes').delete().eq('id',rnId).then(function(){});
-    showToast('기록을 지웠어요',function(){
-      state.recipeNotes.splice(idx,0,removed);
-      renderRecipeNotes();
-      renderJournal();
-      sb.from('aroma_recipe_notes').upsert(removed).then(function(){});
-    });
-  });
-  document.querySelector('[data-act="addrnote"]').addEventListener('click',function(){
-    var dateIn=document.querySelector('.newrnotedate'), textIn=document.querySelector('.newrnotetext');
-    var text=(textIn.value||'').trim();
-    if(!text)return;
-    var row={id:uid('arn'),owner:state.uid,date:dateIn.value||todayISO(),text:text,created:new Date().toISOString()};
-    state.recipeNotes.unshift(row);
-    textIn.value='';
-    renderRecipeNotes();
-    renderJournal();
-    sb.from('aroma_recipe_notes').upsert(row).then(function(){});
   });
 
   function saveRecipe(id){
@@ -1132,20 +1102,50 @@
     var act=e.target.getAttribute('data-act');
     if(act==='delrecipe'){
       var idx=state.recipes.findIndex(function(x){return x.id===id;});
-      var removed=state.recipes[idx], removedLogs=logsForRecipe(id);
+      var removed=state.recipes[idx], removedLogs=logsForRecipe(id), removedNotes=notesForRecipe(id);
       state.recipes.splice(idx,1);
       state.recipeLogs=state.recipeLogs.filter(function(l){return l.recipe_id!==id;});
+      state.recipeNotes=state.recipeNotes.filter(function(l){return l.recipe_id!==id;});
       renderRecipes();
       renderJournal();
       sb.from('aroma_recipes').delete().eq('id',id).then(function(){});
+      sb.from('aroma_recipe_notes').delete().eq('recipe_id',id).then(function(){});
       showToast('레시피를 지웠어요',function(){
         state.recipes.splice(idx,0,removed);
         state.recipeLogs=state.recipeLogs.concat(removedLogs);
+        state.recipeNotes=state.recipeNotes.concat(removedNotes);
         renderRecipes();
         renderJournal();
         sb.from('aroma_recipes').upsert(removed).then(function(){
-          return Promise.all(removedLogs.map(function(l){return sb.from('aroma_recipe_logs').upsert(l);}));
+          return Promise.all(removedLogs.map(function(l){return sb.from('aroma_recipe_logs').upsert(l);}).concat(
+            removedNotes.map(function(l){return sb.from('aroma_recipe_notes').upsert(l);})));
         });
+      });
+    }
+    if(act==='addrnote'){
+      var dateIn=card.querySelector('.newrnotedate'), textIn=card.querySelector('.newrnotetext');
+      var rnText=(textIn.value||'').trim();
+      if(!rnText)return;
+      var rnote={id:uid('arn'),owner:state.uid,recipe_id:id,date:dateIn.value||todayISO(),text:rnText,created:new Date().toISOString()};
+      state.recipeNotes.unshift(rnote);
+      renderRecipes();
+      renderJournal();
+      sb.from('aroma_recipe_notes').upsert(rnote).then(function(){});
+    }
+    if(act==='delrnote'){
+      var rnRow=e.target.closest('.logrow');
+      var rnId=rnRow.getAttribute('data-rn-id');
+      var rnIdx=state.recipeNotes.findIndex(function(l){return l.id===rnId;});
+      var removedRn=state.recipeNotes[rnIdx];
+      state.recipeNotes.splice(rnIdx,1);
+      renderRecipes();
+      renderJournal();
+      sb.from('aroma_recipe_notes').delete().eq('id',rnId).then(function(){});
+      showToast('기록을 지웠어요',function(){
+        state.recipeNotes.splice(rnIdx,0,removedRn);
+        renderRecipes();
+        renderJournal();
+        sb.from('aroma_recipe_notes').upsert(removedRn).then(function(){});
       });
     }
     if(act==='addexp'){
@@ -1330,7 +1330,7 @@
       auto='<div class="jauto-sec"><h4>이 날의 메모·실험기록</h4>' +
         nlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">노트</span><b class="jauto-link" data-note-id="'+esc(l.note_id)+'">'+esc(noteName(l.note_id))+'</b> — '+esc(l.text)+'</div>';}).join('') +
         rlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">레시피</span><b class="jauto-link" data-recipe-id="'+esc(l.recipe_id)+'">'+esc(recipeTitleOf(l.recipe_id))+'</b> — '+esc(l.text)+'</div>';}).join('') +
-        rnlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">기록</span>'+esc(l.text)+'</div>';}).join('') +
+        rnlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">기록</span><b class="jauto-link" data-recipe-id="'+esc(l.recipe_id)+'">'+esc(recipeTitleOf(l.recipe_id))+'</b> — '+esc(l.text)+'</div>';}).join('') +
       '</div>';
     }
     $('journalBody').innerHTML =
