@@ -136,24 +136,36 @@
 
   .empty-note{font-size:12.5px;color:var(--faint);padding:30px 0;text-align:center;}
 
+  /* 레시피 탭의 날짜별 기록 — 특정 레시피에 안 묶인 전반적인 생각을 간단히 쌓는 곳(2026-10-15,
+     "레시피의 날짜별 기록만 가능하게" 요청). 개별 레시피 카드 안의 "배합 실험"(재료·비율 포함,
+     더 무거운 기록)과는 완전히 별개 — DB 탭의 .logs-sec/.logrow/.logadd와 같은 클래스를
+     재사용해서(이 셀렉터들은 전역이라 어디서든 같은 모양) 새 CSS를 거의 안 늘림. */
+  .recipe-notes-sec{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:14px;}
+  .recipe-notes-sec h4{font-size:11px;color:var(--muted);margin:0 0 3px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
+
   /* ---- 레시피 카드 ---- */
-  .rcard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent-2);border-radius:8px;padding:16px 18px;margin-bottom:14px;}
-  .rcard-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:4px;}
-  .rcard-title{flex:1;font-family:var(--serif);font-size:16px;font-weight:600;border:0;background:none;color:var(--text);width:100%;border-bottom:1px solid transparent;padding:2px 0;}
+  /* #recipeList를 그리드로(2026-10-15) — 전에는 .rcard가 그냥 세로로만 쌓여서 레시피가
+     몇 개 안 될 때 화면이 한 줄짜리 카드로 벙벙해 보였음. .cardgrid(DB 탭 노트 카드)와
+     같은 auto-fill+minmax(220px) 패턴을 재사용 — .wrap(1180px) 기준 5칸까지 꽉 차고,
+     화면이 좁아지면 자동으로 줄어듦(640px 이하에서 1칸으로 고정하는 미디어쿼리는 아래). */
+  #recipeList{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;align-content:start;}
+  .rcard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent-2);border-radius:8px;padding:12px 13px;min-width:0;}
+  .rcard-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:3px;}
+  .rcard-title{flex:1;font-family:var(--serif);font-size:15px;font-weight:600;border:0;background:none;color:var(--text);width:100%;border-bottom:1px solid transparent;padding:2px 0;}
   .rcard-title:empty::before{content:'제목 없는 레시피';color:var(--faint);font-weight:400;}
   .rcard-title:focus{outline:none;border-bottom-color:var(--accent);}
-  .rcard-purpose{font-size:12.5px;color:var(--muted);line-height:1.6;border:0;border-bottom:1px solid var(--line);background:none;width:100%;padding:7px 2px;margin-bottom:12px;resize:vertical;min-height:58px;}
+  .rcard-purpose{font-size:12px;color:var(--muted);line-height:1.55;border:0;border-bottom:1px solid var(--line);background:none;width:100%;padding:5px 2px;margin-bottom:8px;resize:vertical;min-height:42px;}
   .rcard-purpose:focus{outline:none;border-bottom-color:var(--accent);}
   .rcard-purpose:empty::before{content:'이 블렌딩의 목적성(언제·어떤 느낌을 위한 것인지)';color:var(--faint);}
-  .ingtbl{width:100%;border-collapse:collapse;margin-bottom:6px;}
-  .ingtbl th{text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);padding:4px 6px;border-bottom:1px solid var(--line);letter-spacing:.03em;}
-  .ingtbl td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:middle;}
-  .ingtbl input[type="number"]{width:72px;border:0;border-bottom:1px solid var(--line);background:none;font-size:12.5px;padding:5px 2px;text-align:right;}
+  .ingtbl{width:100%;border-collapse:collapse;margin-bottom:4px;}
+  .ingtbl th{text-align:left;font-family:var(--mono);font-size:10px;color:var(--muted);padding:3px 5px;border-bottom:1px solid var(--line);letter-spacing:.03em;}
+  .ingtbl td{padding:3px 5px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  .ingtbl input[type="number"]{width:60px;border:0;border-bottom:1px solid var(--line);background:none;font-size:12.5px;padding:4px 2px;text-align:right;}
   .ingtbl input[type="number"]:focus{outline:none;border-bottom-color:var(--accent);}
   .ingtbl .pct{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap;}
   .ingtbl .idel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;}
-  .ing-add,.rcard-delbtn{background:none;border:1px solid var(--line);border-radius:4px;padding:5px 11px;font-size:11.5px;color:var(--muted);cursor:pointer;}
-  .rcard-tools{display:flex;justify-content:flex-end;align-items:center;margin-top:4px;}
+  .ing-add,.rcard-delbtn{background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11.5px;color:var(--muted);cursor:pointer;}
+  .rcard-tools{display:flex;justify-content:flex-end;align-items:center;margin-top:3px;}
 
   /* 재료 검색 콤보박스(2026-10-16) — <select>가 노트 개수가 늘수록 쓰기 힘들어져서
      입력하며 걸러지는 작은 드롭다운으로 교체. 선택은 mousedown+preventDefault로 처리해서
@@ -169,15 +181,18 @@
   .ingpick-clear{color:var(--muted);font-style:italic;border-bottom:1px dashed var(--line);}
   .ingpick-empty{padding:9px 10px;font-size:12px;color:var(--faint);}
 
-  .explog-sec{margin-top:16px;padding-top:13px;border-top:1px dashed var(--line);}
-  .explog-sec h4{font-size:11px;color:var(--muted);margin:0 0 4px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
-  .explog-hint{font-size:11.5px;color:var(--muted);margin:0 0 12px;}
-  .expcard{background:var(--sunk);border-radius:6px;padding:10px 12px;margin-bottom:9px;}
-  .expcard-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .explog-sec{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);}
+  .explog-sec h4{font-size:11px;color:var(--muted);margin:0 0 3px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
+  .explog-hint{font-size:11px;color:var(--muted);margin:0 0 8px;}
+  .expcard{background:var(--sunk);border-radius:6px;padding:8px 10px;margin-bottom:7px;}
+  .expcard-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
   .expcard-head .edate{font-family:var(--mono);font-size:11.5px;color:var(--accent-2);}
-  .expcard-head .edel{margin-left:auto;background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;}
-  .ing-add-sm{background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;color:var(--muted);cursor:pointer;margin:2px 0 10px;}
-  .expcard-note{width:100%;border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:12.5px;line-height:1.6;background:var(--panel);color:var(--text);min-height:56px;resize:vertical;}
+  .expcard-actions{margin-left:auto;display:flex;align-items:center;gap:4px;}
+  .expcard-actions .ecopy{background:none;border:1px solid var(--line);border-radius:4px;padding:2px 7px;font-size:10.5px;color:var(--muted);cursor:pointer;}
+  .expcard-actions .ecopy:hover{border-color:var(--accent);color:var(--accent-2);}
+  .expcard-actions .edel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;}
+  .ing-add-sm{background:none;border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer;margin:2px 0 8px;}
+  .expcard-note{width:100%;border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:12.5px;line-height:1.55;background:var(--panel);color:var(--text);min-height:44px;resize:vertical;}
   .expcard-note:focus{outline:none;border-color:var(--accent);}
 
   /* ---- 백과 ---- */
@@ -317,6 +332,7 @@
     .wrap{padding:22px 14px 70px;}
     .field-grid{grid-template-columns:1fr;}
     .cardgrid{grid-template-columns:1fr;}
+    #recipeList{grid-template-columns:1fr;}
   }
 </style>
 </head>
@@ -381,6 +397,16 @@
         <span class="count" id="recipeSearchCount"></span>
       </div>
       <div class="addbar"><button class="btn" type="button" id="addRecipeBtn">+ 새 레시피</button></div>
+      <div class="recipe-notes-sec">
+        <h4>📅 날짜별 기록</h4>
+        <p class="explog-hint">특정 레시피에 안 묶인, 그날그날의 생각을 간단히 남겨요(최신순).</p>
+        <div id="recipeNotesList"></div>
+        <div class="logadd">
+          <input type="date" class="newrnotedate" value="">
+          <textarea class="newrnotetext" placeholder="오늘의 기록…"></textarea>
+          <button type="button" data-act="addrnote">추가</button>
+        </div>
+      </div>
       <div id="recipeList"></div>
       <p class="empty-note hidden" id="recipeEmptyMsg">아직 레시피가 없어요. "+ 새 레시피"로 블렌딩을 시작해보세요.</p>
     </div>
@@ -512,7 +538,7 @@
   // 검색: 띄어쓰기·대소문자 다 무시
   function norm(s){return (s||'').toString().toLowerCase().replace(/\s+/g,'');}
 
-  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], journal:[], activeNoteId:null, dbQ:'', dbKind:'', recipeQ:'', curJDate:null};
+  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], recipeNotes:[], journal:[], activeNoteId:null, dbQ:'', dbKind:'', recipeQ:'', curJDate:null};
   var undoHist=[];
 
   var toast=$('toast'),toastMsg=$('toastMsg'),toastUndo=$('toastUndo'),tHide;
@@ -559,16 +585,19 @@
       sb.from('aroma_note_logs').select('*').order('date',{ascending:false}),
       sb.from('aroma_recipes').select('*').order('created',{ascending:true}),
       sb.from('aroma_recipe_logs').select('*').order('date',{ascending:false}),
+      sb.from('aroma_recipe_notes').select('*').order('date',{ascending:false}),
       sb.from('aroma_journal').select('*')
     ]).then(function(r){
       state.notes=r[0].data||[];
       state.noteLogs=r[1].data||[];
       state.recipes=r[2].data||[];
       state.recipeLogs=r[3].data||[];
-      state.journal=r[4].data||[];
+      state.recipeNotes=r[4].data||[];
+      state.journal=r[5].data||[];
       migrateLegacyRecipeItems();
       renderNotes();
       renderRecipes();
+      renderRecipeNotes();
       renderJournal();
     });
   }
@@ -961,7 +990,7 @@
     var total=recipeTotalRatio(items);
     var rows=items.map(function(it,i){return expItemRowHtml(l.id,it,i,total);}).join('');
     return '<div class="expcard" data-log-id="'+esc(l.id)+'">' +
-      '<div class="expcard-head"><span class="edate">'+esc(l.date)+'</span><button class="edel" type="button" data-act="delexp">✕</button></div>' +
+      '<div class="expcard-head"><span class="edate">'+esc(l.date)+'</span><div class="expcard-actions"><button class="ecopy" type="button" data-act="copyexp">복사</button><button class="edel" type="button" data-act="delexp">✕</button></div></div>' +
       '<table class="ingtbl"><thead><tr><th>재료</th><th>비율</th><th></th><th></th></tr></thead><tbody>'+rows+'</tbody></table>' +
       '<button class="ing-add-sm" type="button" data-act="addingitem">+ 재료 추가</button>' +
       '<textarea class="expcard-note" data-field="text" placeholder="느낀 점·결과…">'+esc(l.text)+'</textarea>' +
@@ -996,6 +1025,44 @@
     state.recipes.unshift(row);
     renderRecipes();
     sb.from('aroma_recipes').upsert(row).then(function(){});
+  });
+
+  // 레시피 탭의 날짜별 기록 — 특정 레시피에 안 묶인 전반적인 기록(DB 탭 "일자별 메모"와
+  // 같은 모양이지만 recipe_id 없이 owner당 flat하게 쌓임, aroma_recipe_notes 테이블).
+  function renderRecipeNotes(){
+    $('recipeNotesList').innerHTML = state.recipeNotes.length ? state.recipeNotes.map(function(l){
+      return '<div class="logrow" data-rn-id="'+esc(l.id)+'"><div class="ldate">'+esc(l.date)+'</div><div class="ltext">'+esc(l.text)+'</div><button class="ldel" type="button" data-act="delrnote">✕</button></div>';
+    }).join('') : '<p class="empty-note" style="padding:8px 0;">아직 기록이 없어요.</p>';
+    var dateIn=document.querySelector('.newrnotedate');
+    if(dateIn && !dateIn.value)dateIn.value=todayISO();
+  }
+  $('recipeNotesList').addEventListener('click',function(e){
+    if(e.target.getAttribute('data-act')!=='delrnote')return;
+    var row=e.target.closest('.logrow');
+    var rnId=row.getAttribute('data-rn-id');
+    var idx=state.recipeNotes.findIndex(function(l){return l.id===rnId;});
+    var removed=state.recipeNotes[idx];
+    state.recipeNotes.splice(idx,1);
+    renderRecipeNotes();
+    renderJournal();
+    sb.from('aroma_recipe_notes').delete().eq('id',rnId).then(function(){});
+    showToast('기록을 지웠어요',function(){
+      state.recipeNotes.splice(idx,0,removed);
+      renderRecipeNotes();
+      renderJournal();
+      sb.from('aroma_recipe_notes').upsert(removed).then(function(){});
+    });
+  });
+  document.querySelector('[data-act="addrnote"]').addEventListener('click',function(){
+    var dateIn=document.querySelector('.newrnotedate'), textIn=document.querySelector('.newrnotetext');
+    var text=(textIn.value||'').trim();
+    if(!text)return;
+    var row={id:uid('arn'),owner:state.uid,date:dateIn.value||todayISO(),text:text,created:new Date().toISOString()};
+    state.recipeNotes.unshift(row);
+    textIn.value='';
+    renderRecipeNotes();
+    renderJournal();
+    sb.from('aroma_recipe_notes').upsert(row).then(function(){});
   });
 
   function saveRecipe(id){
@@ -1087,6 +1154,18 @@
       renderRecipes();
       renderJournal();
       sb.from('aroma_recipe_logs').upsert(log).then(function(){});
+    }
+    if(act==='copyexp'){
+      var srcEl=e.target.closest('.expcard');
+      var srcId=srcEl.getAttribute('data-log-id');
+      var src=state.recipeLogs.find(function(l){return l.id===srcId;});
+      if(!src)return;
+      var copiedItems2=src.items.map(function(it){return {ratio:it.ratio,noteId:it.noteId};});
+      var log2={id:uid('arl'),owner:state.uid,recipe_id:id,date:todayISO(),text:src.text,items:copiedItems2,created:new Date().toISOString()};
+      state.recipeLogs.unshift(log2);
+      renderRecipes();
+      renderJournal();
+      sb.from('aroma_recipe_logs').upsert(log2).then(function(){});
     }
     if(act==='delexp'){
       var expEl=e.target.closest('.expcard');
@@ -1211,6 +1290,7 @@
     state.journal.forEach(function(j){ if((j.body||'').trim())set[j.date]=true; });
     state.noteLogs.forEach(function(l){ set[l.date]=true; });
     state.recipeLogs.forEach(function(l){ set[l.date]=true; });
+    state.recipeNotes.forEach(function(l){ set[l.date]=true; });
     set[todayISO()]=true;
     if(state.curJDate)set[state.curJDate]=true;
     return Object.keys(set).sort().reverse();
@@ -1228,7 +1308,8 @@
     $('journalDates').innerHTML = dates.map(function(d){
       var nlogs=state.noteLogs.filter(function(l){return l.date===d;}).length;
       var rlogs=state.recipeLogs.filter(function(l){return l.date===d;}).length;
-      var dots=[]; if(nlogs)dots.push('노트 '+nlogs); if(rlogs)dots.push('레시피 '+rlogs);
+      var rnlogs=state.recipeNotes.filter(function(l){return l.date===d;}).length;
+      var dots=[]; if(nlogs)dots.push('노트 '+nlogs); if(rlogs)dots.push('레시피 '+rlogs); if(rnlogs)dots.push('기록 '+rnlogs);
       return '<div class="jdate-item'+(d===state.curJDate?' active':'')+'" data-date="'+esc(d)+'">' +
         '<div class="jd-date">'+esc(d)+(d===todayISO()?' · 오늘':'')+'</div>' +
         (dots.length?'<div class="jd-dots">'+dots.join(' · ')+'</div>':'') +
@@ -1241,11 +1322,13 @@
     var d=state.curJDate;
     var nlogs=state.noteLogs.filter(function(l){return l.date===d;});
     var rlogs=state.recipeLogs.filter(function(l){return l.date===d;});
+    var rnlogs=state.recipeNotes.filter(function(l){return l.date===d;});
     var auto='';
-    if(nlogs.length||rlogs.length){
+    if(nlogs.length||rlogs.length||rnlogs.length){
       auto='<div class="jauto-sec"><h4>이 날의 메모·실험기록</h4>' +
         nlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">노트</span><b class="jauto-link" data-note-id="'+esc(l.note_id)+'">'+esc(noteName(l.note_id))+'</b> — '+esc(l.text)+'</div>';}).join('') +
         rlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">레시피</span><b class="jauto-link" data-recipe-id="'+esc(l.recipe_id)+'">'+esc(recipeTitleOf(l.recipe_id))+'</b> — '+esc(l.text)+'</div>';}).join('') +
+        rnlogs.map(function(l){return '<div class="jauto-row"><span class="jauto-tag">기록</span>'+esc(l.text)+'</div>';}).join('') +
       '</div>';
     }
     $('journalBody').innerHTML =
