@@ -34,7 +34,7 @@
   .wrap{max-width:1000px;margin:0 auto;padding:14px 16px 80px}
   header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
   /* 앱 제목·월별 제목은 시스템 폰트 대신 좀 더 눈에 띄는 디스플레이 폰트로 */
-  .brand{font-family:var(--display);font-size:22px;font-weight:400;letter-spacing:-.01em;color:var(--accent)}
+  .brand{font-family:var(--display);font-size:22px;font-weight:400;letter-spacing:-.01em;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;display:inline-flex;align-items:baseline}
   .brand small{font-family:var(--sans);color:var(--faint);font-weight:400;font-size:12px;margin-left:8px;letter-spacing:0}
   .tabs{display:flex;gap:18px}
   .tabs button{font:inherit;font-size:14px;color:var(--faint);background:none;border:0;cursor:pointer;padding:2px 0 8px;border-bottom:2px solid transparent;margin-top:6px}
@@ -593,6 +593,10 @@
   .navmenu-tabs button{text-align:left;font:inherit;font-size:14px;padding:9px 10px;border:0;background:none;color:var(--text);cursor:pointer}
   .navmenu-tabs button:hover{background:var(--sunk)}
   .navmenu-tabs button[aria-selected="true"]{color:var(--accent);font-weight:600}
+  .navmenu-divider{border-top:1px solid var(--line);margin:2px 0}
+  .navmenu-apps{display:flex;flex-direction:column;gap:2px}
+  .navmenu-apps a{text-decoration:none;font-size:13.5px;padding:9px 10px;color:var(--muted);border-radius:0}
+  .navmenu-apps a:hover{background:var(--sunk);color:var(--text)}
   @media(max-width:520px){.navfab{right:16px;bottom:max(24px,env(safe-area-inset-bottom))}.navmenu{right:16px;left:16px;bottom:82px}}
   /* auth */
   .authwrap{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:50;padding:20px}
@@ -691,7 +695,7 @@
 <!-- 앱 -->
 <div class="wrap hidden" id="app">
   <header>
-    <div class="brand">하루<small>오늘 뭐하지</small></div>
+    <button type="button" class="brand" id="brandHome" title="홈으로">하루<small>오늘 뭐하지</small></button>
     <nav class="tabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="home">홈</button>
       <button role="tab" aria-selected="false" data-tab="journal">저널</button>
@@ -955,6 +959,12 @@
 <div id="navMenu" class="navmenu hidden">
   <input id="navSearchIn" placeholder="🔍 전체 검색 — 할일·하위·프로젝트·메모" aria-label="전체 검색">
   <div class="navmenu-tabs" id="navMenuTabs"></div>
+  <div class="navmenu-divider"></div>
+  <div class="navmenu-apps">
+    <a href="/log">📷 하루 로그</a>
+    <a href="/aroma">🌿 향료 노트</a>
+    <a href="/cha">🍵 찻잎 장부</a>
+  </div>
 </div>
 
 
@@ -2670,6 +2680,7 @@
     document.getElementById('navFab').setAttribute('aria-expanded','true');
     document.getElementById('navSearchIn').focus();
   }
+  document.getElementById('brandHome').addEventListener('click',function(){switchTab('home');window.scrollTo({top:0,behavior:'smooth'});});
   document.getElementById('navFab').addEventListener('click',function(){navMenuOpen?closeNavMenu():openNavMenu();});
   document.getElementById('navMenuBackdrop').addEventListener('click',closeNavMenu);
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&navMenuOpen)closeNavMenu();});
