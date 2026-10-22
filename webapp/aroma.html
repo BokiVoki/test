@@ -134,6 +134,22 @@
   .linkrow .ldel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;padding:2px 4px;flex:0 0 auto;}
   .links-sec .ing-add{margin-top:7px;}
 
+  /* 향료들끼리 잘 어울리는 조합을 서로 태그하는 "궁합" 섹션(2026-10-22) — aroma_note_pairs
+     한 행이 두 노트를 동시에 가리켜서, 어느 쪽 노트를 열어도 같은 궁합이 양쪽 다 보임
+     (한쪽에만 저장하고 배열을 양쪽에 복제하는 방식보다 단순하고 꼬일 일이 없음). */
+  .pairs-sec{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);}
+  .pairs-sec h4{font-size:11px;color:var(--muted);margin:0 0 9px;font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase;}
+  .pairrow{display:flex;gap:9px;padding:6px 0;align-items:center;}
+  .pairrow .pairname{background:none;border:0;color:var(--accent);cursor:pointer;font-size:12.5px;padding:2px 0;text-align:left;text-decoration:underline;flex:0 0 auto;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pairrow .pairnote{flex:1;min-width:0;border:0;border-bottom:1px solid var(--line);background:none;padding:5px 2px;font-size:12px;color:var(--text);}
+  .pairrow .pairnote:focus{outline:none;border-bottom-color:var(--accent);}
+  .pairrow .ldel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;padding:2px 4px;flex:0 0 auto;}
+  .pairadd{display:flex;gap:7px;margin-top:9px;align-items:center;}
+  .pairadd .ingpick{flex:1;min-width:0;}
+  .pairadd .newpairtext{flex:1;min-width:0;border:0;border-bottom:1px solid var(--line);background:none;padding:5px 2px;font-size:12px;color:var(--text);}
+  .pairadd .newpairtext:focus{outline:none;border-bottom-color:var(--accent);}
+  .pairadd button{background:var(--accent);color:var(--on-accent);border:0;border-radius:4px;padding:5px 11px;font-size:12px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
+
   .empty-note{font-size:12.5px;color:var(--faint);padding:30px 0;text-align:center;}
 
   /* 레시피 안의 날짜별 기록 — 그 레시피에 대한 가벼운 생각을 날짜만 찍어 쌓는 곳(2026-10-15,
@@ -530,7 +546,7 @@
   // 검색: 띄어쓰기·대소문자 다 무시
   function norm(s){return (s||'').toString().toLowerCase().replace(/\s+/g,'');}
 
-  var state={uid:null, notes:[], noteLogs:[], recipes:[], recipeLogs:[], recipeNotes:[], journal:[], activeNoteId:null, dbQ:'', dbKind:'', recipeQ:'', curJDate:null};
+  var state={uid:null, notes:[], noteLogs:[], notePairs:[], recipes:[], recipeLogs:[], recipeNotes:[], journal:[], activeNoteId:null, dbQ:'', dbKind:'', recipeQ:'', curJDate:null};
   var undoHist=[];
 
   var toast=$('toast'),toastMsg=$('toastMsg'),toastUndo=$('toastUndo'),tHide;
@@ -578,7 +594,8 @@
       sb.from('aroma_recipes').select('*').order('created',{ascending:true}),
       sb.from('aroma_recipe_logs').select('*').order('date',{ascending:false}),
       sb.from('aroma_recipe_notes').select('*').order('date',{ascending:false}),
-      sb.from('aroma_journal').select('*')
+      sb.from('aroma_journal').select('*'),
+      sb.from('aroma_note_pairs').select('*').order('created',{ascending:false})
     ]).then(function(r){
       state.notes=r[0].data||[];
       state.noteLogs=r[1].data||[];
@@ -586,6 +603,7 @@
       state.recipeLogs=r[3].data||[];
       state.recipeNotes=r[4].data||[];
       state.journal=r[5].data||[];
+      state.notePairs=r[6].data||[];
       migrateLegacyRecipeItems();
       renderNotes();
       renderRecipes();
@@ -596,12 +614,21 @@
   function logsForNote(id){return state.noteLogs.filter(function(l){return l.note_id===id;});}
   function logsForRecipe(id){return state.recipeLogs.filter(function(l){return l.recipe_id===id;});}
   function notesForRecipe(id){return state.recipeNotes.filter(function(l){return l.recipe_id===id;});}
+  // 궁합(향료들끼리 잘 어울리는 조합) — 한 행이 note_a·note_b 두 노트를 동시에 가리켜서
+  // 어느 쪽에서 봐도 같은 궁합이 보임("서로" 태그되는 효과를, 양쪽에 배열을 복제하는
+  // 대신 한 행을 공유하는 걸로 구조적으로 보장 — 꼬일 일이 없음).
+  function pairsForNote(id){return state.notePairs.filter(function(p){return p.note_a===id||p.note_b===id;});}
+  function pairOtherId(p,id){return p.note_a===id?p.note_b:p.note_a;}
 
   // ===== 검색 매칭 =====
   function noteMatches(n,q){
     if(!q)return true;
     var linkText=(n.links||[]).map(function(l){return (l.label||'')+' '+(l.url||'');}).join(' ');
-    var hay=norm(n.name+' '+n.origin+' '+n.latin_name+' '+n.description+' '+noteTypeInfo(n.note_type).label+' '+kindInfo(n.kind).label+' '+linkText+' '+logsForNote(n.id).map(function(l){return l.text;}).join(' '));
+    var pairText=pairsForNote(n.id).map(function(p){
+      var other=state.notes.find(function(x){return x.id===pairOtherId(p,n.id);});
+      return (other?other.name:'')+' '+(p.note||'');
+    }).join(' ');
+    var hay=norm(n.name+' '+n.origin+' '+n.latin_name+' '+n.description+' '+noteTypeInfo(n.note_type).label+' '+kindInfo(n.kind).label+' '+linkText+' '+pairText+' '+logsForNote(n.id).map(function(l){return l.text;}).join(' '));
     return hay.indexOf(q)>=0;
   }
   function recipeMatches(r,q){
@@ -710,12 +737,13 @@
     $('noteGrid').innerHTML = list.map(function(n){
       var logs=logsForNote(n.id);
       var links=n.links||[];
+      var pairs=pairsForNote(n.id);
       var active=state.activeNoteId===n.id;
       return '<div class="ncard-compact'+(active?' active':'')+'" data-id="'+esc(n.id)+'">' +
         '<div class="ncard-name-row"><span class="ncard-name">'+esc(n.name)+'</span>'+kindBadgeHtml(n.kind)+noteTypeBadgeHtml(n.note_type)+'</div>' +
         '<div class="ncard-sub">'+(n.origin?esc(n.origin):'')+(n.origin&&n.latin_name?' · ':'')+(n.latin_name?'<span class="latin">'+esc(n.latin_name)+'</span>':'')+'</div>' +
         '<div class="ncard-desc">'+esc(n.description)+'</div>' +
-        '<div class="ncard-logcount">메모 '+logs.length+'개'+(links.length?' · 링크 '+links.length+'개':'')+'</div>' +
+        '<div class="ncard-logcount">메모 '+logs.length+'개'+(links.length?' · 링크 '+links.length+'개':'')+(pairs.length?' · 궁합 '+pairs.length+'개':'')+'</div>' +
       '</div>';
     }).join('');
     renderEncy();
@@ -727,6 +755,30 @@
     $('kindFilter').querySelectorAll('.kchip').forEach(function(b){b.setAttribute('aria-pressed', b===btn?'true':'false');});
     renderNoteList();
   });
+
+  // 궁합 섹션 — 이 노트와 "서로" 잘 어울린다고 태그해둔 다른 노트들. aroma_note_pairs가
+  // note_a/note_b 두 노트를 동시에 가리키므로, 상대 노트의 디테일을 열어도 같은 궁합이
+  // 자동으로 보임(한쪽에만 저장하는 구조가 아니라서 "서로" 태그가 공짜로 됨).
+  function pairsSecHtml(n){
+    var pairs=pairsForNote(n.id);
+    return '<div class="pairs-sec">' +
+      '<h4>잘 어울리는 향료</h4>' +
+      (pairs.length ? pairs.map(function(p){
+        var otherId=pairOtherId(p,n.id);
+        var other=state.notes.find(function(x){return x.id===otherId;});
+        return '<div class="pairrow" data-pair-id="'+esc(p.id)+'">' +
+          '<button type="button" class="pairname" data-act="gotopair" data-note-id="'+esc(otherId)+'">'+esc(other?(other.name||'(이름 없음)'):'(지워진 노트)')+'</button>' +
+          '<input type="text" class="pairnote" data-field="pair-note" placeholder="왜 잘 어울리는지(선택)" value="'+esc(p.note)+'">' +
+          '<button class="ldel" type="button" data-act="delpair">✕</button>' +
+        '</div>';
+      }).join('') : '<p class="empty-note" style="padding:6px 0;">아직 등록한 궁합이 없어요.</p>') +
+      '<div class="pairadd">' +
+        ingPickerHtml(null) +
+        '<input type="text" class="newpairtext" placeholder="왜 잘 어울리는지(선택)">' +
+        '<button type="button" data-act="addpair">궁합 추가</button>' +
+      '</div>' +
+    '</div>';
+  }
 
   function renderNoteDetail(){
     var el=$('noteDetail');
@@ -762,6 +814,7 @@
         }).join('') : '<p class="empty-note" style="padding:6px 0;">아직 링크가 없어요.</p>') +
         '<button class="ing-add" type="button" data-act="addlink">+ 링크 추가</button>' +
       '</div>' +
+      pairsSecHtml(n) +
       '<div class="ncard-foot"><button class="btn danger" type="button" data-act="delnote">삭제</button></div>' +
       '<div class="logs-sec">' +
         '<h4>일자별 메모</h4>' +
@@ -820,20 +873,25 @@
     if(act==='closedetail'){ closeDetail(); return; }
     if(act==='delnote'){
       var idx=state.notes.findIndex(function(x){return x.id===id;});
-      var removed=state.notes[idx], removedLogs=logsForNote(id);
+      var removed=state.notes[idx], removedLogs=logsForNote(id), removedPairs=pairsForNote(id);
       state.notes.splice(idx,1);
       state.noteLogs=state.noteLogs.filter(function(l){return l.note_id!==id;});
+      state.notePairs=state.notePairs.filter(function(p){return p.note_a!==id&&p.note_b!==id;});
       state.activeNoteId=null;
       renderNotes();
       renderJournal();
       sb.from('aroma_notes').delete().eq('id',id).then(function(){});
+      sb.from('aroma_note_pairs').delete().eq('note_a',id).then(function(){});
+      sb.from('aroma_note_pairs').delete().eq('note_b',id).then(function(){});
       showToast('노트를 지웠어요',function(){
         state.notes.splice(idx,0,removed);
         state.noteLogs=state.noteLogs.concat(removedLogs);
+        state.notePairs=state.notePairs.concat(removedPairs);
         renderNotes();
         renderJournal();
         sb.from('aroma_notes').upsert(removed).then(function(){
-          return Promise.all(removedLogs.map(function(l){return sb.from('aroma_note_logs').upsert(l);}));
+          return Promise.all(removedLogs.map(function(l){return sb.from('aroma_note_logs').upsert(l);}).concat(
+            removedPairs.map(function(p){return sb.from('aroma_note_pairs').upsert(p);})));
         });
       });
     }
@@ -859,6 +917,43 @@
         renderNoteList();
         saveNote(id);
       });
+    }
+    if(act==='addpair'){
+      var addEl=e.target.closest('.pairadd');
+      var pickIn=addEl.querySelector('.ingpick-in');
+      var otherId=pickIn.getAttribute('data-ingval')||'';
+      var noteText=(addEl.querySelector('.newpairtext').value||'').trim();
+      if(!otherId){ showToast('짝지을 향료를 먼저 골라주세요'); return; }
+      if(otherId===id){ showToast('같은 향료끼리는 궁합을 못 걸어요'); return; }
+      if(pairsForNote(id).some(function(p){return pairOtherId(p,id)===otherId;})){ showToast('이미 등록된 궁합이에요'); return; }
+      var pair={id:uid('anp'),owner:state.uid,note_a:id,note_b:otherId,note:noteText,created:new Date().toISOString()};
+      state.notePairs.unshift(pair);
+      renderNoteDetail();
+      renderNoteList();
+      sb.from('aroma_note_pairs').upsert(pair).then(function(){});
+    }
+    if(act==='delpair'){
+      var pairRow=e.target.closest('.pairrow');
+      var pairId=pairRow.getAttribute('data-pair-id');
+      var pidx=state.notePairs.findIndex(function(p){return p.id===pairId;});
+      var removedPair=state.notePairs[pidx];
+      state.notePairs.splice(pidx,1);
+      renderNoteDetail();
+      renderNoteList();
+      sb.from('aroma_note_pairs').delete().eq('id',pairId).then(function(){});
+      showToast('궁합을 지웠어요',function(){
+        state.notePairs.splice(pidx,0,removedPair);
+        renderNoteDetail();
+        renderNoteList();
+        sb.from('aroma_note_pairs').upsert(removedPair).then(function(){});
+      });
+    }
+    if(act==='gotopair'){
+      var otherNoteId=e.target.getAttribute('data-note-id');
+      if(!otherNoteId)return;
+      selectNote(otherNoteId);
+      var detailEl=$('noteDetail');
+      if(detailEl)detailEl.scrollIntoView({behavior:'smooth',block:'start'});
     }
     if(act==='addlog'){
       var dateIn=$('noteDetail').querySelector('.newlogdate'), textIn=$('noteDetail').querySelector('.newlogtext');
@@ -913,8 +1008,8 @@
     var descEl=card.querySelector('.ncard-desc'); if(descEl)descEl.textContent=n.description;
     var cntEl=card.querySelector('.ncard-logcount');
     if(cntEl){
-      var logs=logsForNote(n.id), links=n.links||[];
-      cntEl.textContent='메모 '+logs.length+'개'+(links.length?' · 링크 '+links.length+'개':'');
+      var logs=logsForNote(n.id), links=n.links||[], pairs=pairsForNote(n.id);
+      cntEl.textContent='메모 '+logs.length+'개'+(links.length?' · 링크 '+links.length+'개':'')+(pairs.length?' · 궁합 '+pairs.length+'개':'');
     }
   }
 
@@ -945,6 +1040,15 @@
       patchLinkRow(row, n.links[li]);
       return;
     }
+    if(field==='pair-note'){
+      var pairRow2=e.target.closest('.pairrow');
+      var pairId2=pairRow2.getAttribute('data-pair-id');
+      var p2=state.notePairs.find(function(x){return x.id===pairId2;});
+      if(!p2)return;
+      p2.note=e.target.value;
+      sb.from('aroma_note_pairs').upsert(p2).then(function(){});
+      return;
+    }
     n[field]=e.target.value;
     saveNote(id);
     if(field==='kind'){
@@ -956,6 +1060,33 @@
     patchNoteListItem(id);
     renderEncy();
   });
+
+  // 궁합 추가 행의 재료 검색 콤보박스 — 레시피 탭의 재료 선택(#recipeList에 쓰인 것)과
+  // 같은 .ingpick 컴포넌트를 재사용하지만, 이 패널 전용으로 똑같이 한 벌 더 묶어둠
+  // (컴포넌트 자체는 공용이지만 리스너는 컨테이너별로 따로 걸려있는 기존 구조를 따름).
+  $('noteDetail').addEventListener('mousedown',function(e){
+    var opt=e.target.closest('.ingpick-opt'); if(!opt)return;
+    e.preventDefault();
+    var pick=opt.closest('.ingpick');
+    var input=pick.querySelector('.ingpick-in');
+    input.setAttribute('data-ingval',opt.getAttribute('data-id')||'');
+    input.value=opt.getAttribute('data-name')||'';
+    closeIngPop(input);
+  });
+  $('noteDetail').addEventListener('focusin',function(e){
+    if(e.target.classList && e.target.classList.contains('ingpick-in'))openIngPop(e.target);
+  });
+  $('noteDetail').addEventListener('input',function(e){
+    if(e.target.classList && e.target.classList.contains('ingpick-in'))openIngPop(e.target);
+  });
+  $('noteDetail').addEventListener('focusout',function(e){
+    if(e.target.classList && e.target.classList.contains('ingpick-in')){
+      closeIngPop(e.target);
+      var selId=e.target.getAttribute('data-ingval')||'';
+      var sn=state.notes.find(function(x){return x.id===selId;});
+      e.target.value=sn?(sn.name||'(이름 없음)'):'';
+    }
+  },true);
 
   $('dbSearch').addEventListener('input',function(e){state.dbQ=e.target.value;renderNoteList();});
 
