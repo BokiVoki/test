@@ -3465,12 +3465,45 @@
     var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;
     autoGrow(ta);syncAndSaveMemo();mentionCheck(ta);
   });
+  // 밑줄(Cmd/Ctrl+U) — 순수 textarea라 일부 글자만 다른 글꼴로 못 보여주므로(굵게가 구조적으로 불가능한 것과 같은 제약),
+  // 선택한 글자 하나하나 뒤에 유니코드 결합문자 U+0332(COMBINING LOW LINE)를 붙여서 밑줄처럼 "보이게" 함 —
+  // 체크박스(☐/☑)·불릿(•)처럼 이미 쓰고 있는 "리터럴 글자로 표현" 패턴과 같은 방식이라 한글에도 그대로 적용됨.
+  var UNDERLINE_CH='̲';
+  function hasUnderlineSel(s){ // 선택 전체가 이미 밑줄 처리돼 있는지(토글용)
+    var i=0,any=false;
+    while(i<s.length){
+      var ch=s[i];
+      if(ch===UNDERLINE_CH||ch==='\n'){i++;continue;}
+      if(s[i+1]===UNDERLINE_CH){any=true;i+=2;}else return false;
+    }
+    return any;
+  }
+  function addUnderlineChars(s){
+    var out='';
+    for(var i=0;i<s.length;i++){
+      var ch=s[i];out+=ch;
+      if(ch==='\n'||ch===UNDERLINE_CH)continue;
+      if(s[i+1]!==UNDERLINE_CH)out+=UNDERLINE_CH;
+    }
+    return out;
+  }
+  function removeUnderlineChars(s){return s.split(UNDERLINE_CH).join('');}
+  function toggleUnderlineSel(ta){
+    var ts=ta.selectionStart,te=ta.selectionEnd;
+    if(ts===te){showToast('밑줄 칠 글자를 먼저 선택하세요');return;}
+    var val=ta.value,sub=val.slice(ts,te);
+    var nv=hasUnderlineSel(sub)?removeUnderlineChars(sub):addUnderlineChars(sub);
+    ta.value=val.slice(0,ts)+nv+val.slice(te);
+    ta.setSelectionRange(ts,ts+nv.length);
+    ta.dispatchEvent(new Event('input'));
+  }
   // 리스트/토글 자동표기 (노션/애플메모st): "- "→"• ", 엔터로 불릿·번호·토글 자동 이어짐, 빈 줄에서 엔터로 빠져나옴
   mbodyTreeEl.addEventListener('keydown',function(e){
     var ta=e.target;if(!ta.classList||!ta.classList.contains('mseg'))return;
     if(e.key==='Escape'){document.getElementById('mentionPop').classList.add('hidden');_mentionStart=-1;return;}
     if(e.isComposing||e.keyCode===229)return;                 // 한글 조합 중이면 건드리지 않음
     if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();doMemoUndo();return;} // Cmd/Ctrl+Z — 자체 되돌리기 스택 사용(직접 .value를 건드려서 브라우저 기본 undo가 깨지기 때문)
+    if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==='u'){e.preventDefault();toggleUnderlineSel(ta);return;} // Cmd/Ctrl+U — 선택한 글자에 밑줄 토글
     if(!document.getElementById('mentionPop').classList.contains('hidden'))return; // @연결 팝업 중이면 양보
     var isHeader=ta.classList.contains('mseg-header');
     var seg=segFor(ta);
