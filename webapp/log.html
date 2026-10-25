@@ -144,6 +144,13 @@
   .logmedia.rot90{transform:rotate(90deg)}
   .logmedia.rot180{transform:rotate(180deg)}
   .logmedia.rot270{transform:rotate(270deg)}
+  /* 블로그(사진) 여러 장 게시판 — 가로로 스와이프하는 갤러리(2026-10-25). 한 글에 여러 장
+     붙으면 .logmediawrap 자리를 이 그리드로 대체함(캡션은 글 전체에 하나만, 사진별 회전은
+     아직 지원 안 함 — 범위는 "여러 장 올리기"까지로 한정, 회전은 단일 사진에만 남음). */
+  .logmediagrid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;border:1.5px solid var(--line);border-top:0;border-radius:0 0 16px 16px;background:#171310}
+  .logmediagriditem{flex:0 0 100%;scroll-snap-align:start;position:relative;display:flex}
+  .logmediagriditem .logmedia{width:100%;max-height:460px}
+  .logmulti{font-family:var(--pixel);font-size:10px;background:rgba(0,0,0,.08);padding:2px 7px;border-radius:999px}
   /* video 태그의 네이티브 컨트롤바(하단)와 안 겹치게 그 위쪽에 여백을 둠 */
   .logcapover{position:absolute;left:0;right:0;bottom:34px;background:linear-gradient(transparent,rgba(0,0,0,.78));color:#fff;font-size:13px;padding:22px 12px 8px;pointer-events:none;white-space:pre-wrap}
   .logcap{margin:8px 2px 0;font-size:13px;color:var(--text);white-space:pre-wrap}
@@ -158,9 +165,13 @@
   #upFile{font-size:13px}
   #upCaption{border:1.5px solid var(--line);border-radius:12px;background:var(--sunk);padding:10px;resize:vertical;min-height:48px}
   #upCaption:focus{outline:none;border-color:var(--accent-2)}
+  /* 블로그(사진) 여러 장 올리기(2026-10-25) — 데스크톱 업로드도 여러 장 선택 가능하게,
+     고른 사진들을 작은 썸네일 여러 개로 보여주고 하나씩 뺄 수 있게 함 */
   #upPreviewWrap{display:none}
-  #upPreviewWrap.show{display:block}
-  #upPreviewWrap img{max-width:180px;max-height:180px;display:block;margin-bottom:8px;object-fit:cover;border-radius:12px;filter:sepia(.12) saturate(1.05) contrast(1.03)}
+  #upPreviewWrap.show{display:flex;flex-wrap:wrap;gap:8px}
+  .upThumb{position:relative}
+  .upThumb img{width:84px;height:84px;display:block;object-fit:cover;border-radius:12px;filter:sepia(.12) saturate(1.05) contrast(1.03)}
+  .upThumb .upThumbDel{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:11px;line-height:18px;text-align:center;cursor:pointer}
   .uprow{display:flex;gap:8px;align-items:center}
 
   /* ── 모바일 하단 탭 ── */
@@ -178,6 +189,15 @@
   .camToggle{display:flex;background:rgba(0,0,0,.45);border-radius:999px;padding:3px}
   .camToggle button{font-family:var(--pixel);background:none;border:0;border-radius:999px;color:#fff;opacity:.7;font-size:12px;padding:8px 18px;cursor:pointer}
   .camToggle button[aria-selected="true"]{opacity:1;background:var(--accent);color:var(--on-accent)}
+  /* 블로그(사진) 모드에서 여러 장 찍어서 한 글에 모으기(2026-10-25) — 셔터를 누르면
+     바로 캡션 화면으로 안 가고 이 바에 쌓이고, 카메라는 계속 켜진 채라 이어서 더 찍을
+     수 있음. "다음"을 눌러야 캡션 화면으로 넘어감(한 장만 찍고 바로 넘어가도 됨). */
+  #camSetBar{position:absolute;left:0;right:0;bottom:148px;display:flex;align-items:center;gap:10px;padding:0 16px}
+  #camSetThumbs{display:flex;gap:6px;overflow-x:auto;flex:1}
+  .camSetThumb{position:relative;flex:0 0 auto}
+  .camSetThumb img{width:44px;height:44px;object-fit:cover;border-radius:10px;border:2px solid rgba(255,255,255,.7);display:block;filter:sepia(.08) contrast(1.04) saturate(1.08)}
+  .camSetThumb .camSetDel{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;font-size:11px;line-height:18px;text-align:center;cursor:pointer}
+  #camSetNextBtn{font-family:var(--pixel);background:var(--accent);color:var(--on-accent);border:0;border-radius:999px;padding:9px 16px;font-size:12px;cursor:pointer;white-space:nowrap;flex:0 0 auto}
   /* 아래 하단 탭(#mobileNav, 약 60px)에 안 가리게 그 위로 여백을 둠 */
   .camBottom{position:absolute;left:0;right:0;bottom:60px;display:flex;align-items:center;padding:18px 26px;padding-bottom:max(18px,env(safe-area-inset-bottom))}
   #camGalleryBtn{background:rgba(0,0,0,.45);border:0;color:#fff;width:46px;height:46px;border-radius:50%;font-size:18px;cursor:pointer}
@@ -194,6 +214,12 @@
   #previewOverlay{position:fixed;inset:0;background:var(--bg);z-index:70;display:flex;flex-direction:column}
   #previewMediaWrap{flex:1;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
   #previewMediaWrap img,#previewMediaWrap video{max-width:100%;max-height:100%;object-fit:contain;filter:sepia(.12) saturate(1.05) contrast(1.03)}
+  /* 블로그(사진) 여러 장 캡션 화면(2026-10-25) — 사진이 하나든 여러 개든 전부 이 틀로 그림
+     (하나만 있으면 그 하나를 지우는 게 곧 "다시"와 같은 효과가 되는 걸 그대로 둠). */
+  #previewMultiWrap{display:flex;gap:10px;height:100%;align-items:center;overflow-x:auto;padding:0 10px}
+  .previewMultiItem{position:relative;flex:0 0 auto;height:100%;max-width:80vw;display:flex}
+  .previewMultiItem img{max-width:100%;max-height:100%;object-fit:contain;filter:sepia(.12) saturate(1.05) contrast(1.03);border-radius:8px}
+  .previewMultiDel{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:26px;text-align:center;cursor:pointer}
   #previewForm{padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;background:var(--panel);border-top:1.5px solid var(--line);border-radius:20px 20px 0 0}
   #previewCaption{border:1.5px solid var(--line);border-radius:12px;background:var(--sunk);padding:10px;resize:none;min-height:22px}
   #previewCaption:focus{outline:none;border-color:var(--accent-2)}
@@ -232,8 +258,8 @@
       <div class="uphead">📷 사진 + 글 올리기</div>
       <button type="button" id="upCalBtn" class="datefield" title="저장할 날짜 바꾸기">📅 <span id="upDateLabel"></span></button>
       <input id="upDatePicker" type="date" class="datepick-hidden">
-      <input id="upFile" type="file" accept="image/*">
-      <div id="upPreviewWrap"><img id="upPreviewImg"></div>
+      <input id="upFile" type="file" accept="image/*" multiple>
+      <div id="upPreviewWrap"></div>
       <textarea id="upCaption" placeholder="캡션을 적어보세요"></textarea>
       <div class="uprow"><button class="btn-main" id="upSaveBtn" disabled>저장</button></div>
     </div>
@@ -271,13 +297,14 @@
     </div>
   </div>
   <div id="camTimer" class="hidden"><span class="recdot"></span><span id="camTimerText">0:00</span></div>
+  <div id="camSetBar" class="hidden"><div id="camSetThumbs"></div><button id="camSetNextBtn" type="button">다음 (<span id="camSetCount">0</span>)</button></div>
   <div class="camBottom">
     <button id="camGalleryBtn" title="갤러리에서 올리기">🖼</button>
     <div style="flex:1;display:flex;justify-content:center"><button id="camShutter" aria-label="촬영"></button></div>
     <div class="camSpacer"></div>
   </div>
 </div>
-<input id="galleryInput" type="file" accept="image/*,video/*" class="hidden">
+<input id="galleryInput" type="file" accept="image/*,video/*" class="hidden" multiple>
 
 <div id="previewOverlay" class="hidden">
   <div id="previewMediaWrap"></div>
@@ -303,7 +330,8 @@
   var authEl=document.getElementById('auth'),appEl=document.getElementById('app');
   var state={uid:null,mode:'camera',capType:'photo',day:todayISO(),entries:[],
     stream:null,recorder:null,chunks:[],recTimer:null,recStart:0,
-    pending:null // {blob,type,fromGallery}
+    pending:null, // {blob,type} — blob은 video면 단일 Blob, photo면 항상 배열
+    photoSet:[] // 블로그 모드에서 셔터를 눌러 모아두는 사진들(카메라는 계속 켜진 채)
   };
   var undoHist=[];
 
@@ -372,16 +400,25 @@
     var el=document.getElementById('boardList');
     if(!state.entries.length){el.innerHTML='<p class="boardempty">이 날은 아직 기록이 없어요</p>';return;}
     Promise.all(state.entries.map(function(e){
-      return sb.storage.from('log').createSignedUrl(e.media_path,3600).then(function(r){return {e:e,url:(r.data&&r.data.signedUrl)||''};});
+      var paths=mediaPathList(e);
+      return Promise.all(paths.map(function(p){
+        return sb.storage.from('log').createSignedUrl(p,3600).then(function(r){return (r.data&&r.data.signedUrl)||'';});
+      })).then(function(urls){return {e:e,urls:urls};});
     })).then(function(list){
       el.innerHTML=list.map(function(x){
-        var e=x.e,ts=e.sort||Date.parse(e.created_at),stamp='<span class="logstamp">'+esc(fmtStamp(ts))+'</span>';
+        var e=x.e,urls=x.urls,ts=e.sort||Date.parse(e.created_at),stamp='<span class="logstamp">'+esc(fmtStamp(ts))+'</span>';
         var rot=e.rotate||0,isSq=(rot===90||rot===270),rotCls=rot?' rot'+rot:'';
-        var media=e.type==='video'
-          ? '<div class="logvidwrap'+(isSq?' sq':'')+'"><video class="logmedia'+rotCls+'" src="'+esc(x.url)+'" controls playsinline></video>'+stamp+(e.caption?'<div class="logcapover">'+esc(e.caption)+'</div>':'')+'</div>'
-          : '<div class="logmediawrap'+(isSq?' sq':'')+'"><img class="logmedia'+rotCls+'" src="'+esc(x.url)+'">'+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
-        var rotBtn='<span class="logrot" data-act="logrot" title="회전">↺</span>';
-        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span><span class="logactions">'+rotBtn+'<span class="logdel" data-act="logdel">✕ 지우기</span></span></div>'+media+'</div>';
+        var media;
+        if(e.type==='video'){
+          media='<div class="logvidwrap'+(isSq?' sq':'')+'"><video class="logmedia'+rotCls+'" src="'+esc(urls[0]||'')+'" controls playsinline></video>'+stamp+(e.caption?'<div class="logcapover">'+esc(e.caption)+'</div>':'')+'</div>';
+        }else if(urls.length>1){
+          media='<div class="logmediagrid">'+urls.map(function(u){return '<div class="logmediagriditem"><img class="logmedia" src="'+esc(u)+'"></div>';}).join('')+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
+        }else{
+          media='<div class="logmediawrap'+(isSq?' sq':'')+'"><img class="logmedia'+rotCls+'" src="'+esc(urls[0]||'')+'">'+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
+        }
+        var rotBtn=urls.length>1?'':'<span class="logrot" data-act="logrot" title="회전">↺</span>';
+        var countBadge=urls.length>1?'<span class="logmulti">'+urls.length+'장</span>':'';
+        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span>'+countBadge+'<span class="logactions">'+rotBtn+'<span class="logdel" data-act="logdel">✕ 지우기</span></span></div>'+media+'</div>';
       }).join('');
     });
   }
@@ -474,14 +511,33 @@
     return 'bin';
   }
   // date를 안 넘기면(옛 호출부 대비) 오늘로 — 지난 날짜 저장은 호출부에서 target date를 넘겨줌(2026-10-01)
-  function saveEntry(blob,type,caption,date){
+  // 블로그(사진) 여러 장 올리기(2026-10-25) — media_path 컬럼은 그대로 text라 스키마 변경 없이:
+  // 사진 한 장(또는 영상)이면 예전처럼 순수 경로 문자열 그대로, 사진 여러 장이면 그 경로들을
+  // JSON 배열 문자열로 담음(렌더 시 mediaPathList()가 '['로 시작하는지로 구분). 기존 행은
+  // 전부 단일 문자열이라 하위호환 그대로 유지됨.
+  function saveEntry(blobOrList,type,caption,date){
     if(!state.uid)return Promise.reject(new Error('로그인이 필요해요'));
-    var ext=extFor(blob.type||''),path=state.uid+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.'+ext;
-    return sb.storage.from('log').upload(path,blob,{contentType:blob.type||'application/octet-stream'}).then(function(up){
-      if(up.error)throw up.error;
-      var row={id:uid(),date:date||todayISO(),type:type,media_path:path,caption:(caption||'').trim(),sort:Date.now()};
+    var list=Array.isArray(blobOrList)?blobOrList:[blobOrList];
+    return Promise.all(list.map(function(b){
+      var ext=extFor(b.type||''),path=state.uid+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.'+ext;
+      return sb.storage.from('log').upload(path,b,{contentType:b.type||'application/octet-stream'}).then(function(up){
+        if(up.error)throw up.error;
+        return path;
+      });
+    })).then(function(paths){
+      var mediaPath=paths.length>1?JSON.stringify(paths):paths[0];
+      var row={id:uid(),date:date||todayISO(),type:type,media_path:mediaPath,caption:(caption||'').trim(),sort:Date.now()};
       return sb.from('log_entries').insert(row).then(function(r){if(r.error)throw r.error;return row;});
     });
+  }
+  // 저장된 media_path를 경로 배열로 풀어줌 — 영상이나 단일 사진은 [그 경로] 하나짜리 배열
+  function mediaPathList(e){
+    if(e.type!=='photo')return [e.media_path];
+    var v=e.media_path;
+    if(typeof v==='string'&&v.charAt(0)==='['){
+      try{var arr=JSON.parse(v);if(Array.isArray(arr)&&arr.length)return arr;}catch(err){}
+    }
+    return [v];
   }
 
   // ===== 지난 날짜에도 저장 가능하게 — 업로드/캡션 화면 공용 날짜 선택 헬퍼(2026-10-01) =====
@@ -507,19 +563,35 @@
   previewDatePickerEl.addEventListener('change',function(){if(this.value)setPreviewDate(this.value);});
 
   // ===== 데스크톱 업로드 =====
-  var upFileEl=document.getElementById('upFile'),upPreviewWrap=document.getElementById('upPreviewWrap'),upPreviewImg=document.getElementById('upPreviewImg'),upSaveBtn=document.getElementById('upSaveBtn');
-  var upPendingFile=null;
+  // 블로그(사진) 여러 장 올리기(2026-10-25) — 데스크톱 업로드도 여러 장 선택 가능하게,
+  // 고른 사진들을 작은 썸네일 여러 개로 보여주고 하나씩 뺄 수 있게 함.
+  var upFileEl=document.getElementById('upFile'),upPreviewWrap=document.getElementById('upPreviewWrap'),upSaveBtn=document.getElementById('upSaveBtn');
+  var upPendingFiles=[];
+  function renderUpPreview(){
+    if(!upPendingFiles.length){upPreviewWrap.classList.remove('show');upPreviewWrap.innerHTML='';upSaveBtn.disabled=true;return;}
+    upPreviewWrap.classList.add('show');
+    upPreviewWrap.innerHTML=upPendingFiles.map(function(f,i){
+      return '<div class="upThumb" data-i="'+i+'"><img src="'+URL.createObjectURL(f)+'"><span class="upThumbDel" data-act="upthumbdel">✕</span></div>';
+    }).join('');
+    upSaveBtn.disabled=false;
+  }
   upFileEl.addEventListener('change',function(){
-    upPendingFile=this.files&&this.files[0]?this.files[0]:null;
-    if(upPendingFile){upPreviewImg.src=URL.createObjectURL(upPendingFile);upPreviewWrap.classList.add('show');upSaveBtn.disabled=false;}
-    else{upPreviewWrap.classList.remove('show');upSaveBtn.disabled=true;}
+    upPendingFiles=this.files?Array.prototype.slice.call(this.files):[];
+    renderUpPreview();
+  });
+  upPreviewWrap.addEventListener('click',function(e){
+    var el=e.target.closest('[data-act="upthumbdel"]');if(!el)return;
+    var i=parseInt(el.closest('.upThumb').dataset.i,10);
+    upPendingFiles.splice(i,1);
+    renderUpPreview();
   });
   upSaveBtn.addEventListener('click',function(){
-    if(!upPendingFile)return;
+    if(!upPendingFiles.length)return;
     upSaveBtn.disabled=true;upSaveBtn.textContent='저장 중…';
     var savedDate=upTargetDate;
-    saveEntry(upPendingFile,'photo',document.getElementById('upCaption').value,savedDate).then(function(){
-      upPendingFile=null;upFileEl.value='';upPreviewWrap.classList.remove('show');document.getElementById('upCaption').value='';
+    var filesToSave=upPendingFiles.slice();
+    saveEntry(filesToSave,'photo',document.getElementById('upCaption').value,savedDate).then(function(){
+      upPendingFiles=[];upFileEl.value='';renderUpPreview();document.getElementById('upCaption').value='';
       upSaveBtn.textContent='저장';upSaveBtn.disabled=true;
       if(state.day===savedDate)renderDay();
       showToast(dayLabel(savedDate)+'에 저장했어요');
@@ -556,8 +628,37 @@
   }
   document.querySelector('.camToggle').addEventListener('click',function(e){
     var b=e.target.closest('button[data-captype]');if(!b)return;
+    if(b.dataset.captype==='video'&&state.photoSet.length){
+      state.photoSet=[];renderCamSetBar();
+      showToast('모아둔 사진을 취소했어요');
+    }
     state.capType=b.dataset.captype;
     document.querySelectorAll('.camToggle button').forEach(function(x){x.setAttribute('aria-selected',x===b);});
+  });
+
+  // ===== 블로그(사진) 여러 장 찍어 모으기(2026-10-25) =====
+  // 셔터를 누르면 바로 캡션 화면으로 안 가고 이 바에 쌓임 — 카메라는 계속 켜진 채라
+  // 이어서 더 찍을 수 있고, "다음"을 눌러야 캡션 화면으로 넘어감(한 장만 찍고 바로 넘어가도 됨).
+  var camSetBar=document.getElementById('camSetBar'),camSetThumbs=document.getElementById('camSetThumbs'),camSetCount=document.getElementById('camSetCount');
+  function renderCamSetBar(){
+    camSetBar.classList.toggle('hidden',state.photoSet.length===0);
+    camSetCount.textContent=state.photoSet.length;
+    camSetThumbs.innerHTML=state.photoSet.map(function(b,i){
+      return '<div class="camSetThumb" data-i="'+i+'"><img src="'+URL.createObjectURL(b)+'"><span class="camSetDel" data-act="camsetdel">✕</span></div>';
+    }).join('');
+  }
+  camSetThumbs.addEventListener('click',function(e){
+    var el=e.target.closest('[data-act="camsetdel"]');if(!el)return;
+    var i=parseInt(el.closest('.camSetThumb').dataset.i,10);
+    state.photoSet.splice(i,1);
+    renderCamSetBar();
+  });
+  document.getElementById('camSetNextBtn').addEventListener('click',function(){
+    if(!state.photoSet.length)return;
+    var set=state.photoSet.slice();
+    state.photoSet=[];
+    renderCamSetBar();
+    openPreview(set,'photo');
   });
 
   function pickVideoMime(){
@@ -629,7 +730,10 @@
   function takePhoto(){
     var c=document.createElement('canvas'),ctx=c.getContext('2d');
     drawRotatedFrame(ctx,captureRotationDeg(),camVideo.videoWidth||720,camVideo.videoHeight||1280);
-    c.toBlob(function(blob){openPreview(blob,'photo');},'image/jpeg',0.9);
+    c.toBlob(function(blob){
+      state.photoSet.push(blob);
+      renderCamSetBar();
+    },'image/jpeg',0.9);
   }
   camShutter.addEventListener('click',function(){
     if(!state.stream){showToast('카메라를 쓸 수 없어요 — 갤러리를 이용해주세요');return;}
@@ -639,25 +743,53 @@
   });
   document.getElementById('camGalleryBtn').addEventListener('click',function(){document.getElementById('galleryInput').click();});
   document.getElementById('galleryInput').addEventListener('change',function(){
-    var f=this.files&&this.files[0];this.value='';if(!f)return;
-    openPreview(f,f.type.indexOf('video')===0?'video':'photo');
+    var files=this.files?Array.prototype.slice.call(this.files):[];this.value='';
+    if(!files.length)return;
+    var videos=files.filter(function(f){return f.type.indexOf('video')===0;});
+    var photos=files.filter(function(f){return f.type.indexOf('video')!==0;});
+    if(videos.length){openPreview(videos[0],'video');return;} // 영상은 한 개만(여러 장 선택이 섞여도 첫 영상만)
+    if(photos.length)openPreview(photos,'photo');
   });
 
   // ===== 캡션 미리보기 화면 =====
   var previewOverlay=document.getElementById('previewOverlay'),previewMediaWrap=document.getElementById('previewMediaWrap'),previewCaption=document.getElementById('previewCaption'),saveBtn=document.getElementById('saveBtn');
-  function openPreview(blob,type){
-    state.pending={blob:blob,type:type};
-    var url=URL.createObjectURL(blob);
-    previewMediaWrap.innerHTML=type==='video'?'<video src="'+url+'" controls autoplay playsinline muted loop></video>':'<img src="'+url+'">';
+  // 블로그(사진) 여러 장(2026-10-25) — type==='video'면 늘 단일 Blob(예전과 동일), type==='photo'면
+  // 늘 배열로 다룸(한 장이어도 배열 길이 1) — 그래야 사진 하나당 ✕로 지울 수 있는 UI를 공용으로 씀.
+  function openPreview(blobOrList,type){
+    var list=type==='photo'?(Array.isArray(blobOrList)?blobOrList:[blobOrList]):blobOrList;
+    state.pending={blob:list,type:type};
+    if(type==='video'){
+      var url=URL.createObjectURL(list);
+      previewMediaWrap.innerHTML='<video src="'+url+'" controls autoplay playsinline muted loop></video>';
+    }else{
+      previewMediaWrap.innerHTML='<div id="previewMultiWrap"></div>';
+      renderPreviewMulti();
+    }
     previewCaption.value='';
     setPreviewDate(state.day); // 지금 보고 있는 게시판 날짜를 기본값으로(필요하면 📅로 바꿀 수 있음)
     previewOverlay.classList.remove('hidden');
     saveBtn.disabled=false;saveBtn.textContent='저장';
   }
+  function renderPreviewMulti(){
+    var wrap=document.getElementById('previewMultiWrap');
+    if(!wrap)return;
+    wrap.innerHTML=state.pending.blob.map(function(b,i){
+      return '<div class="previewMultiItem" data-i="'+i+'"><img src="'+URL.createObjectURL(b)+'"><span class="previewMultiDel" data-act="previewdel">✕</span></div>';
+    }).join('');
+  }
+  previewMediaWrap.addEventListener('click',function(e){
+    var el=e.target.closest('[data-act="previewdel"]');if(!el)return;
+    if(!state.pending||state.pending.type!=='photo')return;
+    var i=parseInt(el.closest('.previewMultiItem').dataset.i,10);
+    state.pending.blob.splice(i,1);
+    if(!state.pending.blob.length){closePreview();return;} // 마지막 한 장을 지우면 "다시"와 같은 효과
+    renderPreviewMulti();
+  });
   function closePreview(){previewOverlay.classList.add('hidden');previewMediaWrap.innerHTML='';state.pending=null;}
   document.getElementById('retakeBtn').addEventListener('click',closePreview);
   saveBtn.addEventListener('click',function(){
     if(!state.pending)return;
+    if(state.pending.type==='photo'&&!state.pending.blob.length)return;
     saveBtn.disabled=true;saveBtn.textContent='저장 중…';
     var savedDate=previewTargetDate;
     saveEntry(state.pending.blob,state.pending.type,previewCaption.value,savedDate).then(function(){
