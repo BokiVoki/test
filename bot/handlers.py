@@ -290,6 +290,14 @@ _TYPE_KEYBOARD = InlineKeyboardMarkup([
      InlineKeyboardButton("🗂 기타", callback_data="addtype:other")],
 ])
 
+_STATUS_KEYBOARD = InlineKeyboardMarkup([
+    [InlineKeyboardButton("🚩 시작 전", callback_data="addstatus:not_started"),
+     InlineKeyboardButton("▶️ 진행 중", callback_data="addstatus:in_progress")],
+    [InlineKeyboardButton("✅ 완료", callback_data="addstatus:completed"),
+     InlineKeyboardButton("⏸ 보류", callback_data="addstatus:on_hold"),
+     InlineKeyboardButton("🚫 중단", callback_data="addstatus:dropped")],
+])
+
 
 def _archive_action_keyboard(entry_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
@@ -1027,11 +1035,29 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("세션이 만료됐어요. 다시 ➕ 작품추가를 눌러주세요.", show_alert=True)
             return
         _pending_add_entry[chat_id]["type"] = chosen_type
-        _pending_add_entry[chat_id]["step"] = "author"
+        _pending_add_entry[chat_id]["step"] = "status"
         type_kr = CONTENT_TYPE_KR.get(chosen_type, chosen_type)
         title = _pending_add_entry[chat_id]["title"]
         await query.edit_message_text(
-            f"📖 **{title}** ({type_kr})\n\n✏️ 작가/감독/원작자를 입력해주세요 (없으면 '-'):",
+            f"📖 **{title}** ({type_kr})\n\n📌 지금 상태를 선택해주세요:",
+            parse_mode="Markdown",
+            reply_markup=_STATUS_KEYBOARD,
+        )
+        return
+
+    # ── 작품 상태 선택 버튼 ──
+    if data.startswith("addstatus:"):
+        chosen_status = data.split(":", 1)[1]
+        chat_id = query.message.chat_id
+        if chat_id not in _pending_add_entry:
+            await query.answer("세션이 만료됐어요. 다시 ➕ 작품추가를 눌러주세요.", show_alert=True)
+            return
+        _pending_add_entry[chat_id]["status"] = chosen_status
+        _pending_add_entry[chat_id]["step"] = "author"
+        status_kr = STATUS_KR.get(chosen_status, chosen_status)
+        title = _pending_add_entry[chat_id]["title"]
+        await query.edit_message_text(
+            f"📖 **{title}** ({status_kr})\n\n✏️ 작가/감독/원작자를 입력해주세요 (없으면 '-'):",
             parse_mode="Markdown",
         )
         return
@@ -1576,17 +1602,18 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             entry = ContentEntry(
                 title=state["title"],
                 type=state.get("type", "other"),
-                status="in_progress",
+                status=state.get("status", "in_progress"),
                 author=state.get("author", ""),
                 year_watched=state.get("year", ""),
                 date_added=str(date.today()),
             )
             _sheets.add_entry(entry)
             type_kr = CONTENT_TYPE_KR.get(entry.type, entry.type)
+            status_kr = STATUS_KR.get(entry.status, entry.status)
             author_str = f" · {entry.author}" if entry.author else ""
             year_str = f" ({entry.year_watched})" if entry.year_watched else ""
             await update.message.reply_text(
-                f"✅ **{entry.title}**{year_str} 추가했어요!\n{type_kr}{author_str} · 읽는 중",
+                f"✅ **{entry.title}**{year_str} 추가했어요!\n{type_kr}{author_str} · {status_kr}",
                 parse_mode="Markdown",
                 reply_markup=_archive_action_keyboard(entry.id),
             )

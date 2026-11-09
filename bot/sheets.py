@@ -88,8 +88,17 @@ class SheetsClient:
         entry.date_updated = today
 
         sheet = self._get_sheet()
-        # table_range='A1' 명시 — 시트 자동 감지 오류 방지
-        sheet.append_row(entry.to_row(), value_input_option="USER_ENTERED", table_range="A1")
+        # append_row(table_range=...)는 시트 중간에 빈 줄이 하나라도 있으면 거기를
+        # "표의 끝"으로 오판해서 맨 위쪽(빈 줄 바로 다음)에 끼워 넣는 문제가 있었음 —
+        # 실제 전체 행 수를 직접 세어 정확히 그 다음 줄에 쓰는 방식으로 교체
+        # (update_entry/delete_entry 등 다른 메서드와 동일한 패턴).
+        rows = sheet.get_all_values()
+        next_row = len(rows) + 1
+        sheet.update(
+            range_name=f"A{next_row}:P{next_row}",
+            values=[entry.to_row()],
+            value_input_option="USER_ENTERED",
+        )
         self._invalidate_cache()
         archive_app.upsert_entry(entry)  # 하루앱 거울복사 (실패해도 시트 저장엔 영향 없음)
         return entry
@@ -110,7 +119,15 @@ class SheetsClient:
             return 0
 
         sheet = self._get_sheet()
-        sheet.append_rows(rows, value_input_option="USER_ENTERED")
+        # append_rows도 add_entry와 같은 표 자동감지 문제가 있어 동일하게 교체
+        existing = sheet.get_all_values()
+        start_row = len(existing) + 1
+        end_row = start_row + len(rows) - 1
+        sheet.update(
+            range_name=f"A{start_row}:P{end_row}",
+            values=rows,
+            value_input_option="USER_ENTERED",
+        )
         self._invalidate_cache()
         archive_app.batch_upsert(entries)
         return len(rows)
