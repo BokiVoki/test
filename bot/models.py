@@ -1,3 +1,4 @@
+import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -69,6 +70,11 @@ class ContentEntry:
     author: str = ""
     year_watched: str = ""
     publisher: str = ""
+
+    def __post_init__(self):
+        # 아이폰 등 일부 입력기는 한글을 NFD(자모 분리)로 보내서, 눈엔 똑같아 보이는
+        # 제목이 검색 시 단순 문자열 포함 비교(in)에서 실패할 수 있음 — NFC로 통일.
+        self.title = unicodedata.normalize("NFC", self.title or "")
 
     def to_row(self) -> list:
         return [

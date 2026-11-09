@@ -303,9 +303,13 @@ def _archive_action_keyboard(entry_id: str) -> InlineKeyboardMarkup:
 async def _do_search(update: Update, keyword: str):
     """키워드로 아카이브 검색 후 인라인 버튼으로 출력"""
     global _search_results
+    import unicodedata
     from .models import CONTENT_TYPE_KR, STATUS_KR
     all_entries = _sheets.get_all_entries()
-    matches = [e for e in all_entries if keyword.lower() in e.title.lower()]
+    # 제목(ContentEntry.__post_init__에서 NFC 정규화됨)과 비교 기준을 맞추기 위해
+    # 검색어도 NFC로 정규화 — 안 그러면 입력기에 따라 눈엔 같아 보여도 안 걸릴 수 있음
+    needle = unicodedata.normalize("NFC", keyword).lower()
+    matches = [e for e in all_entries if needle in e.title.lower()]
     if not matches:
         await update.message.reply_text(f"'{keyword}' 포함된 작품을 찾지 못했어요.")
         return

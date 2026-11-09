@@ -66,7 +66,8 @@ class SheetsClient:
 
     def get_entry_by_title(self, title: str) -> Optional[ContentEntry]:
         """대소문자 무시, 부분 매칭으로 검색"""
-        needle = title.lower().strip()
+        import unicodedata
+        needle = unicodedata.normalize("NFC", title).lower().strip()
         entries = self.get_all_entries()
         # 완전 일치 우선
         for e in entries:
