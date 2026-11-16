@@ -2206,6 +2206,7 @@
     row.appendChild(arrow);row.appendChild(headerTa);
     var bodyWrap=document.createElement('div');bodyWrap.className='mtoggle-body'+(collapsed?' hidden':'');
     var seg={t:'toggle',indent:indent,collapsed:collapsed,rowEl:row,arrowEl:arrow,headerEl:headerTa,bodyWrap:bodyWrap,children:[]};
+    bodyWrap._toggleSeg=seg; // 자식 세그먼트에서 "이 토글 밖으로 나가기"를 할 때 역참조로 씀
     arrow.addEventListener('click',function(){
       seg.collapsed=!seg.collapsed;
       bodyWrap.classList.toggle('hidden',seg.collapsed);
@@ -3323,7 +3324,7 @@
   document.getElementById('mlist').addEventListener('click',function(e){
     var star=e.target.closest('.mpin');
     if(star){var pit=star.closest('.mitem'),pm=pit&&mById(pit.dataset.id);if(pm){pm.pinned=!pm.pinned;putMemo(pm);renderMemos();showToast(pm.pinned?'홈에 고정했어요':'고정을 풀었어요');}return;}
-    var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();memoEl.classList.add('mob-edit');var med=document.querySelector('.medit');if(med)med.scrollIntoView({block:'start'});});
+    var it=e.target.closest('.mitem');if(!it)return;state.curMemo=it.dataset.id;renderMemos();memoEl.classList.add('mob-edit');var med=document.querySelector('.medit');if(med)med.scrollIntoView({block:'start'});window.scrollTo(0,0);});
   document.getElementById('mBackBtn').addEventListener('click',function(){memoEl.classList.remove('mob-edit');});
   var memoT;
   document.getElementById('mtitle').addEventListener('input',function(){var m=mById(state.curMemo);if(!m)return;m.title=this.value;var it=document.querySelector('.mitem[data-id="'+m.id+'"] .mt');if(it)it.textContent=m.title||'제목 없음';clearTimeout(memoT);memoT=setTimeout(function(){putMemo(m);},600);});
@@ -3553,6 +3554,27 @@
       if(tg0){e.preventDefault();if(seg)splitTextSegIntoToggle(seg,ls,pos,tg0[1]);return;}
     }
     if(e.key==='Enter'&&!e.shiftKey){
+      // 토글 안(마지막 자식의 맨 끝 빈 줄)에서 엔터 → 토글 밖으로 나가서 바로 다음에 새 글 시작
+      // (안 그러면 토글을 한 번 쓰기 시작하면 그 아래로 영영 못 빠져나가 바깥에 글을 못 쓰는 문제가 있었음)
+      var hostToggle=seg&&seg.container&&seg.container._toggleSeg;
+      if(hostToggle&&pos===val.length&&line.trim()===''&&seg.parentList&&seg.parentList[seg.parentList.length-1]===seg){
+        e.preventDefault();
+        var trimmedVal=val.slice(0,ls>0?ls-1:0);
+        if(trimmedVal===''){ // 빈 줄만 남은 세그먼트면 통째로 치움(토글 안에 빈 줄만 덩그러니 남지 않게)
+          var hlist=seg.parentList,hidx0=hlist.indexOf(seg);
+          seg.el.remove();hlist.splice(hidx0,1);
+        }else if(trimmedVal!==val){ta.value=trimmedVal;autoGrow(ta);}
+        var outerContainer=hostToggle.container,outerList=hostToggle.parentList;
+        var refEl=hostToggle.bodyWrap.nextSibling;
+        var afterSeg=buildTextSegment('');
+        attachSeg(afterSeg,outerContainer,outerList);
+        insertSegAt(outerContainer,afterSeg,refEl);
+        var hidx=outerList.indexOf(hostToggle);
+        outerList.splice(hidx+1,0,afterSeg);
+        afterSeg.el.focus();
+        syncAndSaveMemo();
+        return;
+      }
       var b=line.match(/^(\s*)•\s+(.*)$/),n=line.match(/^(\s*)(\d+)\.\s+(.*)$/),c=line.match(/^(\s*)[☐☑]\s+(.*)$/);
       if(b){e.preventDefault();
         if(b[2].trim()==='')apply(val.slice(0,ls)+val.slice(pos),ls);            // 빈 불릿 → 리스트 종료
@@ -3688,7 +3710,7 @@
     if(e.target.hasAttribute('data-unlink')){var m=mById(state.curMemo);if(m){state.todos.forEach(function(t){var ch=false;if(t.memoId===m.id){t.memoId=null;ch=true;}(t.subs||[]).forEach(function(s){if(s.memoId===m.id){s.memoId=null;ch=true;}});if(ch)putTodo(t);});m.link='';m.linkmemo=null;m.linkproject='';putMemo(m);renderAll();renderMemos();showToast('연결을 해제했어요');}return;}
     if(e.target.hasAttribute('data-back')){var mm=mById(state.curMemo);
       if(mm&&mm.linkproject){var pname=mm.linkproject;switchTab('home');openProjectSection(pname);showToast('연결된 프로젝트로 이동');return;}
-      if(mm&&mm.linkmemo){var target=mById(mm.linkmemo);if(target){state.curMemo=target.id;renderMemos();showToast('연결된 메모로 이동');}return;}
+      if(mm&&mm.linkmemo){var target=mById(mm.linkmemo);if(target){state.curMemo=target.id;renderMemos();window.scrollTo(0,0);showToast('연결된 메모로 이동');}return;}
       var lt=mm&&state.todos.filter(function(t){return t.memoId===mm.id||(t.subs||[]).some(function(s){return s.memoId===mm.id;});})[0];if(lt&&lt.ws!==state.ws){state.ws=lt.ws;savePrefs();renderAll();}switchTab('home');showToast('연결된 할일로 이동');}});
   document.getElementById('newMemo').addEventListener('click',function(){var f=state.curFolder==='전체'?'업무':state.curFolder;var m={id:'m'+uid(),folder:f,title:'',body:'',link:''};state.memos.unshift(m);putMemo(m);state.curMemo=m.id;renderMemos();memoEl.classList.add('mob-edit');document.getElementById('mtitle').focus();showToast('새 메모 · '+f);});
   document.getElementById('mDelBtn').addEventListener('click',function(){var m=mById(state.curMemo);if(m)removeMemo(m);});
