@@ -127,18 +127,23 @@
        범위를 좁혀야 그 표의 마감 헤더가 같이 숨는 걸 막음 */
     #todayTable thead th:nth-child(4),#todayTable td.rvwcell{display:none}
     /* 마우스 드래그 전용 손잡이 — 터치에선 애초에 동작 안 해서 자리만 차지하니 숨김 */
-    .rowdrag,.pjhandle,.subdrag{display:none}
+    .pjhandle,.subdrag{display:none}
     /* 호버해야만 보이던 버튼들 — 삭제·이름변경·반복설정·하위로 옮기기·링크삭제·
        하위항목의 날짜/오늘 지정까지. 터치엔 호버 자체가 없어서 지금까진 존재하는지도
        몰랐거나 알아도 못 눌렀던 것들 — 항상 옅게라도 보이게(회의안건·링크 보드와 같은 처리) */
     .rowdel,.pjdel,.pjren,.subadd0,.subitem .sdel,.rowbtn,.nest,.lkrow .lkdel,.crEditTog{opacity:.5!important}
     .sdue2,.stoday,.subitem .remindicon{opacity:.5!important}
     .sdue2.has,.stoday.has,.subitem .remindicon.has{opacity:.9!important}
+    /* 마감 셀 탭 영역을 모바일에서 한 번 더 키움(44px 권장 터치 영역에 더 가깝게) */
+    td.due{padding:17px 10px}
     /* ✎(주기 수정)와 ✕(삭제)가 나란히 붙어있어서 모바일에서 손가락으로 정확히 못 누르고
        엉뚱한 걸 누르거나 헛짚던 문제 — 실제 탭 가능 영역을 키우고(패딩+음수 마진으로
        시각적 크기는 유지) 둘 사이 간격도 벌림 */
     .lkrow{gap:6px}
     .lkrow .lkdel,.lkrow .crEditTog{padding:9px 7px;margin:-9px -3px;font-size:13px}
+    /* ★/☆ 고정 토글도 ✕ 삭제와 같은 이유로 안 눌림(2026-11-17 제보) — 그때 .lkstar를
+       빼먹었던 것, 같은 패딩+음수마진 패턴으로 탭 영역만 키움(시각 크기는 그대로) */
+    .lkrow .lkstar{padding:9px 7px;margin:-9px -3px;font-size:13px}
     /* 📝 메모 연결 아이콘·"연결된 메모/할일" 바로가기 글자도 같은 이유로 모바일에서
        잘 안 눌림(2026-10-03 제보) — 시각적 크기는 그대로 두고 탭 영역만 키움 */
     .memolink{padding:9px 6px;margin:-9px -4px}
@@ -405,6 +410,11 @@
   .subctx{color:var(--faint);font-size:11.5px;margin-left:6px}
   .pj{color:var(--faint);font-size:12.5px;white-space:nowrap}
   .due{position:relative;font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
+  /* 탭 영역이 너무 작다는 제보(2026-11-17) — 글자 크기만큼만 좁던 셀(.tbl td의 6px 8px
+     패딩뿐)을 실제 터치 권장 최소(44px)에 가깝게 키움. .dueip가 이 td에 position:absolute;
+     inset:0으로 덮이므로(아래) 패딩이 커지면 탭 영역도 같이 커짐 — 별도 히트존 계산 불필요.
+     td.due로 특이도를 .tbl td(0,1,1)와 동률로 맞추고 소스 순서로 이기게 함. */
+  td.due{min-width:46px;padding:14px 10px;text-align:center}
   .due.over{color:var(--text);font-weight:700}
   /* 마감 셀 — 실제 <input type="date">를 셀 전체에 투명하게 겹쳐서 "진짜 탭"이 그 input에
      바로 떨어지게 함(2026-10-03, "마감설정이 안 되고 있다" 제보 — 숨겨둔 input에 JS로
@@ -485,11 +495,9 @@
   .rowbtn{font:inherit;font-size:11px;color:var(--faint);background:none;border:0;cursor:pointer;opacity:0;padding-left:7px}tr:hover .rowbtn{opacity:.7}.rowbtn:hover{color:var(--accent)}
   .sdue2{font-family:var(--mono);font-size:10.5px;color:var(--faint);cursor:pointer;margin-left:auto;opacity:0;padding:0 4px}.subitem:hover .sdue2{opacity:1}.sdue2.has{opacity:.9;color:var(--accent)}
   .stoday{font-family:var(--mono);font-size:10.5px;color:var(--faint);cursor:pointer;margin-left:auto;opacity:0;padding:0 4px}.subitem:hover .stoday{opacity:1}.stoday.has{opacity:.9;color:var(--accent)}
-  .rowdrag{cursor:grab;color:var(--faint);font-size:12px;opacity:0;padding-right:5px;user-select:none}tr:hover .rowdrag{opacity:.55}
   .rowtag{font-family:var(--mono);font-size:11px;color:var(--accent);background:var(--accent-wash);padding:1px 6px;margin-left:7px;cursor:text;outline:none}
   .rowtag:before{content:'#'}.rowtag:empty:before{content:'+ 태그';color:var(--faint);background:none}
   .rowtag:focus{outline:1px solid var(--accent)}
-  tr.rowdragging{opacity:.4}tr.rowdropbefore>td{box-shadow:inset 0 2px 0 var(--accent)}
   .subdrag{cursor:grab;color:var(--faint);font-size:11px;opacity:0;user-select:none}.subitem:hover .subdrag{opacity:.55}
   .subitem.subdragging{opacity:.4}
   .nest{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;padding-left:8px;border:0;background:none;font-family:inherit}tr:hover .nest{opacity:.7}.nest:hover{color:var(--accent)}
@@ -860,6 +868,7 @@
   <div class="navmenu-tabs" id="navMenuTabs"></div>
   <div class="navmenu-divider"></div>
   <div class="navmenu-apps" id="navMenuTools">
+    <button type="button" data-modal="modalCalendar">📅 캘린더</button>
     <button type="button" data-modal="modalAlarm">🔔 알람</button>
     <button type="button" data-modal="modalRoutineWork">📋 상시업무</button>
     <button type="button" data-modal="modalLinks">🔗 링크</button>
@@ -877,6 +886,10 @@
 <div id="genModal" class="genmodal hidden">
   <div class="genmodal-head"><h2 id="genModalTitle"></h2><button type="button" id="genModalClose" aria-label="닫기">✕</button></div>
   <div class="genmodal-body">
+    <div id="modalCalendar" class="genmodal-section hidden">
+      <div class="calnav"><button id="calPrev">‹</button><h3 id="calTitle"></h3><button id="calNext">›</button><span>끌어서 다른 날로 옮기기</span></div>
+      <div class="cgrid" id="cgrid"></div>
+    </div>
     <div id="modalAlarm" class="genmodal-section hidden">
       <section class="blk">
         <div class="bhead"><h2>🔔 알림</h2><div class="r" id="pushStatus"></div></div>
@@ -1274,7 +1287,7 @@
   function svg(){return '<svg viewBox="0 0 12 12"><path d="M2 6l2.5 2.5L10 3" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
 
   // ===== AUTH =====
-  var authEl=document.getElementById('auth'),appEl=document.getElementById('app'),authMsg=document.getElementById('authMsg');
+  var authEl=document.getElementById('auth'),appEl=document.getElementById('app'),authMsg=document.getElementById('authMsg'),genModalEl=document.getElementById('genModal');
   function showApp(){authEl.classList.add('hidden');appEl.classList.remove('hidden');document.getElementById('navFab').classList.remove('hidden');loadData();}
   function showAuth(){appEl.classList.add('hidden');authEl.classList.remove('hidden');}
   document.getElementById('authForm').addEventListener('submit',function(e){e.preventDefault();doLogin();});
@@ -1429,6 +1442,15 @@
   }
   function daysTo(iso){if(!iso)return null;return Math.round((new Date(iso)-new Date(todayISO()))/86400000);}
   function priority(t){var s=t.imp*25,d=daysTo(t.due);if(d!==null){if(d<0)s+=100;else if(d<=1)s+=60;else if(d<=3)s+=30;}if(t.est&&t.est<=20)s+=10;return s;}
+  // 할일 목록 정렬 — 마감 가까운순(지난 것 포함, 빠른 날짜가 위) 먼저, 마감이 같거나 둘 다
+  // 없으면 중요도 높은 순(2026-11-17, "중요도 높은 순서가 맨위에 오도록" 요청에서 "마감
+  // 가까운순 그다음 중요도순"으로 정정됨). 마감 없는 할일은 있는 할일보다 뒤로.
+  function sortByDueThenImp(a,b){
+    var ad=a.due||'',bd=b.due||'';
+    if(ad&&bd){if(ad!==bd)return ad<bd?-1:1;}
+    else if(ad||bd){return ad?-1:1;}
+    return (b.imp||0)-(a.imp||0);
+  }
   function dots(n){return '●●●'.slice(0,n);}
 
   // ===== ⏰ 할일별 푸시 알림 =====
@@ -1589,10 +1611,10 @@
       var pool=groupPool(g.key);
       var tags=[];pool.forEach(function(t){if(t.project&&tags.indexOf(t.project)<0)tags.push(t.project);});tags.sort();
       var tagSel=hgTag[g.key]||'';if(tagSel&&tags.indexOf(tagSel)<0)tagSel='';
-      var items=pool.filter(function(t){return !tagSel||t.project===tagSel;}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
+      var items=pool.filter(function(t){return !tagSel||t.project===tagSel;}).sort(sortByDueThenImp);
       var rows=items.map(function(t){var over=(daysTo(t.due)!==null&&daysTo(t.due)<0);
         var tagHtml='<span class="rowtag" data-act="row-tag" contenteditable="true" title="태그 — 비우면 주머니로">'+esc(t.project||'')+'</span>';
-        return '<tr data-id="'+t.id+'" data-grp="'+g.key+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="rowdrag" draggable="true" title="끌어서 순서 변경">⠿</span><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+tagHtml+(t.rolled?'<span class="rolled" title="지난달에 안 끝나서 따라온 항목">↩︎이월</span>':'')+(t.routineId?'<span class="rolled" title="상시업무에서 자동으로 올라온 항목">상시</span>':'')+remindIconHtml(t)+subTogHtml(t)+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td>'+dueCellHtml(t.id,t.due,over)+'<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+remindRowHtml(t,7)+subRowHtml(t,7);}).join('');
+        return '<tr data-id="'+t.id+'" data-grp="'+g.key+'"'+(t.done?' class="done"':'')+'><td class="ckcell"><span class="ck" data-act="done" role="checkbox" tabindex="0">'+svg()+'</span></td><td><span class="ttl" data-act="edit">'+esc(t.title)+'</span>'+tagHtml+(t.rolled?'<span class="rolled" title="지난달에 안 끝나서 따라온 항목">↩︎이월</span>':'')+(t.routineId?'<span class="rolled" title="상시업무에서 자동으로 올라온 항목">상시</span>':'')+remindIconHtml(t)+subTogHtml(t)+'<button class="rowbtn" data-act="toggle-today" title="오늘의 집중">'+(t.today?'오늘✓':'오늘')+'</button>'+(t.memoId?'<a class="memolink" data-act="memo" title="연결된 메모">📝</a>':'')+(t.done?'<button class="arch" data-act="archive">완료함으로</button>':'<button class="nest" data-act="nest">⤵하위로</button>')+'<span class="rowdel" data-act="del">✕</span></td><td class="prgcell">'+prgCellHtml(t)+'</td><td class="rvwcell"><span class="rvw" data-act="rvw" contenteditable="true" title="회고 — 끝내고 나서 한 마디">'+esc(t.review||'')+'</span></td>'+dueCellHtml(t.id,t.due,over)+'<td class="num"><span class="est" data-act="est" contenteditable="true">'+fmtEst(t.est)+'</span></td><td class="imp" data-act="imp">'+dots(t.imp)+'</td></tr>'+prgRowHtml(t)+remindRowHtml(t,7)+subRowHtml(t,7);}).join('');
       var dn=items.filter(function(t){return t.done;}).length;
       var emptyMsg=g.key==='inbox'?'주머니가 비었어요 ✓':(tagSel?('#'+esc(tagSel)+' — '+monthLabel(m)+'엔 아직 없어요'):(monthLabel(m)+'엔 아직 없어요'));
       var tagOpts='<option value="">전체</option>'+tags.map(function(tg){return '<option value="'+esc(tg)+'"'+(tagSel===tg?' selected':'')+'>#'+esc(tg)+'</option>';}).join('');
@@ -2055,6 +2077,14 @@
     document.getElementById('doneCount').textContent=list.length+'개';
     if(!list.length){wrap.innerHTML='<p class="empty">완료함이 비었어요 · 완료한 할일을 여기로 보낼 수 있어요</p>';return;}
     wrap.innerHTML=list.map(function(t){return '<div class="donerow" data-id="'+t.id+'"><span class="rt">'+esc(t.title)+'</span>'+(t.project?'<span class="rpj">· '+esc(t.project)+'</span>':'')+'<span class="dt">✓ '+fmtDone(t.doneAt)+'</span><button class="btn-s" data-act="unarchive" style="margin-left:8px">되돌리기</button></div>';}).join('');}
+  // 캘린더(월 그리드) — v3 재구조(2026-11-16)로 탭에서 빠졌다가 햄버거 메뉴 모달로 복귀(2026-11-17)
+  function renderCal(){var y=state.calYear,m=state.calMonth;document.getElementById('calTitle').textContent=y+'년 '+(m+1)+'월';
+    var cg=document.getElementById('cgrid');cg.innerHTML='';DAY.forEach(function(d){var e=document.createElement('div');e.className='dow';e.textContent=d;cg.appendChild(e);});
+    var first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),prev=new Date(y,m,0).getDate();
+    for(var i=0;i<first;i++){var c=document.createElement('div');c.className='cell out';c.innerHTML='<span class="dn">'+(prev-first+1+i)+'</span>';cg.appendChild(c);}
+    for(var d=1;d<=days;d++){var iso=y+'-'+pad(m+1)+'-'+pad(d);var c=document.createElement('div');c.className='cell'+(iso===todayISO()?' today':'');c.dataset.iso=iso;var h='<span class="dn">'+d+'</span>';
+      wsTodos().filter(function(t){return !t.done&&t.due&&(t.due===iso||(t.endd&&t.due<=iso&&iso<=t.endd));}).forEach(function(t){var isStart=(t.due===iso),span=(t.endd&&t.endd>t.due);var cls='ev'+(daysTo(iso)<0?' over':'')+(span?' evspan':'')+(isStart?'':' evcont');h+='<span class="'+cls+'"'+(isStart?' draggable="true"':'')+' data-id="'+t.id+'">'+(isStart?esc(t.title):'')+'</span>';});
+      c.innerHTML=h;cg.appendChild(c);}}
   function renderMemos(){var mf=document.getElementById('mfolders');
     mf.innerHTML=FOLDERS.map(function(f){var cnt=f==='전체'?state.memos.length:state.memos.filter(function(m){return m.folder===f;}).length;return '<button data-f="'+f+'"'+(f===state.curFolder?' aria-selected="true"':'')+'>'+f+(f==='전체'?'':' '+cnt)+'</button>';}).join('');
     var list=state.memos.filter(function(m){return state.curFolder==='전체'||m.folder===state.curFolder;}).sort(function(a,b){return (b.updated||'').localeCompare(a.updated||'');});
@@ -2476,7 +2506,7 @@
     });
   })();
 
-  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderMemos();renderJournal();renderDone();renderArt();renderArchiveTab();updateHomeSegCount();if(state.q)runSearch();}
+  function renderAll(){syncLinks();renderToday();renderDue();renderMonthNav();renderInbox();renderProjects();renderAgenda();renderLinkBoards();renderRoutines();renderCalRoutines();renderCal();renderMemos();renderJournal();renderDone();renderArt();renderArchiveTab();updateHomeSegCount();if(state.q)runSearch();}
   // 모바일 "보드" 탭에 살짝 붙는 숫자 — 주머니 + 체크 안 한 회의 안건 합
   function updateHomeSegCount(){
     var el=document.getElementById('hsnCount');if(!el)return;
@@ -2561,7 +2591,7 @@
   document.getElementById('navMenuBackdrop').addEventListener('click',closeNavMenu);
   document.addEventListener('keydown',function(e){if(e.key==='Escape'){if(genModalOpen)closeGenModal();else if(navMenuOpen)closeNavMenu();}});
   // ===== 서랍이던 기능들(알람/링크/상시업무) + 일상 탭이던 루틴 수정 — 햄버거 메뉴에서 모달로 띄움 =====
-  var genModalOpen=false,genModalTitles={modalAlarm:'🔔 알람',modalLinks:'🔗 링크',modalRoutineWork:'📋 상시업무',modalRoutineDaily:'🔁 루틴수정'};
+  var genModalOpen=false,genModalTitles={modalCalendar:'📅 캘린더',modalAlarm:'🔔 알람',modalLinks:'🔗 링크',modalRoutineWork:'📋 상시업무',modalRoutineDaily:'🔁 루틴수정'};
   function openGenModal(sectionId){
     document.querySelectorAll('.genmodal-section').forEach(function(s){s.classList.toggle('hidden',s.id!==sectionId);});
     document.getElementById('genModalTitle').textContent=genModalTitles[sectionId]||'';
@@ -2575,6 +2605,14 @@
   document.getElementById('genModalClose').addEventListener('click',closeGenModal);
   document.getElementById('genModalBackdrop').addEventListener('click',closeGenModal);
   document.getElementById('navMenuTools').addEventListener('click',function(e){var b=e.target.closest('button[data-modal]');if(b)openGenModal(b.dataset.modal);});
+  document.getElementById('calPrev').addEventListener('click',function(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}savePrefs();renderCal();});
+  document.getElementById('calNext').addEventListener('click',function(){state.calMonth++;if(state.calMonth>11){state.calMonth=0;state.calYear++;}savePrefs();renderCal();});
+  (function(){var calDragId=null,cg=document.getElementById('cgrid');
+    cg.addEventListener('dragstart',function(e){var ev=e.target.closest('.ev');if(ev)calDragId=ev.dataset.id;});
+    cg.addEventListener('dragover',function(e){var c=e.target.closest('.cell');if(!c||c.classList.contains('out'))return;e.preventDefault();c.classList.add('drop');});
+    cg.addEventListener('dragleave',function(e){var c=e.target.closest('.cell');if(c)c.classList.remove('drop');});
+    cg.addEventListener('drop',function(e){var c=e.target.closest('.cell');if(!c||!calDragId)return;e.preventDefault();c.classList.remove('drop');var t=tById(calDragId);if(t){t.due=c.dataset.iso;putTodo(t);showToast(mmdd(c.dataset.iso)+'로 옮겼어요');renderCal();renderToday();renderDue();}calDragId=null;});
+  })();
   document.getElementById('navMenuTabs').addEventListener('click',function(e){
     var b=e.target.closest('button[data-tab]');if(!b)return;
     switchTab(b.dataset.tab); // switchTab이 closeNavMenu도 같이 호출함
@@ -2881,7 +2919,11 @@
   });
   document.addEventListener('click',function(e){
     if(nestSource){var cx=e.target.closest('#nestCancel');if(cx){cancelNest();return;}var tr=e.target.closest('tr[data-id]');if(tr&&!tr.classList.contains('subrow')&&tr.dataset.id!==nestSource){doNest(nestSource,tr.dataset.id);return;}cancelNest();return;}
-    var el=e.target.closest('[data-act]');if(!el||!appEl.contains(el))return;var act=el.dataset.act,id=rowId(el),t=id?tById(id):null;
+    // appEl(#app) 안의 할일/메모/프로젝트뿐 아니라, 서랍이 햄버거 메뉴 모달(#genModal)로
+    // 옮겨진 뒤 그 안의 ★고정·✕삭제·루틴 체크 등 data-act 요소들이 전부 안 눌리던 버그
+    // (2026-11-17 제보, "서랍에서 링크 별표 체크도 안눌림") — #genModal은 appEl 바깥(형제)
+    // DOM이라 이 델리게이트가 처음부터 무시하고 있었음. 모달도 같이 인정하게 넓힘.
+    var el=e.target.closest('[data-act]');if(!el||!(appEl.contains(el)||genModalEl.contains(el)))return;var act=el.dataset.act,id=rowId(el),t=id?tById(id):null;
     if(act==='done'&&t){t.done=!t.done;t.doneAt=t.done?new Date().toISOString():'';putTodo(t);renderAll();}
     else if(act==='archive'&&t){t.archived=true;putTodo(t);renderAll();showToast('완료함으로 옮겼어요',function(){t.archived=false;putTodo(t);renderAll();});}
     else if(act==='unarchive'&&t){t.archived=false;t.done=false;t.doneAt='';t.bucket=t.project?'active':'inbox';putTodo(t);renderAll();showToast('되돌렸어요 · 체크 해제된 상태로 돌아가요');}
@@ -3072,26 +3114,9 @@
   });
   var projAll=document.getElementById('projAll');
   projAll.addEventListener('click',function(e){if(e.target.closest('[data-act]'))return;var tog=e.target.closest('.pjtog');if(!tog)return;var open=tog.getAttribute('aria-expanded')==='true';tog.setAttribute('aria-expanded',!open);tog.nextElementSibling.classList.toggle('collapsed',open);});
-  // 할일 순서 드래그앤드롭 — 같은 그룹(주머니/일/일상) 안에서만
-  var rowDragId=null,rowDragGrp=null;
-  function clearRowMarks(){projAll.querySelectorAll('tr.rowdropbefore').forEach(function(s){s.classList.remove('rowdropbefore');});}
-  projAll.addEventListener('dragstart',function(e){
-    if(e.target.closest('.subdrag'))return; // 하위 항목 드래그는 document 핸들러가 처리
-    var rd=e.target.closest('.rowdrag');if(!rd){e.preventDefault();return;}
-    var tr=rd.closest('tr[data-id]');if(!tr){e.preventDefault();return;}
-    rowDragId=tr.dataset.id;rowDragGrp=tr.dataset.grp;tr.classList.add('rowdragging');
-    if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',rowDragId);}catch(x){}}});
-  projAll.addEventListener('dragend',function(){projAll.querySelectorAll('tr.rowdragging').forEach(function(s){s.classList.remove('rowdragging');});clearRowMarks();rowDragId=null;});
-  projAll.addEventListener('dragover',function(e){
-    if(!rowDragId)return;var tr=e.target.closest('tr[data-id]');if(!tr||tr.classList.contains('subrow')||tr.dataset.id===rowDragId||tr.dataset.grp!==rowDragGrp)return;
-    e.preventDefault();clearRowMarks();tr.classList.add('rowdropbefore');});
-  projAll.addEventListener('drop',function(e){
-    if(!rowDragId)return;var tr=e.target.closest('tr[data-id]');if(tr&&!tr.classList.contains('subrow')&&tr.dataset.grp===rowDragGrp){e.preventDefault();reorderTodo(rowDragGrp,rowDragId,tr.dataset.id);}
-    rowDragId=null;clearRowMarks();});
-  function reorderTodo(grp,dragId,targetId){if(!grp||dragId===targetId)return;
-    var items=wsTodos().filter(function(t){return homeBucketOf(t)===grp;}).sort(function(a,b){return (a.sort||0)-(b.sort||0);});
-    var ids=items.map(function(t){return t.id;});var from=ids.indexOf(dragId);if(from<0)return;ids.splice(from,1);var to=ids.indexOf(targetId);if(to<0)to=ids.length;ids.splice(to,0,dragId);
-    ids.forEach(function(id,i){var t=tById(id);if(t&&t.sort!==i){t.sort=i;putTodo(t);}});renderProjects();showToast('순서를 바꿨어요');}
+  // 할일 순서는 2026-11-17부터 마감 가까운순→중요도순 자동 정렬로 바뀌어서(sortByDueThenImp)
+  // 수동 드래그 재정렬(⠿, reorderTodo)은 제거함 — 자동 정렬을 매번 덮어써서 드래그해도
+  // 화면에 반영이 안 되는 죽은 UI가 되는 걸 막음.
   // 하위 항목 순서 드래그 (오늘/프로젝트 subrow 공통)
   var subDragTodo=null,subDragI=-1;
   document.addEventListener('dragstart',function(e){var h=e.target.closest('.subdrag');if(!h)return;var it=h.closest('.subitem'),sr=h.closest('.subrow');if(!it||!sr)return;subDragTodo=sr.dataset.id;subDragI=Array.prototype.indexOf.call(sr.querySelectorAll('.subitem'),it);it.classList.add('subdragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain','s');}catch(x){}}});
