@@ -1771,13 +1771,16 @@
     return subs.length?(line+'\n'+subs.join('\n')):line;
   }
   // 그 주(월~일) 완료 항목(A) · 다음 주 마감 예정(B, 하위항목 마감도 포함) · 그 주 저널 메모(C) — 복붙용 리포트
+  // 2026-11-17: "주간리포트 복사 버튼에는 일상 투두는 안들어가야해" — 일/업무 보고용 리포트라
+  // 일상 그룹(homeBucketOf==='daily', 개인작업 포함) 투두는 A·B 둘 다에서 뺌.
   function buildWeekReport(monday){
     var days=weekDates(monday),nextDays=weekDates(addDaysISO(monday,7));
     var seenA={},doneItems=[];
-    days.forEach(function(d){jTodoDone(d).forEach(function(t){if(!seenA[t.id]){seenA[t.id]=1;doneItems.push(t);}});});
+    days.forEach(function(d){jTodoDone(d).forEach(function(t){if(!seenA[t.id]&&homeBucketOf(t)!=='daily'){seenA[t.id]=1;doneItems.push(t);}});});
     var nextSet={};nextDays.forEach(function(x){nextSet[x]=1;});
     var bItems=wsTodos().filter(function(t){
       if(t.done)return false;
+      if(homeBucketOf(t)==='daily')return false;
       var ownDue=t.due&&nextSet[t.due];
       var subDue=(t.subs||[]).some(function(s){return s.due&&nextSet[s.due]&&!s.d;});
       return ownDue||subDue;
