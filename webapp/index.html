@@ -239,7 +239,7 @@
   .archchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
   .archchip{font:inherit;font-size:12px;color:var(--muted);background:transparent;border:1px solid var(--line-2);padding:4px 10px;cursor:pointer}
   .archchip.on{color:#fff;background:var(--accent);border-color:var(--accent)}
-  .archrow{gap:8px}
+  .archrow{gap:8px;cursor:pointer}
   .arccover{flex:none;width:28px;height:38px;object-fit:cover;background:var(--sunk)}
   .arccover-ph{border:1px dashed var(--line-2)}
   .archstatus{font-size:11px;color:var(--muted);flex:none}
@@ -261,7 +261,28 @@
   .arcResRow{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;padding:3px 0}
   .arcResRow:hover{color:var(--accent)}
   .arcResRow img{width:20px;height:28px;object-fit:cover;flex:none}
-  .archnote{width:100%;font:inherit;font-size:12.5px;color:var(--text);background:transparent;border:0;border-bottom:1px solid var(--line-2);padding:4px 2px;resize:vertical;min-height:40px}
+  /* 아카이브 상세 — 노션 페이지st(2026-11-17): 리스트는 요약만, 누르면 여기로 펼쳐짐.
+     속성(.aprop)들은 라벨+입력을 한 줄에 — 노션의 속성 줄과 같은 느낌, 메모칸(.archdetail-notes)만
+     책에서 옮겨적은 문장처럼 긴 텍스트를 넉넉하게 받도록 큼직하게 둠. */
+  .archdetail{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(640px,92vw);max-height:88vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 40px rgba(0,0,0,.3);z-index:72}
+  @media(max-width:520px){.archdetail{width:100vw;height:100vh;max-height:100vh;top:0;left:0;transform:none}}
+  .archdetail-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+  .archdetail-close{font:inherit;font-size:12.5px;color:var(--muted);background:none;border:0;cursor:pointer;padding:6px 4px}
+  .archdetail-close:hover{color:var(--text)}
+  .archdetail-body{padding:16px 20px 30px}
+  .archdetail-cover{display:block;max-width:150px;max-height:210px;width:auto;height:auto;object-fit:cover;margin-bottom:14px}
+  .archdetail-title{font-size:21px;font-weight:700;line-height:1.3;outline:none;cursor:text;margin-bottom:16px}
+  .archdetail-title:empty:before{content:'제목 없음';color:var(--faint)}
+  .archdetail-props{display:flex;flex-direction:column;margin-bottom:12px}
+  .aprop{display:flex;align-items:center;gap:10px;padding:4px 2px}
+  .aprop-label{flex:0 0 92px;font-size:12px;color:var(--faint)}
+  .aprop select,.aprop input{flex:1;min-width:0;font:inherit;font-size:13.5px;color:var(--text);background:transparent;border:0;border-bottom:1px solid transparent;padding:4px 2px}
+  .aprop select:hover,.aprop input:hover{border-bottom-color:var(--line-2)}
+  .aprop select:focus,.aprop input:focus{outline:none;border-bottom-color:var(--accent)}
+  .archdetail-searchbtn{margin:4px 0 10px}
+  .archdetail-divider{border-top:1px solid var(--line);margin:16px 0 14px}
+  .archdetail-notes{display:block;width:100%;min-height:320px;font:inherit;font-size:14px;line-height:1.75;color:var(--text);background:transparent;border:0;resize:vertical;padding:2px 0}
+  .archdetail-notes::placeholder{color:var(--faint)}
   .lgsummary{display:flex;gap:20px;flex-wrap:wrap;margin:14px 0}
   .lgsum-item{font-size:12.5px;color:var(--muted)}
   .lgsum-item b{display:block;font-family:var(--mono);font-size:17px;color:var(--text);margin-top:2px}
@@ -958,6 +979,11 @@
   </div>
 </div>
 
+<!-- 아카이브 항목 상세 — 2026-11-17 "노션처럼 페이지가 열렸으면" 요청으로 추가.
+     리스트 행(.archrow)은 요약만 보여주고, 누르면 여기에 전체 내용(제목+속성+큰 메모칸)이
+     노션 페이지st로 열림. 속성(종류/상태/평점/작가/출판사/연도/링크)은 바뀌는 즉시 저장(자동저장) -->
+<div id="archDetailBackdrop" class="navmenu-backdrop hidden"></div>
+<div id="archDetailModal" class="archdetail hidden"></div>
 
 <div class="art-sketch-modal hidden" id="artSketchModal">
   <div class="art-sketch-bar">
@@ -1210,7 +1236,7 @@
   function uploadArtImage(file){var path=(state.uid||'anon')+'/'+Date.now()+'_'+file.name.replace(/[^a-zA-Z0-9._.-]/g,'_');return sb.storage.from('art').upload(path,file,{upsert:false}).then(function(r){if(r.error)throw r.error;return sb.storage.from('art').getPublicUrl(path).data.publicUrl;});}
 
   // ── 콘텐츠 아카이브 화면 ──
-  var arcOpen={};          // 항목 수정 펼침 상태(세션 한정, id→bool)
+  var arcDetailId=null;    // 지금 열려있는 상세 모달의 항목 id(세션 한정, 없으면 null) — 2026-11-17 노션st 상세로 재구조
   var arcFilterType='';    // 종류 필터 칩(세션 한정, ''=전체)
   var arcFilterStatus='';  // 상태 필터(세션 한정, ''=전체, 2026-09-30)
   var arcQ='';             // 아카이브 전용 검색어(세션 한정, 전체검색(#q)과 별개 — 전체검색은 할일·메모만 훑고 아카이브는 안 봐서 따로 둠, 2026-09-30)
@@ -1218,34 +1244,50 @@
   function archiveById(id){return state.archive.filter(function(a){return a.id===id;})[0];}
   function archTypeOptions(sel){return ARCHIVE_TYPES.map(function(p){return '<option value="'+p[0]+'"'+(sel===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join('');}
   function archStatusOptions(sel){return ARCHIVE_STATUS.map(function(p){return '<option value="'+p[0]+'"'+(sel===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join('');}
+  // 목록 행은 요약만(제목·종류·상태·평점) — 누르면(✕ 삭제 제외) 아래 archDetailHtml로 전체 내용이 열림
   function archiveRow(a){
-    var open=!!arcOpen[a.id];
-    return '<div class="lkrow archrow" data-arc="'+a.id+'">'
+    return '<div class="lkrow archrow" data-arc="'+a.id+'" data-act="arc-open">'
       +(a.coverUrl?'<img class="arccover" src="'+esc(a.coverUrl)+'">':'<span class="arccover arccover-ph"></span>')
-      +'<span class="mktxt" contenteditable="true" spellcheck="false" data-act="arc-rename">'+esc(a.title||'제목 없음')+'</span>'
+      +'<span class="mktxt">'+esc(a.title||'제목 없음')+'</span>'
       +'<span class="rtcyc">'+esc(ARCHIVE_TYPE_KR[a.type]||a.type)+'</span>'
       +'<span class="archstatus">'+esc(ARCHIVE_STATUS_KR[a.status]||a.status)+'</span>'
       +(a.rating!=null?'<span class="archrating">★'+a.rating+'</span>':'')
-      +'<span class="crEditTog" data-act="arc-edit" title="수정">'+(open?'▴':'✎')+'</span>'
-      +'<span class="lkdel" data-act="arc-del" title="지우기">✕</span></div>'
-      +(open?archEditRow(a):'');
+      +'<span class="lkdel" data-act="arc-del" title="지우기">✕</span></div>';
   }
-  function archEditRow(a){
+  // 상세 — 노션 페이지st: 제목+속성(종류/상태/평점/작가/출판사/연도/링크)은 바뀌는 즉시 저장,
+  // 그 아래 큰 메모칸(archdetail-notes)엔 책에서 옮겨적은 문장처럼 긴 글도 편하게 쓸 수 있게 둠
+  function archDetailHtml(a){
     var res=arcSearchRes[a.id]||[];
-    return '<div class="crEditBox" data-arc="'+a.id+'">'
-      +'<select class="arcEType">'+archTypeOptions(a.type)+'</select>'
-      +'<select class="arcEStatus">'+archStatusOptions(a.status)+'</select>'
-      +'<input type="number" class="arcERating" min="0" max="5" step="0.5" placeholder="평점" value="'+(a.rating!=null?a.rating:'')+'" style="width:50px">'
-      +'<input class="arcEAuthor" placeholder="작가/감독" value="'+esc(a.author)+'">'
-      +'<input class="arcEPublisher" placeholder="출판사" value="'+esc(a.publisher)+'">'
-      +'<input class="arcEYear" placeholder="연도" value="'+esc(a.yearWatched)+'" style="width:64px">'
-      +'<input class="arcESource" placeholder="링크(선택)" value="'+esc(a.source)+'" style="flex:1 1 160px">'
-      +'<textarea class="archnote arcENotes" placeholder="메모">'+esc(a.notes)+'</textarea>'
-      +'<button class="btn-s" type="button" data-act="arc-search" title="카카오/네이버에서 표지·작가·출판사 자동으로 채우기">🔍 자동 채우기</button>'
-      +'<button class="btn-s" type="button" data-act="arc-save">저장</button>'
-      +(res.length?('<div class="arcResults">'+res.map(function(r,i){return '<div class="arcResRow" data-act="arc-pick" data-i="'+i+'">'+(r.cover_url?'<img src="'+esc(r.cover_url)+'">':'')+'<span>'+esc(r.title)+(r.author?' · '+esc(r.author):'')+(r.year?' · '+esc(r.year):'')+'</span></div>';}).join('')+'</div>'):'')
+    return '<div class="archdetail-head">'
+      +'<button type="button" class="archdetail-close" data-act="arc-detail-close">‹ 목록으로</button>'
+      +'<button type="button" class="btn-s" data-act="arc-detail-del" title="삭제">🗑 삭제</button>'
+      +'</div>'
+      +'<div class="archdetail-body">'
+      +(a.coverUrl?'<img class="archdetail-cover" src="'+esc(a.coverUrl)+'">':'')
+      +'<div class="archdetail-title adTitle" contenteditable="true" spellcheck="false">'+esc(a.title||'')+'</div>'
+      +'<div class="archdetail-props">'
+        +'<div class="aprop"><span class="aprop-label">📚 종류</span><select class="adType">'+archTypeOptions(a.type)+'</select></div>'
+        +'<div class="aprop"><span class="aprop-label">🔵 상태</span><select class="adStatus">'+archStatusOptions(a.status)+'</select></div>'
+        +'<div class="aprop"><span class="aprop-label">⭐ 평점</span><input type="number" class="adRating" min="0" max="5" step="0.5" placeholder="비움=없음" value="'+(a.rating!=null?a.rating:'')+'"></div>'
+        +'<div class="aprop"><span class="aprop-label">✍️ 작가/감독</span><input class="adAuthor" placeholder="비어있음" value="'+esc(a.author)+'"></div>'
+        +'<div class="aprop"><span class="aprop-label">🏢 출판사</span><input class="adPublisher" placeholder="비어있음" value="'+esc(a.publisher)+'"></div>'
+        +'<div class="aprop"><span class="aprop-label">📅 연도</span><input class="adYear" placeholder="비어있음" value="'+esc(a.yearWatched)+'"></div>'
+        +'<div class="aprop"><span class="aprop-label">🔗 링크</span><input class="adSource" placeholder="비어있음" value="'+esc(a.source)+'"></div>'
+      +'</div>'
+      +'<button type="button" class="btn-s archdetail-searchbtn" data-act="arc-detail-search" title="카카오/네이버에서 표지·작가·출판사 자동으로 채우기">🔍 자동 채우기</button>'
+      +(res.length?('<div class="arcResults">'+res.map(function(r,i){return '<div class="arcResRow" data-act="arc-detail-pick" data-i="'+i+'">'+(r.cover_url?'<img src="'+esc(r.cover_url)+'">':'')+'<span>'+esc(r.title)+(r.author?' · '+esc(r.author):'')+(r.year?' · '+esc(r.year):'')+'</span></div>';}).join('')+'</div>'):'')
+      +'<div class="archdetail-divider"></div>'
+      +'<textarea class="archdetail-notes adNotes" placeholder="메모 — 인상 깊은 문장이나 생각을 편하게 적어보세요">'+esc(a.notes)+'</textarea>'
       +'</div>';
   }
+  function openArchDetail(id){
+    var a=archiveById(id);if(!a)return;
+    arcDetailId=id;
+    document.getElementById('archDetailModal').innerHTML=archDetailHtml(a);
+    document.getElementById('archDetailModal').classList.remove('hidden');
+    document.getElementById('archDetailBackdrop').classList.remove('hidden');
+  }
+  function closeArchDetail(){arcDetailId=null;document.getElementById('archDetailModal').classList.add('hidden');document.getElementById('archDetailBackdrop').classList.add('hidden');}
   function renderArchiveTab(){
     var noTbl=document.getElementById('archiveNoTable'),body=document.getElementById('archiveBody');
     if(!noTbl)return;
@@ -1275,7 +1317,7 @@
     if(!hasContentArchive){showToast('아카이브 표가 아직 없어요');return;}
     var a={id:uid(),title:title,type:ty.value||'other',status:'in_progress',progress:'',rating:null,notes:'',tags:'',
       dateAdded:todayISO(),dateUpdated:todayISO(),dateCompleted:'',source:'',rawLog:'',author:'',yearWatched:'',publisher:'',coverUrl:'',sort:Date.now()};
-    state.archive.unshift(a);putArchiveEntry(a);ti.value='';arcOpen[a.id]=true;renderArchiveTab();
+    state.archive.unshift(a);putArchiveEntry(a);ti.value='';renderArchiveTab();openArchDetail(a.id);
   }
 
   // toast
@@ -2892,17 +2934,65 @@
     if(!v){el.textContent=h.title;return;}
     if(v===h.title)return;
     h.title=v;putCalRoutine(h);},true);
-  document.addEventListener('blur',function(e){
-    var el=e.target&&e.target.closest?e.target.closest('[data-act="arc-rename"]'):null;if(!el)return;
-    var arEl=el.closest('[data-arc]'),a=arEl&&archiveById(arEl.dataset.arc);if(!a)return;
-    var v=el.textContent.trim();
-    if(!v){el.textContent=a.title||'제목 없음';return;}
-    if(v===a.title)return;
-    a.title=v;putArchiveEntry(a);},true);
   document.getElementById('arcAdd').addEventListener('click',addArchive);
   document.getElementById('arcTitle').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)addArchive();});
   document.getElementById('archSearch').addEventListener('input',function(){arcQ=this.value;renderArchiveTab();});
   document.getElementById('archStatusFilter').addEventListener('change',function(){arcFilterStatus=this.value;renderArchiveTab();});
+  // 아카이브 상세(노션st 모달) — 속성/메모는 바뀌는 즉시 저장(자동저장), 저장 버튼 없음
+  var archDetailEl=document.getElementById('archDetailModal');
+  var ADFIELDS={adAuthor:'author',adPublisher:'publisher',adYear:'yearWatched',adSource:'source',adNotes:'notes'};
+  document.getElementById('archDetailBackdrop').addEventListener('click',closeArchDetail);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&arcDetailId)closeArchDetail();});
+  archDetailEl.addEventListener('click',function(e){
+    var a=arcDetailId&&archiveById(arcDetailId);if(!a)return;
+    if(e.target.closest('[data-act="arc-detail-close"]')){closeArchDetail();return;}
+    if(e.target.closest('[data-act="arc-detail-del"]')){
+      var ai=state.archive.indexOf(a);state.archive.splice(ai,1);delArchiveDB(a.id);closeArchDetail();renderArchiveTab();
+      showToast('아카이브에서 지웠어요',function(){state.archive.splice(ai,0,a);putArchiveEntry(a);renderArchiveTab();});return;}
+    var searchBtn=e.target.closest('[data-act="arc-detail-search"]');
+    if(searchBtn){
+      if(!a.title){showToast('제목을 먼저 입력해주세요');return;}
+      var qType=archDetailEl.querySelector('.adType').value;
+      searchBtn.textContent='검색 중…';
+      sb.functions.invoke('archive-search',{body:{type:qType,query:a.title}}).then(function(r){
+        var data=(r&&r.data)||{};
+        if(data.configured===false){showToast('카카오/네이버 API 키가 아직 설정 안 됐어요');arcSearchRes[a.id]=[];}
+        else if(data.unsupported){showToast('이 종류는 자동 검색을 지원하지 않아요');arcSearchRes[a.id]=[];}
+        else if((data.results||[]).length){arcSearchRes[a.id]=data.results;}
+        else{showToast('검색 결과가 없어요');arcSearchRes[a.id]=[];}
+        if(arcDetailId===a.id)openArchDetail(a.id);
+      }).catch(function(){showToast('검색에 실패했어요');});return;}
+    var pickEl=e.target.closest('[data-act="arc-detail-pick"]');
+    if(pickEl){
+      var picks=arcSearchRes[a.id]||[],r=picks[+pickEl.dataset.i];if(!r)return;
+      if(r.title)a.title=r.title;
+      a.author=r.author||a.author;a.publisher=r.publisher||a.publisher;
+      a.yearWatched=r.year||a.yearWatched;a.coverUrl=r.cover_url||a.coverUrl;
+      arcSearchRes[a.id]=null;putArchiveEntry(a);renderArchiveTab();openArchDetail(a.id);}
+  });
+  archDetailEl.addEventListener('change',function(e){
+    var a=arcDetailId&&archiveById(arcDetailId);if(!a)return;
+    if(e.target.classList.contains('adType')){a.type=e.target.value;putArchiveEntry(a);renderArchiveTab();}
+    else if(e.target.classList.contains('adStatus')){a.status=e.target.value;putArchiveEntry(a);renderArchiveTab();}
+    else if(e.target.classList.contains('adRating')){var v=e.target.value.trim();a.rating=v===''?null:+v;putArchiveEntry(a);renderArchiveTab();}
+  });
+  var adSaveT;
+  archDetailEl.addEventListener('input',function(e){
+    var a=arcDetailId&&archiveById(arcDetailId);if(!a)return;
+    var key=null;for(var c in ADFIELDS){if(e.target.classList.contains(c)){key=ADFIELDS[c];break;}}
+    if(!key)return;
+    a[key]=e.target.value;
+    clearTimeout(adSaveT);adSaveT=setTimeout(function(){putArchiveEntry(a);},600);
+  });
+  // 제목(contenteditable)·텍스트 입력칸들의 blur — blur는 버블 안 해서 캡처 단계로 받음(다른 곳과 동일 패턴)
+  archDetailEl.addEventListener('blur',function(e){
+    var a=arcDetailId&&archiveById(arcDetailId);if(!a)return;
+    if(e.target.classList.contains('adTitle')){
+      var v=e.target.textContent.trim();
+      if(v!==a.title){a.title=v;putArchiveEntry(a);renderArchiveTab();}
+      return;}
+    for(var c in ADFIELDS){if(e.target.classList.contains(c)){clearTimeout(adSaveT);putArchiveEntry(a);return;}}
+  },true);
 
   function rowId(el){var tr=el.closest('tr[data-id]');return tr?tr.dataset.id:null;}
   function startNest(id){var t=tById(id);if(!t)return;nestSource=id;document.body.classList.add('nesting');var bar=document.getElementById('nestBar');bar.innerHTML='<span><b>「'+esc(t.title)+'」</b> 을(를) 하위로 넣을 <b>대상 할일</b>을 탭하세요</span><button id="nestCancel">취소</button>';bar.classList.remove('hidden');}
@@ -2937,44 +3027,12 @@
       else{var rti=state.routines.indexOf(rt);state.routines.splice(rti,1);delRoutineDB(rt.id);renderRoutines();
         showToast('상시업무에서 뺐어요 · 이미 담긴 할일은 그대로예요',function(){state.routines.splice(rti,0,rt);putRoutine(rt);renderRoutines();});}}
     else if(act==='arc-filter'){arcFilterType=el.dataset.type||'';renderArchiveTab();}
-    else if(act==='arc-edit'){
-      var arEl=el.closest('[data-arc]');if(!arEl)return;
-      arcOpen[arEl.dataset.arc]=!arcOpen[arEl.dataset.arc];renderArchiveTab();}
+    else if(act==='arc-open'){
+      var opEl=el.closest('[data-arc]');if(opEl)openArchDetail(opEl.dataset.arc);}
     else if(act==='arc-del'){
       var adEl=el.closest('[data-arc]'),a=adEl&&archiveById(adEl.dataset.arc);if(!a)return;
       var ai=state.archive.indexOf(a);state.archive.splice(ai,1);delArchiveDB(a.id);renderArchiveTab();
       showToast('아카이브에서 지웠어요',function(){state.archive.splice(ai,0,a);putArchiveEntry(a);renderArchiveTab();});}
-    else if(act==='arc-save'){
-      var boxS=el.closest('.crEditBox'),aS=boxS&&archiveById(boxS.dataset.arc);if(!aS)return;
-      aS.type=boxS.querySelector('.arcEType').value;
-      aS.status=boxS.querySelector('.arcEStatus').value;
-      var rv=boxS.querySelector('.arcERating').value.trim();aS.rating=rv===''?null:+rv;
-      aS.author=boxS.querySelector('.arcEAuthor').value.trim();
-      aS.publisher=boxS.querySelector('.arcEPublisher').value.trim();
-      aS.yearWatched=boxS.querySelector('.arcEYear').value.trim();
-      aS.source=boxS.querySelector('.arcESource').value.trim();
-      aS.notes=boxS.querySelector('.arcENotes').value;
-      putArchiveEntry(aS);arcSearchRes[aS.id]=null;showToast('저장했어요');renderArchiveTab();}
-    else if(act==='arc-search'){
-      var boxQ=el.closest('.crEditBox'),aQ=boxQ&&archiveById(boxQ.dataset.arc);if(!aQ)return;
-      var qType=boxQ.querySelector('.arcEType').value;
-      if(!aQ.title){showToast('제목을 먼저 입력해주세요');return;}
-      el.textContent='검색 중…';
-      sb.functions.invoke('archive-search',{body:{type:qType,query:aQ.title}}).then(function(r){
-        var data=(r&&r.data)||{};
-        if(data.configured===false){showToast('카카오/네이버 API 키가 아직 설정 안 됐어요');arcSearchRes[aQ.id]=[];}
-        else if(data.unsupported){showToast('이 종류는 자동 검색을 지원하지 않아요');arcSearchRes[aQ.id]=[];}
-        else if((data.results||[]).length){arcSearchRes[aQ.id]=data.results;}
-        else{showToast('검색 결과가 없어요');arcSearchRes[aQ.id]=[];}
-        renderArchiveTab();
-      }).catch(function(){showToast('검색에 실패했어요');});}
-    else if(act==='arc-pick'){
-      var boxP=el.closest('[data-arc]'),aP=boxP&&archiveById(boxP.dataset.arc);if(!aP)return;
-      var picks=arcSearchRes[aP.id]||[],r=picks[+el.dataset.i];if(!r)return;
-      if(r.title)aP.title=r.title;
-      aP.author=r.author||aP.author;aP.publisher=r.publisher||aP.publisher;
-      aP.yearWatched=r.year||aP.yearWatched;aP.coverUrl=r.cover_url||aP.coverUrl;
-      arcSearchRes[aP.id]=null;putArchiveEntry(aP);renderArchiveTab();}
     else if(act==='prg-open'&&t){if(!hasProgress){showToast('진행 기록 표가 아직 없어요');return;}
       prgOpen[t.id]=!prgOpen[t.id];renderProjects();
       if(prgOpen[t.id]){var pin0=document.querySelector('tr.prgrow[data-id="'+t.id+'"] .prgin');if(pin0)pin0.focus();}}
