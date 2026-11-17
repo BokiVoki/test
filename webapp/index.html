@@ -3142,6 +3142,16 @@
     var t=tById(el.dataset.id);if(!t)return;
     t.due=el.value||'';putTodo(t);renderAll();
   });
+  // 2026-11-17: 마감 셀 탭 영역을 키운 뒤 "박스 오른쪽 끝을 눌러야만 캘린더가 뜬다"는 제보 —
+  // 네이티브 date input은 appearance:none이어도 클릭만으로 피커가 열리는 영역이 원래
+  // 아이콘이 그려지던 자리(박스 오른쪽 끝) 근처로 묶여있는 브라우저 동작이 남아있어서,
+  // 패딩만 키우면 그 좁은 히트존이 넓어진 박스 안에 그대로 떠 있는 상태가 됨. 클릭이 이
+  // input 자체에 바로 떨어진 걸 받아서(프록시 아님, 같은 input에서 그 자리에 showPicker()만
+  // 호출) 박스 어디를 눌러도 열리게 함.
+  document.addEventListener('click',function(e){
+    var el=e.target.closest('input.dueip');if(!el||!el.showPicker)return;
+    try{el.showPicker();}catch(x){}
+  });
 
   // 일상 탭(루틴/투두) 서브탭
   // calendar drag
