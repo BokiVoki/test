@@ -2087,7 +2087,7 @@
       c.innerHTML=h;cg.appendChild(c);}}
   function renderMemos(){var mf=document.getElementById('mfolders');
     mf.innerHTML=FOLDERS.map(function(f){var cnt=f==='전체'?state.memos.length:state.memos.filter(function(m){return m.folder===f;}).length;return '<button data-f="'+f+'"'+(f===state.curFolder?' aria-selected="true"':'')+'>'+f+(f==='전체'?'':' '+cnt)+'</button>';}).join('');
-    var list=state.memos.filter(function(m){return state.curFolder==='전체'||m.folder===state.curFolder;}).sort(function(a,b){return (b.updated||'').localeCompare(a.updated||'');});
+    var list=state.memos.filter(function(m){return state.curFolder==='전체'||m.folder===state.curFolder;}).sort(function(a,b){return (!!b.pinned-!!a.pinned)||(b.updated||'').localeCompare(a.updated||'');});
     document.getElementById('mlist').innerHTML=list.map(function(m){return '<div class="mitem" data-id="'+m.id+'"'+(state.curMemo===m.id?' aria-selected="true"':'')+'><div class="mtrow"><span class="mpin'+(m.pinned?' on':'')+'" data-act="m-pin" title="홈에 고정">'+(m.pinned?'★':'☆')+'</span><div class="mt">'+esc(m.title||'제목 없음')+'</div></div><div class="mp">'+esc((m.body||'').replace(/\n/g,' ').slice(0,42)||'내용 없음')+'</div>'+(m.link?'<div class="ml">🔗 '+esc(m.link)+'</div>':'')+'</div>';}).join('')||'<div class="empty">메모 없음</div>';
     document.getElementById('mfolsel').innerHTML=FOLDERS.slice(1).map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
     var cur=mById(state.curMemo)||list[0]||state.memos[0];
