@@ -264,12 +264,12 @@
   /* 아카이브 상세 — 노션 페이지st(2026-11-17): 리스트는 요약만, 누르면 여기로 펼쳐짐.
      속성(.aprop)들은 라벨+입력을 한 줄에 — 노션의 속성 줄과 같은 느낌, 메모칸(.archdetail-notes)만
      책에서 옮겨적은 문장처럼 긴 텍스트를 넉넉하게 받도록 큼직하게 둠. */
-  .archdetail{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(640px,92vw);max-height:88vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 40px rgba(0,0,0,.3);z-index:72}
+  .archdetail{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(880px,94vw);max-height:92vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 40px rgba(0,0,0,.3);z-index:72}
   @media(max-width:520px){.archdetail{width:100vw;height:100vh;max-height:100vh;top:0;left:0;transform:none}}
   .archdetail-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
   .archdetail-close{font:inherit;font-size:12.5px;color:var(--muted);background:none;border:0;cursor:pointer;padding:6px 4px}
   .archdetail-close:hover{color:var(--text)}
-  .archdetail-body{padding:16px 20px 30px}
+  .archdetail-body{padding:20px 28px 34px}
   .archdetail-cover{display:block;max-width:150px;max-height:210px;width:auto;height:auto;object-fit:cover;margin-bottom:14px}
   .archdetail-title{font-size:21px;font-weight:700;line-height:1.3;outline:none;cursor:text;margin-bottom:16px}
   .archdetail-title:empty:before{content:'제목 없음';color:var(--faint)}
@@ -281,7 +281,7 @@
   .aprop select:focus,.aprop input:focus{outline:none;border-bottom-color:var(--accent)}
   .archdetail-searchbtn{margin:4px 0 10px}
   .archdetail-divider{border-top:1px solid var(--line);margin:16px 0 14px}
-  .archdetail-notes{display:block;width:100%;min-height:320px;font:inherit;font-size:14px;line-height:1.75;color:var(--text);background:transparent;border:0;resize:vertical;padding:2px 0}
+  .archdetail-notes{display:block;width:100%;min-height:420px;font:inherit;font-size:14px;line-height:1.75;color:var(--text);background:transparent;border:0;resize:vertical;padding:2px 0}
   .archdetail-notes::placeholder{color:var(--faint)}
   .lgsummary{display:flex;gap:20px;flex-wrap:wrap;margin:14px 0}
   .lgsum-item{font-size:12.5px;color:var(--muted)}
@@ -1583,9 +1583,10 @@
   function fmtDone(iso){if(!iso)return '—';var d=new Date(iso);if(isNaN(d.getTime()))return '—';return (d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
   // ===== 2026-11-16: 프로젝트별 섹션 → 주머니/일/일상 3분류(토글) + 태그(=프로젝트명) 필터로 재구조 =====
   // 분류 기준은 저널에 이미 있던 projCategory(업무/일상/개인작업/미분류)를 그대로 재사용:
-  // 프로젝트(태그) 없으면 주머니, projCategory가 '일상'이면 일상, 그 외(업무/개인작업/미분류)는 전부 '일'.
+  // 프로젝트(태그) 없으면 주머니, projCategory가 '일상'·'개인작업'이면 일상(2026-11-17, "개인작업 태그도
+  // 일상으로 빼줘" 요청 — 개인작업이 업무보다는 일상 쪽 성격이라는 판단), 그 외(업무/미분류)는 '일'.
   var HOME_GROUPS=[{key:'inbox',label:'주머니',emoji:'📦'},{key:'work',label:'일',emoji:'💼'},{key:'daily',label:'일상',emoji:'🌿'}];
-  function homeBucketOf(t){if(!t||!t.project)return 'inbox';return projCategory(t.project)==='일상'?'daily':'work';}
+  function homeBucketOf(t){if(!t||!t.project)return 'inbox';var c=projCategory(t.project);return (c==='일상'||c==='개인작업')?'daily':'work';}
   function renderInbox(){renderProjects();} // 옛 이름 — 호출부가 많아서 얇은 별칭으로 남김
   // 그룹 전체(지금 보고 있는 달, 태그 필터 무시) — 브리핑 계산용으로도 재사용
   function groupPool(key){var m=state.month||thisMonth();return wsTodos().filter(function(t){return homeBucketOf(t)===key&&(key==='inbox'||tMonth(t)===m);});}
