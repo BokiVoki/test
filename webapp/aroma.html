@@ -163,10 +163,22 @@
   /* 레시피 카드(.rcard) 자체는 세로로 쌓임(한 레시피 = 한 주제, 폭 전체를 씀) — 5칸 그리드는
      레시피가 아니라 그 안의 "배합 실험" 목록(.explist, 아래)에 적용됨. */
   .rcard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent-2);border-radius:8px;padding:12px 13px;margin-bottom:12px;min-width:0;}
-  .rcard-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:3px;}
-  .rcard-title{flex:1;font-family:var(--serif);font-size:15px;font-weight:600;border:0;background:none;color:var(--text);width:100%;border-bottom:1px solid transparent;padding:2px 0;}
+  /* 카드는 항상 펼쳐져 있던 걸 접힌 목록(제목+요약만)↔펼친 본문(누르면 안이 보임)
+     아코디언으로 바꿈(2026-11-17, "리스트나 카드형식이다가 누르면 안의 내용이 보이는
+     거면 좋겟어" 요청) — DB 탭과 달리 레시피는 CSS 그리드가 아니라 세로로 쌓이는 단순
+     목록이라, 한 카드를 펼쳐도 다른 카드가 옆으로 들쭉날쭉 밀리는 문제가 없어서(DB 탭이
+     아코디언을 버린 이유) 그대로 아코디언으로 가는 게 더 단순하고 저위험. */
+  .rcard-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:3px;}
+  .rcard-chevron{flex:0 0 auto;background:none;border:0;color:var(--muted);cursor:pointer;font-size:12px;padding:7px 5px;margin:-5px -3px 0 -3px;}
+  .rcard-chevron:hover{color:var(--accent-2);}
+  .rcard-headtext{flex:1;min-width:0;}
+  .rcard-title{font-family:var(--serif);font-size:15px;font-weight:600;border:0;background:none;color:var(--text);width:100%;border-bottom:1px solid transparent;padding:2px 0;}
   .rcard-title:empty::before{content:'제목 없는 레시피';color:var(--faint);font-weight:400;}
   .rcard-title:focus{outline:none;border-bottom-color:var(--accent);}
+  .rcard-summary{font-size:11.5px;color:var(--faint);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .rcard-delbtn-sm{flex:0 0 auto;background:none;border:0;color:var(--faint);cursor:pointer;font-size:13px;padding:7px 5px;margin:-5px -3px 0 -3px;}
+  .rcard-delbtn-sm:hover{color:var(--accent-2);}
+  .rcard-body{margin-top:9px;}
   .rcard-purpose{font-size:12px;color:var(--muted);line-height:1.55;border:0;border-bottom:1px solid var(--line);background:none;width:100%;padding:5px 2px;margin-bottom:8px;resize:vertical;min-height:42px;}
   .rcard-purpose:focus{outline:none;border-bottom-color:var(--accent);}
   .rcard-purpose:empty::before{content:'이 블렌딩의 목적성(언제·어떤 느낌을 위한 것인지)';color:var(--faint);}
@@ -177,8 +189,7 @@
   .ingtbl input[type="number"]{width:46px;border:0;border-bottom:1px solid var(--line);background:none;font-size:12.5px;padding:4px 2px;text-align:right;}
   .ingtbl input[type="number"]:focus{outline:none;border-bottom-color:var(--accent);}
   .ingtbl .idel{background:none;border:0;color:var(--faint);cursor:pointer;font-size:12px;}
-  .ing-add,.rcard-delbtn{background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11.5px;color:var(--muted);cursor:pointer;}
-  .rcard-tools{display:flex;justify-content:flex-end;align-items:center;margin-top:3px;}
+  .ing-add{background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11.5px;color:var(--muted);cursor:pointer;}
 
   /* 재료 검색 콤보박스(2026-10-16) — <select>가 노트 개수가 늘수록 쓰기 힘들어져서
      입력하며 걸러지는 작은 드롭다운으로 교체. 선택은 mousedown+preventDefault로 처리해서
@@ -1131,6 +1142,16 @@
     '</div>';
   }
 
+  // 카드마다 펼침 여부(접힌 목록 ↔ 펼친 본문) — DB 탭의 activeNoteId(하나만 선택)와
+  // 달리 레시피는 세로 목록이라 여러 개를 동시에 펼쳐놔도 레이아웃이 안 흔들려서,
+  // 여러 카드를 동시에 열어둘 수 있는 id→bool 맵으로 둠(진행기록 prgOpen과 같은 패턴).
+  var recipeOpen={};
+  function recipeSummary(r,logs,notes){
+    var p=(r.purpose||'').trim();
+    var preview=p ? (p.length>40?p.slice(0,40)+'…':p)+' · ' : '';
+    return preview+'실험 '+logs.length+'개 · 기록 '+notes.length+'개';
+  }
+
   function renderRecipes(){
     var q=norm(state.recipeQ);
     var list=state.recipes.filter(function(r){return recipeMatches(r,q);});
@@ -1138,19 +1159,29 @@
     $('recipeSearchCount').textContent = state.recipeQ ? (list.length+'/'+state.recipes.length) : '';
     $('recipeList').innerHTML = list.map(function(r){
       var logs=logsForRecipe(r.id);
-      return '<div class="rcard" data-id="'+esc(r.id)+'">' +
+      var notes=notesForRecipe(r.id);
+      var open=!!recipeOpen[r.id];
+      return '<div class="rcard'+(open?' open':'')+'" data-id="'+esc(r.id)+'">' +
         '<div class="rcard-head">' +
-          '<div class="rcard-title" contenteditable="true" data-field="title">'+esc(r.title)+'</div>' +
+          '<button type="button" class="rcard-chevron" data-act="togglercard">'+(open?'▾':'▸')+'</button>' +
+          '<div class="rcard-headtext">' +
+            '<div class="rcard-title" contenteditable="true" data-field="title">'+esc(r.title)+'</div>' +
+            (open?'':'<div class="rcard-summary">'+esc(recipeSummary(r,logs,notes))+'</div>') +
+          '</div>' +
+          '<button class="rcard-delbtn-sm" type="button" data-act="delrecipe" title="레시피 삭제">✕</button>' +
         '</div>' +
-        '<div class="rcard-purpose" contenteditable="true" data-field="purpose">'+esc(r.purpose)+'</div>' +
-        '<div class="rcard-tools"><button class="rcard-delbtn" type="button" data-act="delrecipe">레시피 삭제</button></div>' +
-        rnoteSecHtml(r) +
-        '<div class="explog-sec">' +
-          '<h4>배합 실험</h4>' +
-          '<p class="explog-hint">같은 주제 안에서 재료·비율을 바꿔가며 시도한 배합을 하나씩 쌓아요(최신순).</p>' +
-          (logs.length ? '<div class="explist">'+logs.map(expCardHtml).join('')+'</div>' : '') +
-          '<button class="ing-add" type="button" data-act="addexp">+ 새 실험 추가</button>' +
-        '</div>' +
+        (open ? (
+          '<div class="rcard-body">' +
+            '<div class="rcard-purpose" contenteditable="true" data-field="purpose">'+esc(r.purpose)+'</div>' +
+            rnoteSecHtml(r) +
+            '<div class="explog-sec">' +
+              '<h4>배합 실험</h4>' +
+              '<p class="explog-hint">같은 주제 안에서 재료·비율을 바꿔가며 시도한 배합을 하나씩 쌓아요(최신순).</p>' +
+              (logs.length ? '<div class="explist">'+logs.map(expCardHtml).join('')+'</div>' : '') +
+              '<button class="ing-add" type="button" data-act="addexp">+ 새 실험 추가</button>' +
+            '</div>' +
+          '</div>'
+        ) : '') +
       '</div>';
     }).join('');
   }
@@ -1158,6 +1189,7 @@
   $('addRecipeBtn').addEventListener('click',function(){
     var row={id:uid('ar'),owner:state.uid,title:'',purpose:'',items:[],created:new Date().toISOString(),updated:new Date().toISOString()};
     state.recipes.unshift(row);
+    recipeOpen[row.id]=true; // 새로 만든 레시피는 바로 채워 넣을 수 있게 펼친 채로 시작
     renderRecipes();
     sb.from('aroma_recipes').upsert(row).then(function(){});
   });
@@ -1224,9 +1256,15 @@
     var card=e.target.closest('.rcard'); if(!card)return;
     var id=card.getAttribute('data-id');
     var act=e.target.getAttribute('data-act');
+    if(act==='togglercard'){
+      recipeOpen[id]=!recipeOpen[id];
+      renderRecipes();
+      return;
+    }
     if(act==='delrecipe'){
       var idx=state.recipes.findIndex(function(x){return x.id===id;});
       var removed=state.recipes[idx], removedLogs=logsForRecipe(id), removedNotes=notesForRecipe(id);
+      delete recipeOpen[id];
       state.recipes.splice(idx,1);
       state.recipeLogs=state.recipeLogs.filter(function(l){return l.recipe_id!==id;});
       state.recipeNotes=state.recipeNotes.filter(function(l){return l.recipe_id!==id;});
