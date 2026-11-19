@@ -500,6 +500,98 @@
     renderDay();
   });
 
+  // ===== 사진 날짜 자동 인식(EXIF, 2026-11-19) =====
+  // "사진의 날짜를 인식해서 그날에 넣도록" 요청 — 사진의 촬영일(EXIF DateTimeOriginal)을
+  // 읽어서 지금 보고 있는 날짜(upTargetDate/previewTargetDate)와 무관하게 그 날짜로 저장.
+  // 외부 라이브러리 없이(이 앱 전체가 원래 외부 의존성 없는 단일 HTML) JPEG의 APP1(Exif)
+  // 세그먼트만 직접 파싱 — 거의 모든 폰 카메라 사진이 JPEG라 실용적으로 충분함.
+  // ⚠️ HEIC(일부 아이폰 설정)·PNG·카메라로 즉석 촬영한 캔버스 사진(EXIF 자체가 없음)은
+  // 날짜를 못 읽어서 null → 그럴 땐 "캘린더에서 그 날짜로 가서 넣으면 그 날짜에" 넣는
+  // 기존 동작(지금 보고 있는 날짜)으로 그대로 폴백됨 — 실패해도 조용히 기존 동작일 뿐.
+  function exifU16(view,o,little){return view.getUint16(o,little);}
+  function exifU32(view,o,little){return view.getUint32(o,little);}
+  function exifReadIfdEntries(view,ifdLoc,little){
+    var count=exifU16(view,ifdLoc,little),entries=[];
+    for(var i=0;i<count;i++){
+      var eo=ifdLoc+2+i*12;
+      entries.push({tag:exifU16(view,eo,little),type:exifU16(view,eo+2,little),count:exifU32(view,eo+4,little),valueOffset:eo+8});
+    }
+    return entries;
+  }
+  function exifEntryAscii(view,tiffStart,entry,little){
+    var byteLen=entry.count;
+    var dataOffset=byteLen<=4?entry.valueOffset:tiffStart+exifU32(view,entry.valueOffset,little);
+    var s='';
+    for(var j=0;j<byteLen-1;j++)s+=String.fromCharCode(view.getUint8(dataOffset+j));
+    return s;
+  }
+  function exifEntryLong(view,entry,little){return exifU32(view,entry.valueOffset,little);}
+  // JPEG 세그먼트를 순서대로 훑다가 APP1(Exif)을 찾으면 그 안의 TIFF IFD0→ExifIFD에서
+  // DateTimeOriginal(0x9003, 없으면 IFD0의 DateTime 0x0132)을 "YYYY:MM:DD HH:MM:SS" 그대로 반환
+  function exifReadDateString(buf){
+    try{
+      var view=new DataView(buf);
+      if(view.getUint16(0,false)!==0xFFD8)return null; // JPEG 아님
+      var offset=2;
+      while(offset<view.byteLength-1){
+        if(view.getUint8(offset)!==0xFF)return null;
+        var marker=view.getUint8(offset+1);
+        offset+=2;
+        if(marker===0xD8||marker===0xD9||(marker>=0xD0&&marker<=0xD7))continue; // 길이 없는 마커
+        if(offset+2>view.byteLength)break;
+        var size=exifU16(view,offset,false);
+        if(marker===0xE1&&offset+6<=view.byteLength&&view.getUint32(offset+2,false)===0x45786966){
+          var tiffStart=offset+2+6;
+          if(tiffStart+8>view.byteLength)return null;
+          var little=exifU16(view,tiffStart,false)===0x4949;
+          var ifd0Loc=tiffStart+exifU32(view,tiffStart+4,little);
+          var entries0=exifReadIfdEntries(view,ifd0Loc,little);
+          var exifIfdEntry=entries0.filter(function(e){return e.tag===0x8769;})[0];
+          var dateTimeEntry=entries0.filter(function(e){return e.tag===0x0132;})[0];
+          if(exifIfdEntry){
+            var exifIfdLoc=tiffStart+exifEntryLong(view,exifIfdEntry,little);
+            var dto=exifReadIfdEntries(view,exifIfdLoc,little).filter(function(e){return e.tag===0x9003;})[0];
+            if(dto)return exifEntryAscii(view,tiffStart,dto,little);
+          }
+          if(dateTimeEntry)return exifEntryAscii(view,tiffStart,dateTimeEntry,little);
+          return null;
+        }
+        if(marker===0xDA)return null; // SOS — 이미지 데이터 시작, 메타데이터는 항상 이 앞에 있음
+        offset+=size;
+      }
+    }catch(e){}
+    return null;
+  }
+  function exifDateStringToISO(s){
+    if(!s)return null;
+    var m=/^(\d{4}):(\d{2}):(\d{2})/.exec(s.trim());
+    if(!m)return null;
+    var y=+m[1],mo=+m[2],d=+m[3];
+    if(y<1990||y>2100||mo<1||mo>12||d<1||d>31)return null;
+    return y+'-'+pad(mo)+'-'+pad(d);
+  }
+  // 파일(또는 캔버스 캡처 Blob)에서 촬영 날짜를 읽음 — JPEG가 아니거나 EXIF가 없으면 null
+  function readPhotoDate(file){
+    if(!file||!/^image\/jpe?g$/i.test(file.type||''))return Promise.resolve(null);
+    return file.slice(0,131072).arrayBuffer().then(function(buf){
+      return exifDateStringToISO(exifReadDateString(buf));
+    }).catch(function(){return null;});
+  }
+  // 파일 목록을 촬영 날짜별로 묶음(날짜 못 읽은 파일은 fallbackDate로) — 날짜 오름차순
+  function groupFilesByDate(files,fallbackDate){
+    return Promise.all(files.map(function(f){
+      return readPhotoDate(f).then(function(d){return {file:f,date:d||fallbackDate};});
+    })).then(function(items){
+      var map={};
+      items.forEach(function(it){(map[it.date]=map[it.date]||[]).push(it.file);});
+      return Object.keys(map).sort().map(function(d){return {date:d,files:map[d]};});
+    });
+  }
+  function summarizeSavedGroups(groups){
+    if(groups.length===1)return dayLabel(groups[0].date)+'에 저장했어요';
+    return groups.map(function(g){return dayLabel(g.date)+' '+g.files.length+'장';}).join(', ')+' — 사진 날짜를 인식해서 나눠 저장했어요';
+  }
+
   // ===== 저장 공통 =====
   function extFor(mime){
     if(mime.indexOf('png')>=0)return 'png';
@@ -588,13 +680,15 @@
   upSaveBtn.addEventListener('click',function(){
     if(!upPendingFiles.length)return;
     upSaveBtn.disabled=true;upSaveBtn.textContent='저장 중…';
-    var savedDate=upTargetDate;
     var filesToSave=upPendingFiles.slice();
-    saveEntry(filesToSave,'photo',document.getElementById('upCaption').value,savedDate).then(function(){
+    var captionVal=document.getElementById('upCaption').value;
+    groupFilesByDate(filesToSave,upTargetDate).then(function(groups){
+      return Promise.all(groups.map(function(g){return saveEntry(g.files,'photo',captionVal,g.date);})).then(function(){return groups;});
+    }).then(function(groups){
       upPendingFiles=[];upFileEl.value='';renderUpPreview();document.getElementById('upCaption').value='';
       upSaveBtn.textContent='저장';upSaveBtn.disabled=true;
-      if(state.day===savedDate)renderDay();
-      showToast(dayLabel(savedDate)+'에 저장했어요');
+      if(groups.some(function(g){return g.date===state.day;}))renderDay();
+      showToast(summarizeSavedGroups(groups));
     }).catch(function(err){upSaveBtn.disabled=false;upSaveBtn.textContent='저장';showToast('저장 실패: '+(err&&err.message||err));});
   });
 
@@ -791,11 +885,23 @@
     if(!state.pending)return;
     if(state.pending.type==='photo'&&!state.pending.blob.length)return;
     saveBtn.disabled=true;saveBtn.textContent='저장 중…';
-    var savedDate=previewTargetDate;
-    saveEntry(state.pending.blob,state.pending.type,previewCaption.value,savedDate).then(function(){
+    var captionVal=previewCaption.value;
+    if(state.pending.type==='video'){ // 영상은 EXIF 개념이 없어서 그대로(지금 보고 있는 날짜)
+      var savedDate=previewTargetDate;
+      saveEntry(state.pending.blob,'video',captionVal,savedDate).then(function(){
+        closePreview();
+        if(state.day===savedDate)renderDay();
+        showToast(dayLabel(savedDate)+'에 저장했어요');
+      }).catch(function(err){saveBtn.disabled=false;saveBtn.textContent='저장';showToast('저장 실패: '+(err&&err.message||err));});
+      return;
+    }
+    var filesToSave=state.pending.blob.slice();
+    groupFilesByDate(filesToSave,previewTargetDate).then(function(groups){
+      return Promise.all(groups.map(function(g){return saveEntry(g.files,'photo',captionVal,g.date);})).then(function(){return groups;});
+    }).then(function(groups){
       closePreview();
-      if(state.day===savedDate)renderDay();
-      showToast(dayLabel(savedDate)+'에 저장했어요');
+      if(groups.some(function(g){return g.date===state.day;}))renderDay();
+      showToast(summarizeSavedGroups(groups));
     }).catch(function(err){saveBtn.disabled=false;saveBtn.textContent='저장';showToast('저장 실패: '+(err&&err.message||err));});
   });
 
