@@ -500,14 +500,17 @@
     renderDay();
   });
 
-  // ===== 사진 날짜 자동 인식(EXIF, 2026-11-19) =====
+  // ===== 사진 날짜 자동 인식(EXIF, 2026-11-19 + HEIC 추가) =====
   // "사진의 날짜를 인식해서 그날에 넣도록" 요청 — 사진의 촬영일(EXIF DateTimeOriginal)을
   // 읽어서 지금 보고 있는 날짜(upTargetDate/previewTargetDate)와 무관하게 그 날짜로 저장.
-  // 외부 라이브러리 없이(이 앱 전체가 원래 외부 의존성 없는 단일 HTML) JPEG의 APP1(Exif)
-  // 세그먼트만 직접 파싱 — 거의 모든 폰 카메라 사진이 JPEG라 실용적으로 충분함.
-  // ⚠️ HEIC(일부 아이폰 설정)·PNG·카메라로 즉석 촬영한 캔버스 사진(EXIF 자체가 없음)은
-  // 날짜를 못 읽어서 null → 그럴 땐 "캘린더에서 그 날짜로 가서 넣으면 그 날짜에" 넣는
-  // 기존 동작(지금 보고 있는 날짜)으로 그대로 폴백됨 — 실패해도 조용히 기존 동작일 뿐.
+  // 외부 라이브러리 없이(이 앱 전체가 원래 외부 의존성 없는 단일 HTML) 두 컨테이너를
+  // 직접 파싱 — JPEG는 APP1(Exif) 세그먼트, HEIC/HEIF는 ISOBMFF 박스(meta/iinf/iloc)를
+  // 훑어 'Exif' 타입 아이템을 찾음. "거의 heic 사진 올라갈거임"이라는 지적을 받고 추가
+  // — 아이폰 기본 촬영 포맷(설정에서 "높은 효율성")이 HEIC라 이게 없으면 사실상 대부분의
+  // 사진에서 날짜 인식이 동작 안 했을 것.
+  // ⚠️ PNG·카메라로 즉석 촬영한 캔버스 사진(EXIF 자체가 없음)은 여전히 못 읽어서 null →
+  // 그럴 땐 "캘린더에서 그 날짜로 가서 넣으면 그 날짜에" 넣는 기존 동작(지금 보고 있는
+  // 날짜)으로 그대로 폴백됨 — 실패해도 조용히 기존 동작일 뿐, 절대 깨지지 않음.
   function exifU16(view,o,little){return view.getUint16(o,little);}
   function exifU32(view,o,little){return view.getUint32(o,little);}
   function exifReadIfdEntries(view,ifdLoc,little){
@@ -526,8 +529,24 @@
     return s;
   }
   function exifEntryLong(view,entry,little){return exifU32(view,entry.valueOffset,little);}
-  // JPEG 세그먼트를 순서대로 훑다가 APP1(Exif)을 찾으면 그 안의 TIFF IFD0→ExifIFD에서
-  // DateTimeOriginal(0x9003, 없으면 IFD0의 DateTime 0x0132)을 "YYYY:MM:DD HH:MM:SS" 그대로 반환
+  // TIFF 구조(IFD0→ExifIFD) 안에서 DateTimeOriginal(0x9003, 없으면 IFD0의 DateTime 0x0132)을
+  // 찾는 공용 로직 — JPEG의 APP1 안 TIFF든, HEIC의 Exif 아이템 안 TIFF든 구조는 똑같아서 공유.
+  function exifDateFromTiff(view,tiffStart){
+    if(tiffStart+8>view.byteLength)return null;
+    var little=exifU16(view,tiffStart,false)===0x4949;
+    var ifd0Loc=tiffStart+exifU32(view,tiffStart+4,little);
+    var entries0=exifReadIfdEntries(view,ifd0Loc,little);
+    var exifIfdEntry=entries0.filter(function(e){return e.tag===0x8769;})[0];
+    var dateTimeEntry=entries0.filter(function(e){return e.tag===0x0132;})[0];
+    if(exifIfdEntry){
+      var exifIfdLoc=tiffStart+exifEntryLong(view,exifIfdEntry,little);
+      var dto=exifReadIfdEntries(view,exifIfdLoc,little).filter(function(e){return e.tag===0x9003;})[0];
+      if(dto)return exifEntryAscii(view,tiffStart,dto,little);
+    }
+    if(dateTimeEntry)return exifEntryAscii(view,tiffStart,dateTimeEntry,little);
+    return null;
+  }
+  // JPEG 세그먼트를 순서대로 훑다가 APP1(Exif)을 찾으면 그 안의 TIFF를 exifDateFromTiff로 읽음
   function exifReadDateString(buf){
     try{
       var view=new DataView(buf);
@@ -541,26 +560,141 @@
         if(offset+2>view.byteLength)break;
         var size=exifU16(view,offset,false);
         if(marker===0xE1&&offset+6<=view.byteLength&&view.getUint32(offset+2,false)===0x45786966){
-          var tiffStart=offset+2+6;
-          if(tiffStart+8>view.byteLength)return null;
-          var little=exifU16(view,tiffStart,false)===0x4949;
-          var ifd0Loc=tiffStart+exifU32(view,tiffStart+4,little);
-          var entries0=exifReadIfdEntries(view,ifd0Loc,little);
-          var exifIfdEntry=entries0.filter(function(e){return e.tag===0x8769;})[0];
-          var dateTimeEntry=entries0.filter(function(e){return e.tag===0x0132;})[0];
-          if(exifIfdEntry){
-            var exifIfdLoc=tiffStart+exifEntryLong(view,exifIfdEntry,little);
-            var dto=exifReadIfdEntries(view,exifIfdLoc,little).filter(function(e){return e.tag===0x9003;})[0];
-            if(dto)return exifEntryAscii(view,tiffStart,dto,little);
-          }
-          if(dateTimeEntry)return exifEntryAscii(view,tiffStart,dateTimeEntry,little);
-          return null;
+          return exifDateFromTiff(view,offset+2+6);
         }
         if(marker===0xDA)return null; // SOS — 이미지 데이터 시작, 메타데이터는 항상 이 앞에 있음
         offset+=size;
       }
     }catch(e){}
     return null;
+  }
+  // ===== HEIC/HEIF(ISOBMFF 컨테이너) 안의 Exif 아이템 찾기 =====
+  // HEIC는 JPEG처럼 세그먼트가 아니라 "박스"(size+4글자타입+데이터)가 재귀적으로 쌓인
+  // 구조(MP4와 같은 ISOBMFF 계열) — top-level의 'meta' 박스 → 그 안의 'iinf'(아이템 목록,
+  // 어느 아이템이 타입 'Exif'인지)와 'iloc'(그 아이템의 실제 파일상 바이트 위치)을 읽어서
+  // Exif 데이터 조각을 찾아낸 뒤, 그 안의 TIFF는 위 exifDateFromTiff를 그대로 재사용.
+  function boxTypeStr(view,o){return String.fromCharCode(view.getUint8(o),view.getUint8(o+1),view.getUint8(o+2),view.getUint8(o+3));}
+  function readBoxAt(view,o,limit){
+    if(o+8>limit)return null;
+    var size=view.getUint32(o,false);
+    var type=boxTypeStr(view,o+4);
+    var headerSize=8;
+    if(size===1){
+      if(o+16>limit)return null;
+      var hi=view.getUint32(o+8,false),lo=view.getUint32(o+12,false);
+      size=hi*4294967296+lo;headerSize=16;
+    } else if(size===0){size=limit-o;}
+    if(size<headerSize)return null;
+    return {type:type,start:o,headerSize:headerSize,dataStart:o+headerSize,end:o+size};
+  }
+  function findBox(view,start,end,type){
+    var o=start;
+    while(o<end){
+      var b=readBoxAt(view,o,end);
+      if(!b)return null;
+      if(b.type===type)return b;
+      o=b.end;
+    }
+    return null;
+  }
+  // infe(ItemInfoEntry) 박스에서 item_ID·item_type(4글자)을 읽음 — 아이폰 HEIC는 버전 2 사용
+  function heicReadInfe(view,dataStart,dataEnd){
+    var o=dataStart;
+    var verflags=view.getUint32(o,false);o+=4;
+    var version=(verflags>>>24)&0xFF;
+    if(version===0||version===1){
+      return {itemId:exifU16(view,o,false),itemType:null}; // 구형(MIME 기반) — Exif 타입 직접 안 담음
+    }
+    var itemId;
+    if(version===2){itemId=exifU16(view,o,false);o+=2;}
+    else{itemId=exifU32(view,o,false);o+=4;}
+    o+=2; // item_protection_index
+    return {itemId:itemId,itemType:boxTypeStr(view,o)};
+  }
+  function heicFindExifItemId(view,iinf){
+    var o=iinf.dataStart+4; // FullBox 버전/플래그(4) + entry_count(버전0=2,그외=4) 건너뜀
+    var verflags=view.getUint32(iinf.dataStart,false);
+    o+=((verflags>>>24)&0xFF)===0?2:4;
+    while(o<iinf.end){
+      var b=readBoxAt(view,o,iinf.end);
+      if(!b)break;
+      if(b.type==='infe'){
+        var r=heicReadInfe(view,b.dataStart,b.end);
+        if(r&&r.itemType==='Exif')return r.itemId;
+      }
+      o=b.end;
+    }
+    return null;
+  }
+  // iloc(ItemLocationBox)에서 그 item_ID의 (파일 절대 offset, length)를 읽음 — extent 1개뿐인
+  // 단순 케이스(Exif 같은 작은 메타데이터 아이템)만 다룸, construction_method는 0(파일 직접
+  // offset)으로 가정(아이폰 HEIC의 Exif 아이템은 거의 항상 이 방식).
+  function heicFindItemLocation(view,iloc,targetItemId){
+    var o=iloc.dataStart;
+    var verflags=view.getUint32(o,false);o+=4;
+    var version=(verflags>>>24)&0xFF;
+    var b1=view.getUint8(o),b2=view.getUint8(o+1);o+=2;
+    var offsetSize=(b1>>4)&0xF,lengthSize=b1&0xF,baseOffsetSize=(b2>>4)&0xF,indexSize=b2&0xF;
+    var itemCount;
+    if(version<2){itemCount=exifU16(view,o,false);o+=2;}else{itemCount=exifU32(view,o,false);o+=4;}
+    function readSized(size){
+      if(size===0)return 0;
+      if(size===4){var v=exifU32(view,o,false);o+=4;return v;}
+      if(size===8){var hi=exifU32(view,o,false),lo=exifU32(view,o+4,false);o+=8;return hi*4294967296+lo;}
+      if(size===2){var v2=exifU16(view,o,false);o+=2;return v2;}
+      o+=size;return 0;
+    }
+    for(var i=0;i<itemCount;i++){
+      var itemId;
+      if(version<2){itemId=exifU16(view,o,false);o+=2;}else{itemId=exifU32(view,o,false);o+=4;}
+      if(version===1||version===2)o+=2; // reserved(12bit)+construction_method(4bit)
+      o+=2; // data_reference_index
+      var baseOffset=readSized(baseOffsetSize);
+      var extentCount=exifU16(view,o,false);o+=2;
+      var firstOff=null,firstLen=null;
+      for(var j=0;j<extentCount;j++){
+        if((version===1||version===2)&&indexSize>0)readSized(indexSize);
+        var extOff=readSized(offsetSize),extLen=readSized(lengthSize);
+        if(j===0){firstOff=extOff;firstLen=extLen;}
+      }
+      if(itemId===targetItemId)return {offset:baseOffset+(firstOff||0),length:firstLen||0};
+    }
+    return null;
+  }
+  function heicFindExifItemLocation(view){
+    var meta=findBox(view,0,view.byteLength,'meta');
+    if(!meta)return null;
+    var childrenStart=meta.dataStart+4; // meta도 FullBox(버전/플래그 4바이트)
+    var iinf=findBox(view,childrenStart,meta.end,'iinf');
+    var iloc=findBox(view,childrenStart,meta.end,'iloc');
+    if(!iinf||!iloc)return null;
+    var exifItemId=heicFindExifItemId(view,iinf);
+    if(exifItemId==null)return null;
+    return heicFindItemLocation(view,iloc,exifItemId);
+  }
+  // headerBuf(파일 앞부분)에서 'meta' 박스를 찾아 Exif 아이템 위치를 알아내고, 그 바이트가
+  // headerBuf 안에 다 있으면 그대로, 아니면(파일 뒤쪽에 있으면) 그 구간만 다시 읽어서 TIFF로 해석
+  function heicReadDateString(headerBuf,file){
+    var loc;
+    try{
+      var view=new DataView(headerBuf);
+      if(view.byteLength<16||boxTypeStr(view,4)!=='ftyp')return Promise.resolve(null);
+      loc=heicFindExifItemLocation(view);
+    }catch(e){return Promise.resolve(null);}
+    if(!loc||!loc.length)return Promise.resolve(null);
+    if(loc.offset+loc.length<=headerBuf.byteLength){
+      try{return Promise.resolve(exifDateFromTiffItem(headerBuf.slice(loc.offset,loc.offset+loc.length)));}catch(e){return Promise.resolve(null);}
+    }
+    return file.slice(loc.offset,loc.offset+loc.length).arrayBuffer().then(function(itemBuf){
+      try{return exifDateFromTiffItem(itemBuf);}catch(e){return null;}
+    }).catch(function(){return null;});
+  }
+  // Exif 아이템 바이트 = [4바이트: TIFF가 시작하는 상대 오프셋 N][그 뒤로 "Exif\0\0"(있을 수도)+TIFF]
+  function exifDateFromTiffItem(itemBuf){
+    var iview=new DataView(itemBuf);
+    if(iview.byteLength<4)return null;
+    var n=iview.getUint32(0,false);
+    return exifDateFromTiff(iview,4+n);
   }
   function exifDateStringToISO(s){
     if(!s)return null;
@@ -570,11 +704,16 @@
     if(y<1990||y>2100||mo<1||mo>12||d<1||d>31)return null;
     return y+'-'+pad(mo)+'-'+pad(d);
   }
-  // 파일(또는 캔버스 캡처 Blob)에서 촬영 날짜를 읽음 — JPEG가 아니거나 EXIF가 없으면 null
+  // 파일(또는 캔버스 캡처 Blob)에서 촬영 날짜를 읽음 — JPEG/HEIC가 아니거나 EXIF가 없으면 null.
+  // 매직 바이트로 직접 판별(파일.type을 안 믿음 — 브라우저·OS에 따라 HEIC의 MIME이 비거나
+  // 제각각이라 바이트로 보는 게 더 안전함). 헤더 256KB면 HEIC의 meta/iinf/iloc까지 보통 다 들어옴.
   function readPhotoDate(file){
-    if(!file||!/^image\/jpe?g$/i.test(file.type||''))return Promise.resolve(null);
-    return file.slice(0,131072).arrayBuffer().then(function(buf){
-      return exifDateStringToISO(exifReadDateString(buf));
+    if(!file)return Promise.resolve(null);
+    return file.slice(0,262144).arrayBuffer().then(function(buf){
+      var view=new DataView(buf);
+      if(view.byteLength>=2&&view.getUint16(0,false)===0xFFD8)return exifDateStringToISO(exifReadDateString(buf));
+      if(view.byteLength>=12&&boxTypeStr(view,4)==='ftyp')return heicReadDateString(buf,file).then(exifDateStringToISO);
+      return null;
     }).catch(function(){return null;});
   }
   // 파일 목록을 촬영 날짜별로 묶음(날짜 못 읽은 파일은 fallbackDate로) — 날짜 오름차순
