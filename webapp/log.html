@@ -732,6 +732,28 @@
   }
 
   // ===== 저장 공통 =====
+  // 한꺼번에 많이(수십~수백 장) 올리면 전부 동시에 업로드해 네트워크·메모리를 포화시켜
+  // 버튼이 멈춘 것처럼 느려지던 문제(2026-11-19) — 동시 업로드 수를 제한해 순서대로 흘려보냄.
+  function mapLimit(items,limit,fn){
+    return new Promise(function(resolve,reject){
+      if(!items.length){resolve([]);return;}
+      var results=new Array(items.length),nextIndex=0,activeCount=0,completedCount=0,rejected=false;
+      function runNext(){
+        if(rejected)return;
+        while(activeCount<limit&&nextIndex<items.length){
+          (function(i){
+            activeCount++;
+            Promise.resolve(fn(items[i],i)).then(function(res){
+              results[i]=res;activeCount--;completedCount++;
+              if(completedCount===items.length)resolve(results);
+              else runNext();
+            },function(err){rejected=true;reject(err);});
+          })(nextIndex++);
+        }
+      }
+      runNext();
+    });
+  }
   function extFor(mime){
     if(mime.indexOf('png')>=0)return 'png';
     if(mime.indexOf('jpeg')>=0||mime.indexOf('jpg')>=0)return 'jpg';
@@ -746,16 +768,17 @@
   // 사진 한 장(또는 영상)이면 예전처럼 순수 경로 문자열 그대로, 사진 여러 장이면 그 경로들을
   // JSON 배열 문자열로 담음(렌더 시 mediaPathList()가 '['로 시작하는지로 구분). 기존 행은
   // 전부 단일 문자열이라 하위호환 그대로 유지됨.
-  function saveEntry(blobOrList,type,caption,date){
+  function saveEntry(blobOrList,type,caption,date,onProgress){
     if(!state.uid)return Promise.reject(new Error('로그인이 필요해요'));
     var list=Array.isArray(blobOrList)?blobOrList:[blobOrList];
-    return Promise.all(list.map(function(b){
+    return mapLimit(list,3,function(b){
       var ext=extFor(b.type||''),path=state.uid+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.'+ext;
       return sb.storage.from('log').upload(path,b,{contentType:b.type||'application/octet-stream'}).then(function(up){
         if(up.error)throw up.error;
+        if(onProgress)onProgress();
         return path;
       });
-    })).then(function(paths){
+    }).then(function(paths){
       var mediaPath=paths.length>1?JSON.stringify(paths):paths[0];
       var row={id:uid(),date:date||todayISO(),type:type,media_path:mediaPath,caption:(caption||'').trim(),sort:Date.now()};
       return sb.from('log_entries').insert(row).then(function(r){if(r.error)throw r.error;return row;});
@@ -802,7 +825,7 @@
     if(!upPendingFiles.length){upPreviewWrap.classList.remove('show');upPreviewWrap.innerHTML='';upSaveBtn.disabled=true;return;}
     upPreviewWrap.classList.add('show');
     upPreviewWrap.innerHTML=upPendingFiles.map(function(f,i){
-      return '<div class="upThumb" data-i="'+i+'"><img src="'+URL.createObjectURL(f)+'"><span class="upThumbDel" data-act="upthumbdel">✕</span></div>';
+      return '<div class="upThumb" data-i="'+i+'"><img src="'+URL.createObjectURL(f)+'" loading="lazy" decoding="async"><span class="upThumbDel" data-act="upthumbdel">✕</span></div>';
     }).join('');
     upSaveBtn.disabled=false;
   }
@@ -818,11 +841,14 @@
   });
   upSaveBtn.addEventListener('click',function(){
     if(!upPendingFiles.length)return;
-    upSaveBtn.disabled=true;upSaveBtn.textContent='저장 중…';
+    var totalFiles=upPendingFiles.length,doneCount=0;
+    upSaveBtn.disabled=true;upSaveBtn.textContent=totalFiles>1?'저장 중… (0/'+totalFiles+')':'저장 중…';
+    if(totalFiles>20)showToast(totalFiles+'장 업로드 중이에요 — 사진이 많아서 시간이 좀 걸려요');
     var filesToSave=upPendingFiles.slice();
     var captionVal=document.getElementById('upCaption').value;
+    function onProg(){doneCount++;if(totalFiles>1)upSaveBtn.textContent='저장 중… ('+doneCount+'/'+totalFiles+')';}
     groupFilesByDate(filesToSave,upTargetDate).then(function(groups){
-      return Promise.all(groups.map(function(g){return saveEntry(g.files,'photo',captionVal,g.date);})).then(function(){return groups;});
+      return Promise.all(groups.map(function(g){return saveEntry(g.files,'photo',captionVal,g.date,onProg);})).then(function(){return groups;});
     }).then(function(groups){
       upPendingFiles=[];upFileEl.value='';renderUpPreview();document.getElementById('upCaption').value='';
       upSaveBtn.textContent='저장';upSaveBtn.disabled=true;
@@ -1007,7 +1033,7 @@
     var wrap=document.getElementById('previewMultiWrap');
     if(!wrap)return;
     wrap.innerHTML=state.pending.blob.map(function(b,i){
-      return '<div class="previewMultiItem" data-i="'+i+'"><img src="'+URL.createObjectURL(b)+'"><span class="previewMultiDel" data-act="previewdel">✕</span></div>';
+      return '<div class="previewMultiItem" data-i="'+i+'"><img src="'+URL.createObjectURL(b)+'" loading="lazy" decoding="async"><span class="previewMultiDel" data-act="previewdel">✕</span></div>';
     }).join('');
   }
   previewMediaWrap.addEventListener('click',function(e){
@@ -1035,8 +1061,12 @@
       return;
     }
     var filesToSave=state.pending.blob.slice();
+    var totalFiles=filesToSave.length,doneCount=0;
+    if(totalFiles>1)saveBtn.textContent='저장 중… (0/'+totalFiles+')';
+    if(totalFiles>20)showToast(totalFiles+'장 업로드 중이에요 — 사진이 많아서 시간이 좀 걸려요');
+    function onProg(){doneCount++;if(totalFiles>1)saveBtn.textContent='저장 중… ('+doneCount+'/'+totalFiles+')';}
     groupFilesByDate(filesToSave,previewTargetDate).then(function(groups){
-      return Promise.all(groups.map(function(g){return saveEntry(g.files,'photo',captionVal,g.date);})).then(function(){return groups;});
+      return Promise.all(groups.map(function(g){return saveEntry(g.files,'photo',captionVal,g.date,onProg);})).then(function(){return groups;});
     }).then(function(groups){
       closePreview();
       if(groups.some(function(g){return g.date===state.day;}))renderDay();
