@@ -89,13 +89,14 @@
      작은 📅 아이콘 대신 날짜 제목(h2) 자체를 큰 탭 영역으로 만듦(가운데 정렬+flex:1이라
      원래도 가로로 넓은 자리를 차지하고 있어서, 세로 패딩만 넉넉히 줘도 탭 영역이
      충분히 커짐 — 기존 .iconbtn 16px 정사각형과 비교해 훨씬 큼).
-     2026-11-19: "날짜 누르면 달력 나오는거 사라졌어"(실기기에서 눌러도 무반응) — 처음엔
-     showPicker()를 JS로 "대신" 호출해주는 프록시 방식(화면 밖 1px 숨김 input)이었는데,
+     2026-11-19: "날짜 누르면 달력 나오는거 사라졌어"(실기기에서 눌러도 무반응) — 네이티브
+     <input type="date">의 showPicker()를 JS로 "대신" 호출해주는 프록시 방식이었는데,
      하루앱(index.html)의 마감일 피커가 2026-10-03에 바로 이 방식 때문에 실기기에서
-     똑같이 안 열려서 "셀마다 실제 input을 그 자리에 투명 오버레이"로 바꿔 고친 전례가
-     있음 — 여기도 같은 구조적 결함(프록시 호출은 실브라우저에서 신뢰 못 함)이라 같은
-     해법 적용: #dayTitle 안에 진짜 <input type="date">를 꽉 채워 투명하게 덮어서,
-     사용자 탭이 그 input에 직접 닿아 브라우저 네이티브 동작으로 피커가 열리게 함. */
+     똑같이 안 열려서 겪은 것과 같은 구조적 결함. **같은 날 "달력에 점 표시" 요청까지 겹쳐서,
+     네이티브 피커는 날짜별 점을 그릴 방법이 원천적으로 없어 이번엔 직접 그린 달력
+     모달(#calModal)로 완전히 교체** — 순수 클릭 핸들러라 네이티브 피커의 신뢰성 문제 자체가
+     구조적으로 없어짐(아래 "커스텀 달력 모달" 참고). `#upCalBtn`/`#previewCalBtn`(저장 날짜
+     고르기)은 점 표시가 필요 없고 이미 실기기에서 검증된 투명 input 오버레이 방식 그대로 둠. */
   #dayTitle{position:relative;cursor:pointer;padding:9px 6px;border-radius:10px;}
   #dayTitle:hover,#dayTitle:active{background:var(--sunk);color:var(--accent-2)}
   .dayip{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;-webkit-appearance:none;-moz-appearance:none;appearance:none;display:block;cursor:pointer}
@@ -171,6 +172,34 @@
   .logcapsave,.logcapcancel{font-family:var(--pixel);font-size:11px;cursor:pointer;padding:5px 11px;border-radius:999px;border:1.5px solid var(--line)}
   .logcapsave{color:var(--on-accent);background:var(--accent);border-color:var(--accent)}
   .logcapcancel{color:var(--muted)}
+  /* 사진 없이 글만 남기는 기록(2026-11-19) — media_path 없이 caption만 있는 type='note'
+     엔트리. 미디어 박스가 없어서 .logcap과 달리 자기 테두리를 가진 카드로 보여줌 */
+  .lognotebox{border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;font-size:14px;color:var(--text);white-space:pre-wrap;background:var(--panel);line-height:1.5}
+  #noteAddRow{margin:0 0 10px;text-align:center}
+  #noteAddRow .iconbtn{font-family:var(--pixel);font-size:12px;padding:6px 12px;border:1.5px solid var(--line);border-radius:999px;color:var(--muted)}
+  #noteAddRow .iconbtn:hover{color:var(--accent-2);border-color:var(--accent-2)}
+  #noteAddBox{margin:0 0 16px}
+  /* 커스텀 달력 모달(2026-11-19) — 날짜별 글/사진 유무를 점으로 표시해야 해서(네이티브
+     <input type="date">는 이걸 그릴 방법이 없음) 순수 클릭 핸들러로 직접 그린 달력.
+     날짜 이동(single)과 블로그 내보내기용 다중 선택(multi) 두 모드를 겸함. */
+  #calModalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:95}
+  #calModal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:96;background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:14px 16px;width:min(340px,92vw);box-shadow:0 10px 30px var(--shadowc)}
+  .calModalHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .calModalHead button{font-family:var(--pixel);background:var(--sunk);border:1.5px solid var(--line);border-radius:999px;color:var(--text);cursor:pointer;padding:4px 10px}
+  #calModalTitle{flex:1;text-align:center;font-family:var(--pixel);font-size:14px}
+  #calModalClose{cursor:pointer;color:var(--muted);padding:4px 6px}
+  #calModalWeekdays,#calModalGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+  #calModalWeekdays span{font-size:11px;color:var(--muted);padding:4px 0}
+  .calCell{position:relative;padding:8px 0;border-radius:10px;cursor:pointer;font-size:13px}
+  .calCell:hover{background:var(--sunk)}
+  .calCell.today{color:var(--accent-2);font-weight:600}
+  .calCell.sel{background:var(--accent);color:var(--on-accent)}
+  .calCell.blank{cursor:default}
+  .calCell.blank:hover{background:none}
+  .calDot{position:absolute;left:50%;bottom:3px;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--accent-2)}
+  .calCell.sel .calDot{background:var(--on-accent)}
+  #calModalMultiBar{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px}
+  #calModalSelCount{font-size:12px;color:var(--muted)}
   /* 옛날 디지털카메라 각인 날짜(digicam date stamp) — 모노스페이스+앰버색은 그대로 유지 */
   .logstamp{position:absolute;right:10px;bottom:10px;font-family:var(--mono);font-weight:600;font-size:11px;color:var(--amber);text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none;letter-spacing:.02em}
   /* 영상은 하단에 네이티브 컨트롤바가 있어서 각인 날짜를 위쪽 모서리로 올림 */
@@ -282,9 +311,10 @@
 
     <div class="daynav">
       <button id="dayPrev">‹</button>
-      <h2 id="dayTitle"><span id="dayTitleText"></span><input id="dayPicker" type="date" class="dayip"></h2>
+      <h2 id="dayTitle"><span id="dayTitleText"></span></h2>
       <button id="dayNext">›</button>
       <span class="daynavicons">
+        <span class="iconbtn" id="blogBtn" title="블로그용 내보내기">📰</span>
         <span class="iconbtn" id="searchToggleBtn" title="캡션 검색" aria-pressed="false">🔍</span>
       </span>
       <span class="today hidden" id="dayToday">오늘로</span>
@@ -293,7 +323,28 @@
       <input id="searchInput" type="text" placeholder="캡션 검색…">
       <div id="searchResults"></div>
     </div>
+    <div id="noteAddRow"><span class="iconbtn" id="noteAddBtn" title="사진 없이 글만 남기기">✏️ 글 추가</span></div>
+    <div id="noteAddBox" class="logcapbox hidden">
+      <textarea id="noteAddTa" class="logcapta" placeholder="오늘 남길 글을 적어보세요"></textarea>
+      <div class="logcaprow"><span class="logcapcancel" id="noteAddCancel">취소</span><span class="logcapsave" id="noteAddSave">저장</span></div>
+    </div>
     <div id="boardList"></div>
+  </div>
+</div>
+
+<div id="calModalBackdrop" class="hidden"></div>
+<div id="calModal" class="hidden">
+  <div class="calModalHead">
+    <button id="calModalPrev" type="button">‹</button>
+    <span id="calModalTitle"></span>
+    <button id="calModalNext" type="button">›</button>
+    <span id="calModalClose" title="닫기">✕</span>
+  </div>
+  <div id="calModalWeekdays"></div>
+  <div id="calModalGrid"></div>
+  <div id="calModalMultiBar" class="hidden">
+    <span id="calModalSelCount"></span>
+    <button id="calModalConfirm" type="button" class="btn-main">확인</button>
   </div>
 </div>
 
@@ -346,7 +397,11 @@
     stream:null,recorder:null,chunks:[],recTimer:null,recStart:0,
     pending:null, // {blob,type} — blob은 video면 단일 Blob, photo면 항상 배열
     photoSet:[], // 블로그 모드에서 셔터를 눌러 모아두는 사진들(카메라는 계속 켜진 채)
-    capOpen:{} // 등록된 글 캡션 수정 박스가 펼쳐져 있는지(id→bool, 2026-11-19)
+    capOpen:{}, // 등록된 글 캡션 수정 박스가 펼쳐져 있는지(id→bool, 2026-11-19)
+    calModalMode:null, // 'single'(날짜 이동) | 'multi'(블로그 내보내기용 다중선택), 2026-11-19
+    calModalYear:0, calModalMonth:0, // 달력 모달이 보고 있는 달(0-인덱스)
+    calModalSel:{}, // 다중선택된 날짜(YYYY-MM-DD→true)
+    calModalMarks:{} // 보고 있는 달에서 글/사진이 있는 날짜(YYYY-MM-DD→true)
   };
   var undoHist=[];
 
@@ -398,7 +453,6 @@
 
   function renderDay(){
     document.getElementById('dayTitleText').textContent=dayLabel(state.day);
-    document.getElementById('dayPicker').value=state.day;
     document.getElementById('dayToday').classList.toggle('hidden',state.day===todayISO());
     // 지금 보고 있는 날이 바뀌면, 업로드 패널의 "저장할 날짜"도 그 날을 기본값으로 따라감
     // (지난 날짜를 보고 있다가 사진을 올리면 자연스럽게 그 날짜에 담기게)
@@ -416,6 +470,7 @@
     var el=document.getElementById('boardList');
     if(!state.entries.length){el.innerHTML='<p class="boardempty">이 날은 아직 기록이 없어요</p>';return;}
     Promise.all(state.entries.map(function(e){
+      if(e.type==='note')return Promise.resolve({e:e,urls:[]}); // 글만 있는 엔트리는 미디어가 없어서 서명URL 조회를 안 함
       var paths=mediaPathList(e);
       return Promise.all(paths.map(function(p){
         return sb.storage.from('log').createSignedUrl(p,3600).then(function(r){return (r.data&&r.data.signedUrl)||'';});
@@ -425,18 +480,21 @@
         var e=x.e,urls=x.urls,ts=e.sort||Date.parse(e.created_at),stamp='<span class="logstamp">'+esc(fmtStamp(ts))+'</span>';
         var rot=e.rotate||0,isSq=(rot===90||rot===270),rotCls=rot?' rot'+rot:'';
         var media;
-        if(e.type==='video'){
+        if(e.type==='note'){
+          media='<p class="lognotebox">'+esc(e.caption||'')+'</p>';
+        }else if(e.type==='video'){
           media='<div class="logvidwrap'+(isSq?' sq':'')+'"><video class="logmedia'+rotCls+'" src="'+esc(urls[0]||'')+'" controls playsinline></video>'+stamp+(e.caption?'<div class="logcapover">'+esc(e.caption)+'</div>':'')+'</div>';
         }else if(urls.length>1){
           media='<div class="logmediagrid">'+urls.map(function(u){return '<div class="logmediagriditem"><img class="logmedia" src="'+esc(u)+'"></div>';}).join('')+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
         }else{
           media='<div class="logmediawrap'+(isSq?' sq':'')+'"><img class="logmedia'+rotCls+'" src="'+esc(urls[0]||'')+'">'+stamp+'</div>'+(e.caption?'<p class="logcap">'+esc(e.caption)+'</p>':'');
         }
-        var rotBtn=urls.length>1?'':'<span class="logrot" data-act="logrot" title="회전">↺</span>';
+        var rotBtn=(e.type==='note'||urls.length>1)?'':'<span class="logrot" data-act="logrot" title="회전">↺</span>';
         var countBadge=urls.length>1?'<span class="logmulti">'+urls.length+'장</span>':'';
-        var capBtn='<span class="logcapbtn" data-act="logcaptog" title="캡션 수정">'+(e.caption?'✎':'+ 캡션')+'</span>';
+        var capBtn='<span class="logcapbtn" data-act="logcaptog" title="'+(e.type==='note'?'글 수정':'캡션 수정')+'">'+(e.caption?'✎':'+ 캡션')+'</span>';
         var capBox=state.capOpen[e.id]?('<div class="logcapbox"><textarea class="logcapta" placeholder="캡션을 적어보세요">'+esc(e.caption||'')+'</textarea><div class="logcaprow"><span class="logcapcancel" data-act="logcapcancel">취소</span><span class="logcapsave" data-act="logcapsave">저장</span></div></div>'):'';
-        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span>'+countBadge+'<span class="logactions">'+rotBtn+capBtn+'<span class="logdel" data-act="logdel">✕ 지우기</span></span></div>'+media+capBox+'</div>';
+        var headIcon=e.type==='video'?'🎬':e.type==='note'?'📝':'📷';
+        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+headIcon+'</span>'+countBadge+'<span class="logactions">'+rotBtn+capBtn+'<span class="logdel" data-act="logdel">✕ 지우기</span></span></div>'+media+capBox+'</div>';
       }).join('');
     });
   }
@@ -491,14 +549,177 @@
     });
   });
 
-  // ===== 날짜로 바로 이동(캘린더) — 날짜 제목(dayTitle) 자체를 누르면 열림(2026-10-11) =====
-  // 2026-11-19: showPicker() 프록시 호출 방식을 버리고, #dayTitle 안에 덮어둔 진짜
-  // input(.dayip)이 탭을 직접 받게 함 — 별도 클릭 핸들러 불필요(네이티브 동작에 맡김).
-  var dayPickerEl=document.getElementById('dayPicker');
-  document.getElementById('dayTitle').title='탭해서 날짜 선택';
-  dayPickerEl.addEventListener('change',function(){
-    if(this.value){state.day=this.value;renderDay();}
+  // ===== 사진 없이 글만 남기기(2026-11-19) =====
+  var noteAddBtn=document.getElementById('noteAddBtn'),noteAddBox=document.getElementById('noteAddBox'),noteAddTa=document.getElementById('noteAddTa');
+  function saveNoteEntry(text,date){
+    if(!state.uid)return Promise.reject(new Error('로그인이 필요해요'));
+    var row={id:uid(),date:date||todayISO(),type:'note',media_path:'',caption:(text||'').trim(),sort:Date.now()};
+    return sb.from('log_entries').insert(row).then(function(r){if(r.error)throw r.error;return row;});
+  }
+  noteAddBtn.addEventListener('click',function(){
+    var opening=noteAddBox.classList.contains('hidden');
+    noteAddBox.classList.toggle('hidden');
+    if(opening){noteAddTa.value='';noteAddTa.focus();}
   });
+  document.getElementById('noteAddCancel').addEventListener('click',function(){noteAddBox.classList.add('hidden');noteAddTa.value='';});
+  document.getElementById('noteAddSave').addEventListener('click',function(){
+    var text=noteAddTa.value.trim();
+    if(!text){showToast('글을 입력해주세요');return;}
+    saveNoteEntry(text,state.day).then(function(){
+      noteAddBox.classList.add('hidden');noteAddTa.value='';
+      renderDay();
+      showToast(dayLabel(state.day)+'에 글을 남겼어요');
+    }).catch(function(err){showToast('저장 실패: '+(err&&err.message||err));});
+  });
+
+  // ===== 커스텀 달력 모달(2026-11-19) — 날짜 제목(dayTitle) 탭하면 단일 이동 모드로,
+  // 블로그 버튼(blogBtn)을 누르면 다중 선택 모드로 열림. 글/사진이 있는 날엔 점 표시. =====
+  var calModalBackdrop=document.getElementById('calModalBackdrop'),calModalEl=document.getElementById('calModal');
+  var calModalTitle=document.getElementById('calModalTitle'),calModalGrid=document.getElementById('calModalGrid'),calModalWeekdays=document.getElementById('calModalWeekdays');
+  var calModalMultiBar=document.getElementById('calModalMultiBar'),calModalSelCount=document.getElementById('calModalSelCount');
+  calModalWeekdays.innerHTML=DAY.map(function(d){return '<span>'+d+'</span>';}).join('');
+  function openCalModal(mode){
+    state.calModalMode=mode;
+    state.calModalSel={};
+    var d=new Date(state.day+'T00:00:00');
+    state.calModalYear=d.getFullYear();state.calModalMonth=d.getMonth();
+    calModalMultiBar.classList.toggle('hidden',mode!=='multi');
+    calModalBackdrop.classList.remove('hidden');calModalEl.classList.remove('hidden');
+    loadCalMarksAndRender();
+  }
+  function closeCalModal(){calModalBackdrop.classList.add('hidden');calModalEl.classList.add('hidden');}
+  calModalBackdrop.addEventListener('click',closeCalModal);
+  document.getElementById('calModalClose').addEventListener('click',closeCalModal);
+  function calMonthRange(y,m){
+    var start=y+'-'+pad(m+1)+'-01';
+    var lastDay=new Date(y,m+1,0);
+    var end=lastDay.getFullYear()+'-'+pad(lastDay.getMonth()+1)+'-'+pad(lastDay.getDate());
+    return {start:start,end:end};
+  }
+  function loadCalMarksAndRender(){
+    if(!state.uid){state.calModalMarks={};renderCalModalGrid();return;}
+    var r=calMonthRange(state.calModalYear,state.calModalMonth);
+    sb.from('log_entries').select('date').gte('date',r.start).lte('date',r.end).then(function(res){
+      var marks={};(res.data||[]).forEach(function(row){marks[row.date]=true;});
+      state.calModalMarks=marks;
+      renderCalModalGrid();
+    });
+  }
+  function renderCalModalGrid(){
+    var y=state.calModalYear,m=state.calModalMonth;
+    calModalTitle.textContent=y+'년 '+(m+1)+'월';
+    var first=new Date(y,m,1),startWd=first.getDay(),days=new Date(y,m+1,0).getDate();
+    var cells=[];
+    for(var i=0;i<startWd;i++)cells.push('<span class="calCell blank"></span>');
+    for(var day=1;day<=days;day++){
+      var ds=y+'-'+pad(m+1)+'-'+pad(day);
+      var isToday=ds===todayISO();
+      var isSel=!!state.calModalSel[ds];
+      var hasMark=!!state.calModalMarks[ds];
+      cells.push('<span class="calCell'+(isToday?' today':'')+(isSel?' sel':'')+'" data-date="'+ds+'">'+day+(hasMark?'<span class="calDot"></span>':'')+'</span>');
+    }
+    calModalGrid.innerHTML=cells.join('');
+    if(state.calModalMode==='multi'){
+      var n=Object.keys(state.calModalSel).filter(function(k){return state.calModalSel[k];}).length;
+      calModalSelCount.textContent=n+'일 선택됨';
+    }
+  }
+  document.getElementById('calModalPrev').addEventListener('click',function(){
+    state.calModalMonth--;if(state.calModalMonth<0){state.calModalMonth=11;state.calModalYear--;}
+    loadCalMarksAndRender();
+  });
+  document.getElementById('calModalNext').addEventListener('click',function(){
+    state.calModalMonth++;if(state.calModalMonth>11){state.calModalMonth=0;state.calModalYear++;}
+    loadCalMarksAndRender();
+  });
+  calModalGrid.addEventListener('click',function(e){
+    var cell=e.target.closest('.calCell[data-date]');if(!cell)return;
+    var ds=cell.dataset.date;
+    if(state.calModalMode==='single'){
+      state.day=ds;closeCalModal();renderDay();
+    }else{
+      state.calModalSel[ds]=!state.calModalSel[ds];
+      renderCalModalGrid();
+    }
+  });
+  document.getElementById('calModalConfirm').addEventListener('click',function(){
+    var dates=Object.keys(state.calModalSel).filter(function(k){return state.calModalSel[k];}).sort();
+    if(!dates.length){showToast('날짜를 먼저 선택해주세요');return;}
+    closeCalModal();
+    exportBlogDates(dates);
+  });
+  document.getElementById('dayTitle').title='탭해서 날짜 선택';
+  document.getElementById('dayTitle').addEventListener('click',function(){openCalModal('single');});
+  document.getElementById('blogBtn').addEventListener('click',function(){openCalModal('multi');});
+
+  // ===== 블로그용 내보내기 — 선택한 날짜들의 사진+캡션을 클립보드로 복사(2026-11-19) =====
+  function fetchEntriesForDates(dates){
+    return Promise.all(dates.map(function(d){
+      return sb.from('log_entries').select('*').eq('date',d).order('sort',{ascending:true}).then(function(r){return {date:d,rows:r.data||[]};});
+    })).then(function(days){
+      return Promise.all(days.map(function(day){
+        return Promise.all(day.rows.map(function(e){
+          if(e.type==='photo'){
+            var paths=mediaPathList(e);
+            return Promise.all(paths.map(function(p){
+              return sb.storage.from('log').createSignedUrl(p,3600).then(function(r){return (r.data&&r.data.signedUrl)||'';});
+            })).then(function(urls){return {e:e,urls:urls};});
+          }
+          return Promise.resolve({e:e,urls:[]});
+        })).then(function(items){return {date:day.date,items:items};});
+      }));
+    });
+  }
+  function buildBlogContent(days){
+    var htmlParts=[],textParts=[];
+    days.forEach(function(day){
+      htmlParts.push('<p><strong>'+esc(dayLabel(day.date))+'</strong></p>');
+      textParts.push('['+dayLabel(day.date)+']');
+      day.items.forEach(function(it){
+        var e=it.e,urls=it.urls;
+        if(e.type==='photo'){
+          urls.forEach(function(u){
+            if(!u)return;
+            htmlParts.push('<img src="'+esc(u)+'" style="max-width:100%"><br>');
+            textParts.push('[이미지] '+u);
+          });
+          if(e.caption){htmlParts.push('<p>'+esc(e.caption).replace(/\n/g,'<br>')+'</p>');textParts.push(e.caption);}
+        }else if(e.type==='video'){
+          htmlParts.push('<p>[영상]'+(e.caption?(' '+esc(e.caption)):'')+'</p>');
+          textParts.push('[영상]'+(e.caption?(' '+e.caption):''));
+        }else if(e.type==='note'){
+          if(e.caption){htmlParts.push('<p>'+esc(e.caption).replace(/\n/g,'<br>')+'</p>');textParts.push(e.caption);}
+        }
+      });
+      htmlParts.push('<hr>');textParts.push('');
+    });
+    return {html:htmlParts.join('\n'),text:textParts.join('\n')};
+  }
+  function copyToClipboardRich(html,text){
+    if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){
+      var item=new ClipboardItem({
+        'text/html':new Blob([html],{type:'text/html'}),
+        'text/plain':new Blob([text],{type:'text/plain'})
+      });
+      return navigator.clipboard.write([item]).then(function(){return 'rich';}).catch(function(){
+        return navigator.clipboard.writeText(text).then(function(){return 'text';}).catch(function(){return false;});
+      });
+    }else if(navigator.clipboard&&navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(text).then(function(){return 'text';}).catch(function(){return false;});
+    }
+    return Promise.resolve(false);
+  }
+  function exportBlogDates(dates){
+    showToast('내보낼 내용을 모으는 중…');
+    fetchEntriesForDates(dates).then(function(days){
+      var built=buildBlogContent(days);
+      return copyToClipboardRich(built.html,built.text);
+    }).then(function(res){
+      if(res==='rich')showToast(dates.length+'일치 이미지+캡션을 복사했어요 — 블로그에 붙여넣어보세요');
+      else if(res==='text')showToast(dates.length+'일치를 복사했어요(이미지는 링크로)');
+      else showToast('복사에 실패했어요');
+    }).catch(function(err){showToast('내보내기 실패: '+(err&&err.message||err));});
+  }
 
   // ===== 캡션 텍스트 검색 =====
   var searchToggleBtn=document.getElementById('searchToggleBtn'),searchPanel=document.getElementById('searchPanel'),
@@ -529,7 +750,8 @@
       if(!rows.length){searchResults.innerHTML='<div class="searchempty">검색 결과가 없어요</div>';return;}
       searchResults.innerHTML=rows.map(function(e){
         var ts=e.sort||Date.parse(e.created_at);
-        return '<div class="searchresitem" data-date="'+e.date+'"><span class="srdate">'+esc(dmShort(e.date))+' '+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span><span class="srcap">'+esc(e.caption||'(캡션 없음)')+'</span></div>';
+        var srIcon=e.type==='video'?'🎬':e.type==='note'?'📝':'📷';
+        return '<div class="searchresitem" data-date="'+e.date+'"><span class="srdate">'+esc(dmShort(e.date))+' '+fmtTime(ts)+'</span><span>'+srIcon+'</span><span class="srcap">'+esc(e.caption||'(캡션 없음)')+'</span></div>';
       }).join('');
     });
   }
