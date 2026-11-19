@@ -158,6 +158,19 @@
   /* video 태그의 네이티브 컨트롤바(하단)와 안 겹치게 그 위쪽에 여백을 둠 */
   .logcapover{position:absolute;left:0;right:0;bottom:34px;background:linear-gradient(transparent,rgba(0,0,0,.78));color:#fff;font-size:13px;padding:22px 12px 8px;pointer-events:none;white-space:pre-wrap}
   .logcap{margin:8px 2px 0;font-size:13px;color:var(--text);white-space:pre-wrap}
+  .logcap.logcapempty{color:var(--faint);font-style:italic}
+  /* 등록된 사진/영상에도 캡션을 나중에 달거나 고칠 수 있게 — 헤더에 ✎(캡션 있으면)/
+     + 캡션(없으면) 버튼, 누르면 그 글 아래로 입력 박스가 펼쳐짐(회전 버튼과 같은
+     .logenthead 줄, 탭 영역은 회전 버튼과 같은 원칙으로 넉넉하게)(2026-11-19) */
+  .logenthead .logcapbtn{cursor:pointer;color:var(--faint);font-family:var(--pixel);font-size:11px;padding:6px 8px;margin:-6px 0}
+  .logenthead .logcapbtn:hover{color:var(--accent-2)}
+  .logcapbox{border:1.5px solid var(--line);border-top:0;border-radius:0 0 16px 16px;padding:10px 13px;background:var(--panel);display:flex;flex-direction:column;gap:8px}
+  .logcapta{width:100%;min-height:64px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;font-family:var(--sans);color:var(--text);background:var(--bg);resize:vertical}
+  .logcapta:focus{outline:none;border-color:var(--accent)}
+  .logcaprow{display:flex;gap:10px;justify-content:flex-end}
+  .logcapsave,.logcapcancel{font-family:var(--pixel);font-size:11px;cursor:pointer;padding:5px 11px;border-radius:999px;border:1.5px solid var(--line)}
+  .logcapsave{color:var(--on-accent);background:var(--accent);border-color:var(--accent)}
+  .logcapcancel{color:var(--muted)}
   /* 옛날 디지털카메라 각인 날짜(digicam date stamp) — 모노스페이스+앰버색은 그대로 유지 */
   .logstamp{position:absolute;right:10px;bottom:10px;font-family:var(--mono);font-weight:600;font-size:11px;color:var(--amber);text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none;letter-spacing:.02em}
   /* 영상은 하단에 네이티브 컨트롤바가 있어서 각인 날짜를 위쪽 모서리로 올림 */
@@ -332,7 +345,8 @@
   var state={uid:null,mode:'camera',capType:'photo',day:todayISO(),entries:[],
     stream:null,recorder:null,chunks:[],recTimer:null,recStart:0,
     pending:null, // {blob,type} — blob은 video면 단일 Blob, photo면 항상 배열
-    photoSet:[] // 블로그 모드에서 셔터를 눌러 모아두는 사진들(카메라는 계속 켜진 채)
+    photoSet:[], // 블로그 모드에서 셔터를 눌러 모아두는 사진들(카메라는 계속 켜진 채)
+    capOpen:{} // 등록된 글 캡션 수정 박스가 펼쳐져 있는지(id→bool, 2026-11-19)
   };
   var undoHist=[];
 
@@ -420,7 +434,9 @@
         }
         var rotBtn=urls.length>1?'':'<span class="logrot" data-act="logrot" title="회전">↺</span>';
         var countBadge=urls.length>1?'<span class="logmulti">'+urls.length+'장</span>':'';
-        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span>'+countBadge+'<span class="logactions">'+rotBtn+'<span class="logdel" data-act="logdel">✕ 지우기</span></span></div>'+media+'</div>';
+        var capBtn='<span class="logcapbtn" data-act="logcaptog" title="캡션 수정">'+(e.caption?'✎':'+ 캡션')+'</span>';
+        var capBox=state.capOpen[e.id]?('<div class="logcapbox"><textarea class="logcapta" placeholder="캡션을 적어보세요">'+esc(e.caption||'')+'</textarea><div class="logcaprow"><span class="logcapcancel" data-act="logcapcancel">취소</span><span class="logcapsave" data-act="logcapsave">저장</span></div></div>'):'';
+        return '<div class="logent" data-id="'+e.id+'"><div class="logenthead"><span class="logtime">'+fmtTime(ts)+'</span><span>'+(e.type==='video'?'🎬':'📷')+'</span>'+countBadge+'<span class="logactions">'+rotBtn+capBtn+'<span class="logdel" data-act="logdel">✕ 지우기</span></span></div>'+media+capBox+'</div>';
       }).join('');
     });
   }
@@ -435,6 +451,31 @@
       rentry.rotate=newRot;renderBoard();
       sb.from('log_entries').update({rotate:newRot}).eq('id',rid).then(function(r){
         if(r.error){rentry.rotate=oldRot;renderBoard();showToast('회전 저장 실패');}
+      });
+      return;
+    }
+    // 등록된 글의 캡션 추가/수정(2026-11-19) — ✎(또는 +캡션) 누르면 그 글 아래로
+    // 입력 박스가 펼쳐짐(회전 버튼과 같은 "그 자리 토글" 패턴), 저장/취소로 닫힘.
+    var capTogEl=e.target.closest('[data-act="logcaptog"]');
+    if(capTogEl){
+      var ctId=capTogEl.closest('[data-id]').dataset.id;
+      state.capOpen[ctId]=!state.capOpen[ctId];renderBoard();
+      return;
+    }
+    var capCancelEl=e.target.closest('[data-act="logcapcancel"]');
+    if(capCancelEl){
+      state.capOpen[capCancelEl.closest('[data-id]').dataset.id]=false;renderBoard();
+      return;
+    }
+    var capSaveEl=e.target.closest('[data-act="logcapsave"]');
+    if(capSaveEl){
+      var csRow=capSaveEl.closest('[data-id]'),csId=csRow.dataset.id;
+      var csEntry=state.entries.filter(function(x){return x.id===csId;})[0];if(!csEntry)return;
+      var newCap=(csRow.querySelector('.logcapta').value||'').trim();
+      var oldCap=csEntry.caption;
+      csEntry.caption=newCap;state.capOpen[csId]=false;renderBoard();
+      sb.from('log_entries').update({caption:newCap}).eq('id',csId).then(function(r){
+        if(r.error){csEntry.caption=oldCap;renderBoard();showToast('캡션 저장 실패');}
       });
       return;
     }
