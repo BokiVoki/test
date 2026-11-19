@@ -88,21 +88,25 @@
   /* 2026-10-11: "캘린더 이동이 잘 안눌리는데, 날짜 누르면 뜨게 변경 + 누르는 부위 넓게" —
      작은 📅 아이콘 대신 날짜 제목(h2) 자체를 큰 탭 영역으로 만듦(가운데 정렬+flex:1이라
      원래도 가로로 넓은 자리를 차지하고 있어서, 세로 패딩만 넉넉히 줘도 탭 영역이
-     충분히 커짐 — 기존 .iconbtn 16px 정사각형과 비교해 훨씬 큼). */
-  #dayTitle{cursor:pointer;padding:9px 6px;border-radius:10px;}
+     충분히 커짐 — 기존 .iconbtn 16px 정사각형과 비교해 훨씬 큼).
+     2026-11-19: "날짜 누르면 달력 나오는거 사라졌어"(실기기에서 눌러도 무반응) — 처음엔
+     showPicker()를 JS로 "대신" 호출해주는 프록시 방식(화면 밖 1px 숨김 input)이었는데,
+     하루앱(index.html)의 마감일 피커가 2026-10-03에 바로 이 방식 때문에 실기기에서
+     똑같이 안 열려서 "셀마다 실제 input을 그 자리에 투명 오버레이"로 바꿔 고친 전례가
+     있음 — 여기도 같은 구조적 결함(프록시 호출은 실브라우저에서 신뢰 못 함)이라 같은
+     해법 적용: #dayTitle 안에 진짜 <input type="date">를 꽉 채워 투명하게 덮어서,
+     사용자 탭이 그 input에 직접 닿아 브라우저 네이티브 동작으로 피커가 열리게 함. */
+  #dayTitle{position:relative;cursor:pointer;padding:9px 6px;border-radius:10px;}
   #dayTitle:hover,#dayTitle:active{background:var(--sunk);color:var(--accent-2)}
+  .dayip{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;-webkit-appearance:none;-moz-appearance:none;appearance:none;display:block;cursor:pointer}
   .daynav .today{font-family:var(--pixel);font-size:11px;color:var(--accent-2);border-bottom:1px dashed var(--accent-2);cursor:pointer}
   .daynavicons{display:flex;align-items:center;gap:4px}
   .iconbtn{font-size:16px;line-height:1;cursor:pointer;padding:4px 6px;color:var(--muted)}
-  /* showPicker()가 동작하려면 실제로 "렌더링"은 돼 있어야 함(display:none은 안 됨) —
-     화면엔 안 보이지만 박스는 있게 1px 크기+투명으로만 숨김. 아이콘과 안 겹치게
-     오버레이 방식 대신 이 방식을 씀(오버레이는 date input의 최소 렌더 폭이 아이콘보다
-     넓어서 옆 아이콘 클릭까지 가로채는 버그가 있었음, 2026-09-30). */
-  .datepick-hidden{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;border:0;padding:0}
   /* 업로드 패널·캡션 화면에서 "오늘"로 고정돼있던 저장 날짜를 바꿀 수 있게 — 지난 날짜에도
      사진·캡션을 올릴 수 있게 하는 날짜 선택 버튼(2026-10-01). 기본값은 지금 보고 있는
-     게시판 날짜(state.day)를 따라가고, 눌러서 showPicker()로 자유롭게 바꿀 수 있음. */
-  .datefield{font-family:var(--pixel);font-size:11.5px;color:var(--muted);background:none;border:0;cursor:pointer;padding:2px 0;display:inline-flex;align-items:center;gap:4px;align-self:flex-start}
+     게시판 날짜(state.day)를 따라가고, .datefield에 덮어둔 진짜 input(.dayip, 2026-11-19)을
+     직접 탭해서 바꿈. */
+  .datefield{position:relative;font-family:var(--pixel);font-size:11.5px;color:var(--muted);background:none;border:0;cursor:pointer;padding:2px 0;display:inline-flex;align-items:center;gap:4px;align-self:flex-start}
   .datefield:hover{color:var(--accent-2)}
   .iconbtn:hover{color:var(--accent-2)}
   .iconbtn[aria-pressed="true"]{color:var(--accent-2)}
@@ -256,8 +260,7 @@
 
     <div id="uploadPanel" class="hardbox">
       <div class="uphead">📷 사진 + 글 올리기</div>
-      <button type="button" id="upCalBtn" class="datefield" title="저장할 날짜 바꾸기">📅 <span id="upDateLabel"></span></button>
-      <input id="upDatePicker" type="date" class="datepick-hidden">
+      <span id="upCalBtn" class="datefield" role="button" tabindex="0" title="저장할 날짜 바꾸기">📅 <span id="upDateLabel"></span><input id="upDatePicker" type="date" class="dayip"></span>
       <input id="upFile" type="file" accept="image/*" multiple>
       <div id="upPreviewWrap"></div>
       <textarea id="upCaption" placeholder="캡션을 적어보세요"></textarea>
@@ -266,14 +269,13 @@
 
     <div class="daynav">
       <button id="dayPrev">‹</button>
-      <h2 id="dayTitle"></h2>
+      <h2 id="dayTitle"><span id="dayTitleText"></span><input id="dayPicker" type="date" class="dayip"></h2>
       <button id="dayNext">›</button>
       <span class="daynavicons">
         <span class="iconbtn" id="searchToggleBtn" title="캡션 검색" aria-pressed="false">🔍</span>
       </span>
       <span class="today hidden" id="dayToday">오늘로</span>
     </div>
-    <input id="dayPicker" type="date" class="datepick-hidden">
     <div id="searchPanel" class="searchpanel hardbox hidden">
       <input id="searchInput" type="text" placeholder="캡션 검색…">
       <div id="searchResults"></div>
@@ -309,8 +311,7 @@
 <div id="previewOverlay" class="hidden">
   <div id="previewMediaWrap"></div>
   <div id="previewForm">
-    <button type="button" id="previewCalBtn" class="datefield" title="저장할 날짜 바꾸기">📅 <span id="previewDateLabel"></span></button>
-    <input id="previewDatePicker" type="date" class="datepick-hidden">
+    <span id="previewCalBtn" class="datefield" role="button" tabindex="0" title="저장할 날짜 바꾸기">📅 <span id="previewDateLabel"></span><input id="previewDatePicker" type="date" class="dayip"></span>
     <textarea id="previewCaption" placeholder="캡션을 적어보세요" rows="2"></textarea>
     <div id="previewBtns">
       <button id="retakeBtn" type="button">다시</button>
@@ -382,7 +383,8 @@
   document.getElementById('dayToday').addEventListener('click',function(){state.day=todayISO();renderDay();});
 
   function renderDay(){
-    document.getElementById('dayTitle').textContent=dayLabel(state.day);
+    document.getElementById('dayTitleText').textContent=dayLabel(state.day);
+    document.getElementById('dayPicker').value=state.day;
     document.getElementById('dayToday').classList.toggle('hidden',state.day===todayISO());
     // 지금 보고 있는 날이 바뀌면, 업로드 패널의 "저장할 날짜"도 그 날을 기본값으로 따라감
     // (지난 날짜를 보고 있다가 사진을 올리면 자연스럽게 그 날짜에 담기게)
@@ -449,15 +451,12 @@
   });
 
   // ===== 날짜로 바로 이동(캘린더) — 날짜 제목(dayTitle) 자체를 누르면 열림(2026-10-11) =====
+  // 2026-11-19: showPicker() 프록시 호출 방식을 버리고, #dayTitle 안에 덮어둔 진짜
+  // input(.dayip)이 탭을 직접 받게 함 — 별도 클릭 핸들러 불필요(네이티브 동작에 맡김).
   var dayPickerEl=document.getElementById('dayPicker');
-  var dayTitleEl=document.getElementById('dayTitle');
-  dayTitleEl.title='탭해서 날짜 선택';
-  dayTitleEl.addEventListener('click',function(){
-    if(dayPickerEl.showPicker){try{dayPickerEl.showPicker();return;}catch(e){}}
-    dayPickerEl.focus();dayPickerEl.click();
-  });
+  document.getElementById('dayTitle').title='탭해서 날짜 선택';
   dayPickerEl.addEventListener('change',function(){
-    if(this.value){state.day=this.value;this.value='';renderDay();}
+    if(this.value){state.day=this.value;renderDay();}
   });
 
   // ===== 캡션 텍스트 검색 =====
@@ -795,25 +794,18 @@
   }
 
   // ===== 지난 날짜에도 저장 가능하게 — 업로드/캡션 화면 공용 날짜 선택 헬퍼(2026-10-01) =====
-  // showPicker() 트릭은 날짜 이동 바의 📅(dayPickerEl)과 같은 방식: 화면엔 숨기고(1px+opacity:0+
-  // pointer-events:none) 버튼 클릭 시 그 input의 showPicker()만 불러 네이티브 캘린더를 띄움.
-  var upCalBtn=document.getElementById('upCalBtn'),upDatePickerEl=document.getElementById('upDatePicker'),upDateLabel=document.getElementById('upDateLabel');
+  // 2026-11-19: showPicker() 프록시 호출 방식을 버리고(실기기에서 안 열리는 문제 재발 —
+  // 날짜 이동 바 #dayTitle과 같은 원인·같은 해법), .datefield 안에 덮어둔 진짜 input(.dayip)이
+  // 탭을 직접 받게 함 — <button>은 <input>을 못 담는 HTML 제약이 있어서 <span role="button">으로.
+  var upDatePickerEl=document.getElementById('upDatePicker'),upDateLabel=document.getElementById('upDateLabel');
   var upTargetDate=state.day;
   function setUpDate(d){upTargetDate=d;upDateLabel.textContent=dayLabel(d);upDatePickerEl.value=d;}
-  upCalBtn.addEventListener('click',function(){
-    if(upDatePickerEl.showPicker){try{upDatePickerEl.showPicker();return;}catch(e){}}
-    upDatePickerEl.focus();upDatePickerEl.click();
-  });
   upDatePickerEl.addEventListener('change',function(){if(this.value)setUpDate(this.value);});
   setUpDate(state.day);
 
-  var previewCalBtn=document.getElementById('previewCalBtn'),previewDatePickerEl=document.getElementById('previewDatePicker'),previewDateLabel=document.getElementById('previewDateLabel');
+  var previewDatePickerEl=document.getElementById('previewDatePicker'),previewDateLabel=document.getElementById('previewDateLabel');
   var previewTargetDate=state.day;
   function setPreviewDate(d){previewTargetDate=d;previewDateLabel.textContent=dayLabel(d);previewDatePickerEl.value=d;}
-  previewCalBtn.addEventListener('click',function(){
-    if(previewDatePickerEl.showPicker){try{previewDatePickerEl.showPicker();return;}catch(e){}}
-    previewDatePickerEl.focus();previewDatePickerEl.click();
-  });
   previewDatePickerEl.addEventListener('change',function(){if(this.value)setPreviewDate(this.value);});
 
   // ===== 데스크톱 업로드 =====
