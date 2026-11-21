@@ -490,6 +490,10 @@
   .pjtog[aria-expanded="false"] .chev{transform:rotate(-90deg)}
   .pjcat{font:inherit;font-size:11px;color:var(--muted);background:var(--panel);border:1px solid var(--line-2);padding:2px 4px;margin-left:8px;cursor:pointer}
   .pjbody.collapsed{display:none}.pjbody{padding-bottom:6px}
+  .duetog{cursor:pointer}
+  .duetog .chev{margin-left:auto;color:var(--faint);font-size:11px;transition:transform .15s}
+  .duetog[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+  .duewrap.collapsed{display:none}
   .arch{color:var(--faint);cursor:pointer;font-size:11px;opacity:0;border:0;background:none;font-family:inherit;padding-left:8px}tr:hover .arch{opacity:1}tr.done .arch{opacity:.75;color:var(--accent)}
   .pjhandle{cursor:grab;color:var(--faint);font-size:12px;margin-right:2px;user-select:none}
   .pjdel{color:var(--faint);cursor:pointer;font-size:12px;padding:0 6px;opacity:0}.pjsec:hover .pjdel{opacity:.9}.pjdel:hover{color:#c0392b}
@@ -779,8 +783,8 @@
         <section class="blk todayzone">
           <div class="bhead"><h2>오늘의 집중</h2><div class="r">오늘 <input class="hours" id="hours" type="number" min="0" max="16" value="4">시간 <span class="budget" id="budget"></span> <button class="btn-s hidden" id="archAll" data-act="archive-all"></button></div></div>
           <table class="tbl" id="todayTable"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>회고</th><th>마감</th><th class="num">예상</th><th>중요</th></tr></thead><tbody id="todayBody"></tbody></table>
-          <div class="bhead" style="margin-top:14px"><h2>마감 임박 · 밀린 것</h2></div>
-          <table class="tbl"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>마감</th><th class="num">상태</th><th>중요</th></tr></thead><tbody id="dueBody"></tbody></table>
+          <div class="bhead duetog" id="dueTog" style="margin-top:14px" role="button" tabindex="0" aria-expanded="true"><h2>마감 임박 · 밀린 것</h2><span class="chev">▾</span></div>
+          <div class="duewrap"><table class="tbl"><thead><tr><th></th><th>할일</th><th>프로젝트</th><th>마감</th><th class="num">상태</th><th>중요</th></tr></thead><tbody id="dueBody"></tbody></table></div>
           <div id="homeRoutineTracker"></div>
         </section>
       </div>
@@ -2698,6 +2702,10 @@
     var el=e.target.closest('[data-hs]');if(!el)return;
     document.querySelectorAll('#homeSeg [data-hs]').forEach(function(x){x.classList.toggle('on',x===el);});
     document.getElementById('homeGrid').classList.toggle('show-board',el.dataset.hs==='board');});
+  document.getElementById('dueTog').addEventListener('click',function(){
+    var open=this.getAttribute('aria-expanded')==='true';
+    this.setAttribute('aria-expanded',!open);
+    this.nextElementSibling.classList.toggle('collapsed',open);});
   document.getElementById('hours').addEventListener('input',function(){state.hours=+this.value||0;savePrefs();renderToday();});
 
   function capture(inp,toToday){var v=inp.value.trim();if(!v)return;var t={id:uid(),title:v,ws:state.ws,project:'',due:'',today:!!toToday,done:false,imp:1,est:0,repeat:'none',repDay:'',bucket:toToday?'active':'inbox',lastDone:'',memoId:null,sort:0,subs:[],doneAt:'',archived:false,month:state.month||thisMonth(),review:''};state.todos.unshift(t);putTodo(t);inp.value='';if(toToday){renderAll();showToast('오늘의 집중에 담았어요');}else{renderInbox();showToast('주머니에 담았어요');}}
