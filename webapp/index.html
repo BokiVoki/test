@@ -1078,7 +1078,7 @@
 
   // DB mapping
   function sid(){return 's'+Math.random().toString(36).slice(2,8);}
-  function normSubs(arr){return (Array.isArray(arr)?arr:[]).map(function(s){return {t:s.t||'',d:!!s.d,id:s.id||sid(),due:s.due||'',stage:(typeof s.stage==='number'?s.stage:0),memoId:s.memoId||null,today:!!s.today,remindAt:s.remindAt||null,reminded:!!s.reminded};});}
+  function normSubs(arr){return (Array.isArray(arr)?arr:[]).map(function(s){return {t:s.t||'',d:!!s.d,id:s.id||sid(),due:s.due||'',stage:(typeof s.stage==='number'?s.stage:0),memoId:s.memoId||null,today:!!s.today,remindAt:s.remindAt||null,reminded:!!s.reminded,doneAt:s.doneAt||''};});}
   function dailyResetToday(){                 // 날짜가 바뀌면 "오늘" 지정을 전부 리셋(부모+하위) + 매일 루틴 체크 리셋 + 매일/주기/요일 상시업무 시딩
     var ti=todayISO();
     if(state.settings.todayResetDate===ti)return;
@@ -1699,6 +1699,8 @@
   }
   // ===== v2: 저널 =====
   function jTodoDone(d){return state.todos.filter(function(t){return t.ws===state.ws&&t.doneAt&&t.doneAt.slice(0,10)===d;});}
+  // 그날 하위 항목(subs)이 체크된 부모 할일 — 부모 자체는 아직 안 끝났어도(다른 하위가 남아있어도) 잡아냄
+  function jSubDone(d){return state.todos.filter(function(t){return t.ws===state.ws&&(t.subs||[]).some(function(s){return s.doneAt&&s.doneAt.slice(0,10)===d;});});}
   function jProg(d){return state.progress.filter(function(p){if(p.date!==d)return false;var t=tById(p.todoId);return !t||t.ws===state.ws;});}
   // 프로젝트 성격(일상/업무/개인작업) — settings.projCategory에 {프로젝트명:성격} 저장, 없으면 미분류(주머니도 여기 포함)
   var PJ_CATS=['일상','업무','개인작업'];
@@ -1774,13 +1776,20 @@
     var subs=(t.subs||[]).map(function(s){return '  '+(s.d?'✓':'☐')+' '+(s.t||'')+(s.due?' ('+mmdd(s.due)+')':'');});
     return subs.length?(line+'\n'+subs.join('\n')):line;
   }
-  // 그 주(월~일) 완료 항목(A) · 다음 주 마감 예정(B, 하위항목 마감도 포함) · 그 주 저널 메모(C) — 복붙용 리포트
+  // 그 주(월~일) 완료 항목(A, 하위항목 완료도 포함) · 다음 주 마감 예정(B, 하위항목 마감도 포함) · 그 주 저널 메모(C) — 복붙용 리포트
   // 2026-11-17: "주간리포트 복사 버튼에는 일상 투두는 안들어가야해" — 일/업무 보고용 리포트라
   // 일상 그룹(homeBucketOf==='daily', 개인작업 포함) 투두는 A·B 둘 다에서 뺌.
+  // 2026-11-21: "A,B,C 리포트에 하위항목 완료도 포함시켜줘" — A는 그동안 부모(t.doneAt)만 봐서, 하위
+  // 항목만 체크하고 부모는 아직 안 끝낸 주에는 아무것도 안 잡혔음. jSubDone(d)로 그 주에 체크된
+  // 하위 항목이 있는 부모도 같이 끌어와서(부모가 이미 A에 있으면 중복 없이 스킵) reportLines()가
+  // 어차피 전체 하위 목록을 ✓/☐로 보여주니 그대로 재사용.
   function buildWeekReport(monday){
     var days=weekDates(monday),nextDays=weekDates(addDaysISO(monday,7));
     var seenA={},doneItems=[];
-    days.forEach(function(d){jTodoDone(d).forEach(function(t){if(!seenA[t.id]&&homeBucketOf(t)!=='daily'){seenA[t.id]=1;doneItems.push(t);}});});
+    days.forEach(function(d){
+      jTodoDone(d).forEach(function(t){if(!seenA[t.id]&&homeBucketOf(t)!=='daily'){seenA[t.id]=1;doneItems.push(t);}});
+      jSubDone(d).forEach(function(t){if(!seenA[t.id]&&homeBucketOf(t)!=='daily'){seenA[t.id]=1;doneItems.push(t);}});
+    });
     var nextSet={};nextDays.forEach(function(x){nextSet[x]=1;});
     var bItems=wsTodos().filter(function(t){
       if(t.done)return false;
@@ -3131,7 +3140,7 @@
       putCalRoutine(h2);crOpen[h2.id]=false;renderCalRoutines();
       showToast('루틴 주기를 수정했어요');}
     else if(act==='subtog'&&t){expanded[t.id]=!expanded[t.id];renderToday();renderProjects();}
-    else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;putTodo(t);renderToday();renderProjects();renderDue();}}
+    else if(act==='subck'&&t){var si=+el.dataset.i;if(t.subs&&t.subs[si]){t.subs[si].d=!t.subs[si].d;t.subs[si].doneAt=t.subs[si].d?new Date().toISOString():'';putTodo(t);renderToday();renderProjects();renderDue();}}
     else if(act==='subdel'&&t){var sj=+el.dataset.i;if(t.subs&&t.subs[sj]){t.subs.splice(sj,1);putTodo(t);renderToday();renderProjects();renderDue();}}
     else if(act==='nest'&&t){startNest(t.id);}
     else if(act==='proj-rename'){e.stopPropagation();var oldn=el.dataset.proj,nn=(prompt('태그 이름 변경',oldn)||'').trim();if(!nn||nn===oldn)return;
